@@ -10,6 +10,8 @@ from datetime import datetime, timedelta
 import math
 import concurrent.futures
 import numpy as np
+import json
+import os
 
 st.set_page_config(
     page_title="Erzincan Deprem Radari",
@@ -400,6 +402,28 @@ st.markdown(f"""
   html, body, .stApp {{ background: {BG}; color: {TEXT}; }}
   .block-container {{ padding-top: 0.8rem !important; }}
 
+  /* Autorefresh sırasında sayfa soluklaşmasın — tüm seçicileri kapsa */
+  [data-testid="stAppViewContainer"],
+  [data-testid="stMain"],
+  [data-testid="stMainBlockContainer"],
+  .stApp,
+  .main,
+  section.main,
+  .block-container {{
+    opacity: 1 !important;
+    transition: none !important;
+    animation: none !important;
+  }}
+  [data-testid="stStatusWidget"],
+  [data-testid="stConnectionStatus"],
+  div[class*="ConnectionStatus"] {{ display: none !important; }}
+
+  /* Üst sağdaki Streamlit header'ı (Deploy butonu + hamburger menüsü) gizle */
+  [data-testid="stHeader"] {{ display: none !important; }}
+  header[data-testid="stHeader"] {{ visibility: hidden !important; height: 0 !important; }}
+  #MainMenu {{ visibility: hidden !important; }}
+  [data-testid="stDecoration"] {{ display: none !important; }}
+
   .radar-header {{
     background: linear-gradient(135deg, {BG3} 0%, {BG2} 100%);
     border: 1px solid {BORDER}; border-radius: 12px;
@@ -458,7 +482,7 @@ with st.sidebar:
         st.rerun()
 
     st.markdown("---")
-    radius_km = st.slider("Yaricap (km)", 50, 600, 250, 25)
+    radius_km = st.slider("Yaricap (km)", 50, 600, 100, 10)
     min_mag   = st.slider("Min. Buyukluk", 0.5, 5.0, 1.0, 0.5)
 
     ZAMAN_SECENEKLER = {
@@ -486,7 +510,7 @@ with st.sidebar:
         days_label  = zaman_secim
 
     refresh_s = st.selectbox("Otomatik Yenileme",
-                              [30, 60, 120, 300],
+                              [60, 30,60,120,180,240,300],
                               format_func=lambda x: f"Her {x} saniye")
 
     st.markdown("---")
@@ -560,7 +584,7 @@ big4    = df[df["buyukluk"] >= 4.0]
 c1, c2, c3, c4, c5, c6 = st.columns(6)
 boxes = [
     (c1, len(df),                        "#90caf9", "Toplam"),
-    (c2, len(last24h),                   "#fff176", "Son 24 Saat"),
+    (c2, len(last24h),                   "#ffb74d", "Son 24 Saat"),
     (c3, len(last1h),                    "#a5d6a7", "Son 1 Saat"),
     (c4, f"M{df['buyukluk'].max():.1f}", mag_color(df["buyukluk"].max()), "En Buyuk"),
     (c5, len(big4),                      "#ef9a9a", "M4.0+"),
@@ -580,109 +604,54 @@ st.markdown("<br>", unsafe_allow_html=True)
 ESRI_SAT    = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
 ESRI_LABELS = "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
 
-# Türkiye aktif fay hatları (basitleştirilmiş segmentler, AFAD/MTA kaynaklı)
-FAULT_LINES = [
-    {
-        "name": "Kuzey Anadolu Fayı (KAF)",
-        "color": "#ff3333",
-        "width": 2.5,
-        "coords": [
-            # Karlıova triple junction → Erzincan pull-apart havzası
-            (39.38, 41.01),
-            (39.48, 40.72),
-            (39.58, 40.42),
-            (39.65, 40.10),
-            (39.70, 39.80),
-            (39.73, 39.49),   # Erzincan şehri — fay üzerinde
-            # Erzincan → Refahiye → Suşehri
-            (39.82, 39.05),
-            (39.91, 38.78),   # Refahiye
-            (40.05, 38.42),
-            (40.16, 38.09),   # Suşehri
-            (40.28, 37.87),
-            (40.44, 37.55),   # Koyulhisar
-            # Niksar → Ladik → Osmancık
-            (40.59, 36.95),   # Niksar
-            (40.63, 36.55),
-            (40.81, 36.20),
-            (40.91, 35.87),   # Ladik
-            (40.97, 35.40),
-            (40.97, 34.81),   # Osmancık
-            # Osmancık → Gerede → Düzce
-            (40.93, 34.30),
-            (40.87, 33.62),   # Ilgaz civarı
-            (40.80, 32.19),   # Gerede
-            (40.74, 31.62),
-            (40.84, 31.17),   # Düzce (1999 depremi segmenti)
-            # Düzce → İzmit → Marmara
-            (40.77, 30.53),   # Adapazarı/Sapanca
-            (40.77, 29.94),   # İzmit (1999 depremi)
-            (40.78, 29.30),
-            (40.75, 28.65),
-            (40.65, 28.10),
-            (40.55, 27.50),
-        ],
-    },
-    {
-        "name": "Dogu Anadolu Fayi (DAF)",
-        "color": "#ff8800",
-        "width": 2.5,
-        "coords": [
-            (39.40, 40.75),
-            (38.95, 40.20),
-            (38.75, 39.80),
-            (38.55, 39.30),
-            (38.42, 38.90),
-            (38.35, 38.45),
-            (38.20, 38.00),
-            (38.05, 37.65),
-            (37.85, 37.25),
-            (37.60, 36.90),
-            (37.35, 36.65),
-            (37.10, 36.45),
-            (36.85, 36.25),
-            (36.65, 36.15),
-        ],
-    },
-    {
-        "name": "Erzincan Fay Zonu",
-        "color": "#ff66ff",
-        "width": 1.8,
-        "coords": [
-            (39.85, 40.30), (39.80, 39.90), (39.73, 39.49),
-            (39.60, 39.10), (39.45, 38.75),
-        ],
-    },
-    {
-        "name": "Ovacik Fayi",
-        "color": "#ffdd00",
-        "width": 1.5,
-        "coords": [
-            (39.35, 38.95), (39.20, 38.70), (39.05, 38.45),
-            (38.90, 38.20), (38.75, 38.00),
-        ],
-    },
-    {
-        "name": "Yedisu-Karliova-Bingol Hatti (KAF-DAF kavşağı)",
-        "color": "#00e5ff",
-        "width": 2.2,
-        "coords": [
-            # KAF doğu kolu: Erzincan → Refahiye → Yedisu → Karlıova
-            (39.73, 39.49),   # Erzincan
-            (39.72, 39.80),
-            (39.70, 40.10),   # Refahiye civarı
-            (39.60, 40.35),   # Yedisu
-            (39.50, 40.58),
-            (39.40, 40.78),
-            (39.38, 41.01),   # Karlıova triple junction
-            # Karlıova → Bingöl (DAF kuzeyi)
-            (39.20, 40.85),
-            (39.05, 40.68),
-            (38.95, 40.55),
-            (38.88, 40.50),   # Bingöl
-        ],
-    },
-]
+# Fay hatları: MTA Türkiye Diri Fay Haritası 2013 (resmi, 14.500+ segment)
+# Kaynak: mta.gov.tr/v3.0/sayfalar/hizmetler/doc/DFY_GEO_WGS84.zip
+def fault_color(kayma):
+    k = (kayma or "").upper()
+    if k.startswith("SAD"): return "#ff3333"   # sağ-yanal (KAF tipi) — kırmızı
+    if k.startswith("SOD"): return "#ff8800"   # sol-yanal (DAF tipi) — turuncu
+    if k.startswith("T"):   return "#00bbff"   # ters — mavi
+    if k.startswith("AÇ"):  return "#aa66ff"   # açılma çatlağı — mor
+    if k.startswith("N"):   return "#ffdd00"   # normal — sarı
+    if "SAD" in k:          return "#ff5577"
+    if "SOD" in k:          return "#ffaa44"
+    return "#cccccc"
+
+@st.cache_data(show_spinner=False)
+def load_fault_lines():
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "turkey_faults.geojson")
+    if not os.path.exists(path):
+        return []
+    with open(path, "r", encoding="utf-8") as f:
+        gj = json.load(f)
+    lines = []
+    for feat in gj.get("features", []):
+        geom = feat.get("geometry") or {}
+        gtype = geom.get("type")
+        if gtype == "LineString":
+            segments = [geom.get("coordinates") or []]
+        elif gtype == "MultiLineString":
+            segments = geom.get("coordinates") or []
+        else:
+            continue
+        props = feat.get("properties") or {}
+        kayma = props.get("kayma_turu") or ""
+        color = fault_color(kayma)
+        for coords in segments:
+            if len(coords) < 2:
+                continue
+            lines.append({
+                "fay_adi":   props.get("fay_adi") or "Adlandırılmamış",
+                "segment":   props.get("segment") or "",
+                "kayma":     props.get("kayma_aciklama") or "Bilinmiyor",
+                "uzunluk":   props.get("uzunluk_km") or 0,
+                "color":     color,
+                "lats":      [c[1] for c in coords],
+                "lons":      [c[0] for c in coords],
+            })
+    return lines
+
+FAULT_LINES = load_fault_lines()
 
 def make_mapbox_layout(stil):
     # Uydu: saf uydu + yer adlari katmani (labels below traces)
@@ -752,23 +721,49 @@ with col_map:
             text=hover_text,
             hovertemplate="%{text}<extra></extra>",
         ))
-    # Fay hatları
-    if show_faults:
-        for fault in FAULT_LINES:
-            lats = [c[0] for c in fault["coords"]]
-            lons = [c[1] for c in fault["coords"]]
-            # Gölge/kalinlik efekti icin altta kalin siyah çizgi
+    # Fay hatları (MTA Diri Fay Haritası — kayma türüne göre renklendirilmiş)
+    if show_faults and FAULT_LINES:
+        # Erzincan + (yarıçap × 1.6) bbox dışındakileri filtrele (perf için)
+        deg = 1.0 / 111.0
+        margin = max(radius_km * 1.6, 250) * deg
+        lat_min, lat_max = ERZ_LAT - margin, ERZ_LAT + margin
+        lon_min, lon_max = ERZ_LON - margin / math.cos(math.radians(ERZ_LAT)), \
+                           ERZ_LON + margin / math.cos(math.radians(ERZ_LAT))
+
+        def in_view(fault):
+            return any(lat_min <= la <= lat_max for la in fault["lats"]) and \
+                   any(lon_min <= lo <= lon_max for lo in fault["lons"])
+
+        visible = [f for f in FAULT_LINES if in_view(f)]
+
+        # Renge göre gruplayıp tek trace'e topla (None separator ile)
+        by_color = {}
+        for fault in visible:
+            color = fault["color"]
+            entry = by_color.setdefault(color, {"lats": [], "lons": [], "labels": []})
+            entry["lats"].extend(fault["lats"] + [None])
+            entry["lons"].extend(fault["lons"] + [None])
+            seg = fault["segment"]
+            label = f"{fault['fay_adi']} — {seg}" if seg else fault["fay_adi"]
+            label = f"{label}<br>Kayma: {fault['kayma']}"
+            if fault["uzunluk"]:
+                label += f" · Uzunluk: {fault['uzunluk']} km"
+            entry["labels"].extend([label] * len(fault["lats"]) + [None])
+
+        for color, data in by_color.items():
+            # Gölge (siyah, alt katman)
             fig_map.add_trace(go.Scattermapbox(
-                lat=lats, lon=lons, mode="lines",
+                lat=data["lats"], lon=data["lons"], mode="lines",
                 showlegend=False, hoverinfo="skip",
-                line=dict(color="rgba(0,0,0,0.5)", width=fault["width"] + 2),
+                line=dict(color="rgba(0,0,0,0.55)", width=3.5),
             ))
-            # Üstte renkli çizgi
+            # Renkli üst çizgi
             fig_map.add_trace(go.Scattermapbox(
-                lat=lats, lon=lons, mode="lines",
-                name=fault["name"],
-                line=dict(color=fault["color"], width=fault["width"]),
-                hovertemplate=f"<b>{fault['name']}</b><extra></extra>",
+                lat=data["lats"], lon=data["lons"], mode="lines",
+                name="Fay hattı", showlegend=False,
+                line=dict(color=color, width=1.8),
+                text=data["labels"],
+                hovertemplate="<b>%{text}</b><extra></extra>",
             ))
 
     # Erzincan pin
@@ -802,6 +797,29 @@ with col_map:
                     config={"scrollZoom": True, "displayModeBar": True,
                             "modeBarButtonsToRemove": ["toImage"],
                             "displaylogo": False})
+
+    # Fay hattı renk lejantı
+    if show_faults:
+        st.markdown(f"""
+        <div style="
+            background:{BG2}; border:1px solid {BORDER}; border-radius:8px;
+            padding:0.55rem 0.9rem; margin-top:-0.4rem;
+            display:flex; flex-wrap:wrap; gap:0.9rem; align-items:center;
+            font-size:0.78rem; color:{SUBTEXT};">
+          <span style="font-weight:600; color:{TEXT};">Fay Hattı Türü:</span>
+          <span><span style="display:inline-block;width:18px;height:3px;background:#ff3333;
+                vertical-align:middle;margin-right:5px;border-radius:2px;"></span>Sağ-yanal (KAF tipi)</span>
+          <span><span style="display:inline-block;width:18px;height:3px;background:#ff8800;
+                vertical-align:middle;margin-right:5px;border-radius:2px;"></span>Sol-yanal (DAF tipi)</span>
+          <span><span style="display:inline-block;width:18px;height:3px;background:#ffdd00;
+                vertical-align:middle;margin-right:5px;border-radius:2px;"></span>Normal</span>
+          <span><span style="display:inline-block;width:18px;height:3px;background:#00bbff;
+                vertical-align:middle;margin-right:5px;border-radius:2px;"></span>Ters</span>
+          <span><span style="display:inline-block;width:18px;height:3px;background:#aa66ff;
+                vertical-align:middle;margin-right:5px;border-radius:2px;"></span>Açılma çatlağı</span>
+          <span style="margin-left:auto;font-size:0.72rem;opacity:0.7;">Kaynak: MTA Diri Fay Haritası 2013</span>
+        </div>
+        """, unsafe_allow_html=True)
 
 with col_list:
     st.markdown('<div class="chart-title">⚡ Son Depremler</div>', unsafe_allow_html=True)
