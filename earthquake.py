@@ -400,7 +400,16 @@ def fetch_all(lat, lon, radius_km, min_mag, start_dt, end_dt, active_sources):
 st.markdown(f"""
 <style>
   html, body, .stApp {{ background: {BG}; color: {TEXT}; }}
-  .block-container {{ padding-top: 0.8rem !important; }}
+  /* Geniş layout — boşlukları sıkılaştır */
+  .block-container {{
+    padding: 0.4rem 1rem 1rem 1rem !important;
+    max-width: 100% !important;
+  }}
+  /* Sidebar iç padding'i de sıkılaştır */
+  [data-testid="stSidebar"] > div:first-child {{ padding-top: 0.5rem !important; }}
+  /* Streamlit elementleri arası dikey boşluğu azalt */
+  [data-testid="stVerticalBlock"] > div {{ gap: 0.4rem !important; }}
+  div[data-testid="element-container"] {{ margin-bottom: 0 !important; }}
 
   /* Autorefresh sırasında sayfa soluklaşmasın — tüm seçicileri kapsa */
   [data-testid="stAppViewContainer"],
@@ -442,8 +451,8 @@ st.markdown(f"""
 
   .radar-header {{
     background: linear-gradient(135deg, {BG3} 0%, {BG2} 100%);
-    border: 1px solid {BORDER}; border-radius: 12px;
-    padding: 0.9rem 1.4rem; margin-bottom: 0.7rem;
+    border: 1px solid {BORDER}; border-radius: 10px;
+    padding: 0.55rem 1.1rem; margin-bottom: 0.4rem;
   }}
   .src-pill {{
     display: inline-flex; align-items: center; gap: 4px;
@@ -455,10 +464,10 @@ st.markdown(f"""
 
   .stat-box {{
     background: {BG3}; border: 1px solid {BORDER};
-    border-radius: 10px; padding: 0.7rem; text-align: center;
+    border-radius: 8px; padding: 0.45rem 0.5rem; text-align: center;
   }}
   .eq-scroll-container {{
-    height: 620px;
+    height: 720px;
     overflow-y: auto;
     padding-right: 4px;
     scrollbar-width: thin;
@@ -480,8 +489,8 @@ st.markdown(f"""
   @keyframes blink {{ 50% {{ opacity: 0.15; }} }}
 
   .chart-title {{
-    font-size: 1rem; font-weight: 700; color: {TEXT};
-    margin: 0.5rem 0 0.2rem 0;
+    font-size: 0.95rem; font-weight: 700; color: {TEXT};
+    margin: 0.1rem 0 0.15rem 0;
   }}
 </style>
 """, unsafe_allow_html=True)
@@ -799,7 +808,7 @@ with col_map:
     fig_map.update_layout(
         mapbox=mapbox_cfg,
         margin=dict(t=0, b=0, l=0, r=0),
-        height=700,
+        height=780,
         legend=dict(
             bgcolor="rgba(0,0,0,0.65)" if DARK else "rgba(255,255,255,0.92)",
             font=dict(color="white" if DARK else "#1a2a3a", size=10),
