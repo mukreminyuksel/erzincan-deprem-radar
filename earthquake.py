@@ -17,7 +17,7 @@ st.set_page_config(
     page_title="Erzincan Deprem Radari",
     page_icon="🌍",
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="expanded",
 )
 
 ERZ_LAT = 39.7333
@@ -418,11 +418,27 @@ st.markdown(f"""
   [data-testid="stConnectionStatus"],
   div[class*="ConnectionStatus"] {{ display: none !important; }}
 
-  /* Üst sağdaki Streamlit header'ı (Deploy butonu + hamburger menüsü) gizle */
-  [data-testid="stHeader"] {{ display: none !important; }}
-  header[data-testid="stHeader"] {{ visibility: hidden !important; height: 0 !important; }}
-  #MainMenu {{ visibility: hidden !important; }}
-  [data-testid="stDecoration"] {{ display: none !important; }}
+  /* Header'ı arka planı şeffaf yap ama sidebar toggle butonunu sakla — sadece deploy/menü gizle */
+  [data-testid="stHeader"] {{
+    background: transparent !important;
+    height: 0 !important;
+  }}
+  [data-testid="stToolbar"],
+  [data-testid="stToolbarActions"],
+  [data-testid="stMainMenu"],
+  #MainMenu,
+  [data-testid="stDecoration"],
+  .stDeployButton,
+  [data-testid="stAppDeployButton"] {{ display: none !important; }}
+  /* Sidebar açma/kapama butonunu görünür tut */
+  [data-testid="stSidebarCollapsedControl"],
+  [data-testid="collapsedControl"],
+  [data-testid="stSidebarHeader"] button {{
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    z-index: 999 !important;
+  }}
 
   .radar-header {{
     background: linear-gradient(135deg, {BG3} 0%, {BG2} 100%);
