@@ -1622,8 +1622,6 @@ with education_tab:
                 u=[0], v=[0], w=[0.5], sizemode="absolute", sizeref=0.5, anchor="tail",
                 colorscale=[[0, "#00E5FF"], [1, "#00E5FF"]], showscale=False, name="Gözlemci İkonu"
             ))
-
-            import numpy as np
             frames = []
             for step in np.linspace(0, 1, 9):
                 left_frame, right_frame = displacement_for(mode, float(step))
