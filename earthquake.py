@@ -1575,7 +1575,6 @@ with education_tab:
             with col_fault_controls:
                 selected_fault_type = st.selectbox("Fay tipi", list(fault_info.keys()), key="edu_fault_type")
                 slip = st.slider("Atım miktarı", 0.0, 1.0, 0.45, 0.05, key="edu_slip")
-                step_idx = st.slider("Animasyon İlerlemesi", 0.0, 1.0, 0.0, 0.05, key="edu_fault_step")
             info = fault_info[selected_fault_type]
 
             def displacement_for(mode, factor):
@@ -1597,8 +1596,10 @@ with education_tab:
                 return left, right
 
             mode = info["mode"]
-            left_disp, right_disp = displacement_for(mode, step_idx)
+            left_disp, right_disp = displacement_for(mode, 1.0)
             fig_fault_demo = go.Figure()
+            
+            # Initial Traces
             fig_fault_demo.add_trace(cuboid_mesh(-2.0, -0.08, -1.1, 1.1, -0.6, 0.6, **left_disp, name="Sol blok", color="#42A5F5"))
             fig_fault_demo.add_trace(cuboid_mesh(0.08, 2.0, -1.1, 1.1, -0.6, 0.6, **right_disp, name="Sağ blok", color="#FFB74D"))
             fig_fault_demo.add_trace(go.Surface(
@@ -1614,19 +1615,37 @@ with education_tab:
                 x=[-1.0, -1.0 + left_disp["dx"], 1.0, 1.0 + right_disp["dx"]],
                 y=[0, left_disp["dy"], 0, right_disp["dy"]],
                 z=[0.78, 0.78 + left_disp["dz"], 0.78, 0.78 + right_disp["dz"]],
-                mode="lines+markers",
-                name="Atım vektörü",
-                line=dict(color="#E3F2FD", width=6),
-                marker=dict(size=4, color="#E3F2FD"),
+                mode="lines+markers", name="Atım vektörü", line=dict(color="#E3F2FD", width=6), marker=dict(size=4, color="#E3F2FD"),
             ))
-
-            # Gözlemci figürü (Sağ blok üzerinde)
             fig_fault_demo.add_trace(go.Cone(
                 x=[1.0 + right_disp["dx"]], y=[0 + right_disp["dy"]], z=[0.6 + right_disp["dz"]],
-                u=[0], v=[0], w=[0.5],
-                sizemode="absolute", sizeref=0.5, anchor="tail",
+                u=[0], v=[0], w=[0.5], sizemode="absolute", sizeref=0.5, anchor="tail",
                 colorscale=[[0, "#00E5FF"], [1, "#00E5FF"]], showscale=False, name="Gözlemci İkonu"
             ))
+
+            import numpy as np
+            frames = []
+            for step in np.linspace(0, 1, 9):
+                left_frame, right_frame = displacement_for(mode, float(step))
+                frames.append(go.Frame(
+                    data=[
+                        cuboid_mesh(-2.0, -0.08, -1.1, 1.1, -0.6, 0.6, **left_frame, name="Sol blok", color="#42A5F5"),
+                        cuboid_mesh(0.08, 2.0, -1.1, 1.1, -0.6, 0.6, **right_frame, name="Sağ blok", color="#FFB74D"),
+                        go.Scatter3d(
+                            x=[-1.0, -1.0 + left_frame["dx"], 1.0, 1.0 + right_frame["dx"]],
+                            y=[0, left_frame["dy"], 0, right_frame["dy"]],
+                            z=[0.78, 0.78 + left_frame["dz"], 0.78, 0.78 + right_frame["dz"]],
+                            mode="lines+markers", line=dict(color="#E3F2FD", width=6), marker=dict(size=4, color="#E3F2FD")
+                        ),
+                        go.Cone(
+                            x=[1.0 + right_frame["dx"]], y=[0 + right_frame["dy"]], z=[0.6 + right_frame["dz"]],
+                            u=[0], v=[0], w=[0.5], sizemode="absolute", sizeref=0.5, anchor="tail", colorscale=[[0, "#00E5FF"], [1, "#00E5FF"]], showscale=False
+                        )
+                    ],
+                    traces=[0, 1, 3, 4],
+                    name=f"{step:.2f}",
+                ))
+            fig_fault_demo.frames = frames
 
             fig_fault_demo.update_layout(
                 uirevision="constant",
@@ -1635,6 +1654,7 @@ with education_tab:
                 font=dict(color=TEXT),
                 height=500,
                 margin=dict(t=8, b=8, l=0, r=0),
+                scene_camera_uirevision="constant",
                 scene=dict(
                     bgcolor=BG2,
                     xaxis=dict(title="", range=[-2.4, 2.4], color=TEXT, gridcolor=GRID, showticklabels=False),
@@ -1644,6 +1664,17 @@ with education_tab:
                     aspectratio=dict(x=1.8, y=1.2, z=0.75),
                 ),
                 legend=dict(font=dict(color=TEXT), bgcolor="rgba(0,0,0,0)", orientation="h"),
+                updatemenus=[dict(
+                    type="buttons",
+                    showactive=False,
+                    x=0.02,
+                    y=0.02,
+                    buttons=[dict(
+                        label="▶ Animasyonu Oynat",
+                        method="animate",
+                        args=[None, {"frame": {"duration": 130, "redraw": True}, "fromcurrent": True}],
+                    )],
+                )],
             )
             st.plotly_chart(fig_fault_demo, use_container_width=True, config={"displayModeBar": False, "displaylogo": False})
 
@@ -1670,7 +1701,6 @@ with education_tab:
             c_wave1, c_wave2 = st.columns([1, 2])
             with c_wave1:
                 wave_type = st.radio("Gösterilecek Dalga", ["P Dalgası (Sıkışma)", "S Dalgası (Kesme)", "Rayleigh (Yüzey)"], key="wave_type_radio")
-                step_ps = st.slider("Animasyon Zamanı", 0, 59, 0, 1, key="edu_ps_step")
             with c_wave2:
                 st.info("💡 **İpucu:** Yeraltındaki noktaların dalga geçerken nasıl titreştiğine dikkatlice bakın! P dalgası ileri-geri, S dalgası yukarı-aşağı, Rayleigh ise eliptik olarak sallanır.")
 
@@ -1704,47 +1734,58 @@ with education_tab:
                     fillcolor="#E53935", line=dict(color="#B71C1C", width=2)
                 )
 
-            t = step_ps
-            dx = np.zeros_like(x_base)
-            dz = np.zeros_like(z_base)
-
-            if "P Dalgası" in wave_type:
-                radius = t * 2.2
-                active = np.abs(dist - radius) < 15
-                amp = 3.5 * np.exp(-(dist - radius)**2 / 25)
-                freq = 0.5
-                dx[active] = amp[active] * (x_base[active] - focus_x) / dist[active] * np.sin((dist[active] - radius) * freq)
-                dz[active] = amp[active] * (z_base[active] - focus_z) / dist[active] * np.sin((dist[active] - radius) * freq)
-
-            elif "S Dalgası" in wave_type:
-                radius = t * 1.5
-                active = np.abs(dist - radius) < 12
-                amp = 3.5 * np.exp(-(dist - radius)**2 / 20)
-                freq = 0.6
-                nx = -(z_base[active] - focus_z) / dist[active]
-                nz = (x_base[active] - focus_x) / dist[active]
-                dx[active] = amp[active] * nx * np.sin((dist[active] - radius) * freq)
-                dz[active] = amp[active] * nz * np.sin((dist[active] - radius) * freq)
-
-            elif "Rayleigh" in wave_type:
-                radius = t * 1.2
-                depth_decay = np.exp(z_base / 8.0)
-                surf_dist = x_base - focus_x
-                active = np.abs(surf_dist - radius) < 15
-                amp = 4.5 * depth_decay * np.exp(-(surf_dist - radius)**2 / 25)
-                freq = 0.5
-                dx[active] = amp[active] * 0.7 * np.sin((surf_dist[active] - radius) * freq)
-                dz[active] = amp[active] * np.cos((surf_dist[active] - radius) * freq)
-
-            energy = np.sqrt(dx**2 + dz**2)
-            color_array = np.where(energy > 0.1, energy, 0)
-
-            fig_wave2d.add_trace(go.Scatter(x=x_base + dx, y=z_base + dz, mode="markers", 
-                                            marker=dict(size=8, color=color_array, colorscale="YlOrRd", cmin=0, cmax=2.5, showscale=False,
+            fig_wave2d.add_trace(go.Scatter(x=x_base, y=z_base, mode="markers", 
+                                            marker=dict(size=8, color=np.zeros_like(x_base), colorscale="YlOrRd", cmin=0, cmax=2.5, showscale=False,
                                                         line=dict(color="#000000", width=0.5)), 
                                             name="Parçacıklar", hoverinfo="skip"))
             fig_wave2d.add_trace(go.Scatter(x=[focus_x], y=[focus_z], mode="markers+text", text=["Odak"], textposition="bottom right", marker=dict(size=16, color="#E53935", symbol="star"), name="Odak", hoverinfo="skip"))
 
+            frames = []
+            num_frames = 60
+            for t in range(0, num_frames):
+                dx = np.zeros_like(x_base)
+                dz = np.zeros_like(z_base)
+
+                if "P Dalgası" in wave_type:
+                    radius = t * 2.2
+                    active = np.abs(dist - radius) < 15
+                    amp = 3.5 * np.exp(-(dist - radius)**2 / 25)
+                    freq = 0.5
+                    dx[active] = amp[active] * (x_base[active] - focus_x) / dist[active] * np.sin((dist[active] - radius) * freq)
+                    dz[active] = amp[active] * (z_base[active] - focus_z) / dist[active] * np.sin((dist[active] - radius) * freq)
+
+                elif "S Dalgası" in wave_type:
+                    radius = t * 1.5
+                    active = np.abs(dist - radius) < 12
+                    amp = 3.5 * np.exp(-(dist - radius)**2 / 20)
+                    freq = 0.6
+                    nx = -(z_base[active] - focus_z) / dist[active]
+                    nz = (x_base[active] - focus_x) / dist[active]
+                    dx[active] = amp[active] * nx * np.sin((dist[active] - radius) * freq)
+                    dz[active] = amp[active] * nz * np.sin((dist[active] - radius) * freq)
+
+                elif "Rayleigh" in wave_type:
+                    radius = t * 1.2
+                    depth_decay = np.exp(z_base / 8.0)
+                    surf_dist = x_base - focus_x
+                    active = np.abs(surf_dist - radius) < 15
+                    amp = 4.5 * depth_decay * np.exp(-(surf_dist - radius)**2 / 25)
+                    freq = 0.5
+                    dx[active] = amp[active] * 0.7 * np.sin((surf_dist[active] - radius) * freq)
+                    dz[active] = amp[active] * np.cos((surf_dist[active] - radius) * freq)
+
+                energy = np.sqrt(dx**2 + dz**2)
+                color_array = np.where(energy > 0.1, energy, 0)
+
+                frames.append(go.Frame(
+                    data=[go.Scatter(x=x_base + dx, y=z_base + dz, mode="markers", 
+                                     marker=dict(size=8, color=color_array, colorscale="YlOrRd", cmin=0, cmax=2.5, showscale=False,
+                                                 line=dict(color="#000000", width=0.5)))],
+                    traces=[2],
+                    name=str(t)
+                ))
+
+            fig_wave2d.frames = frames
             fig_wave2d.update_layout(
                 uirevision="constant",
                 paper_bgcolor=BG,
@@ -1755,6 +1796,18 @@ with education_tab:
                 yaxis=dict(title="Derinlik (km)", range=[-45, 10], gridcolor=GRID, zeroline=False),
                 margin=dict(t=20, b=20, l=10, r=10),
                 showlegend=False,
+                updatemenus=[dict(
+                    type="buttons",
+                    showactive=False,
+                    x=0.01, y=1.05,
+                    bgcolor=BG2,
+                    font=dict(color=TEXT),
+                    buttons=[dict(
+                        label="▶ Animasyonu Oynat (Yavaş ve Detaylı)",
+                        method="animate",
+                        args=[None, {"frame": {"duration": 250, "redraw": False}, "fromcurrent": True}],
+                    )]
+                )]
             )
             st.plotly_chart(fig_wave2d, use_container_width=True, config={"displayModeBar": False, "displaylogo": False})
 
@@ -1776,13 +1829,11 @@ with education_tab:
             }
             selected_scenario = st.selectbox("Erzincan senaryosu", list(scenarios.keys()), key="erz_scenario")
             scenario = scenarios[selected_scenario]
-            sc1, sc2, sc3 = st.columns(3)
+            sc1, sc2 = st.columns(2)
             with sc1:
                 scenario_mag = st.slider("Moment büyüklüğü Mw", 3.5, 7.0, float(scenario["mag"]), 0.1, key="scenario_mag")
             with sc2:
                 scenario_depth = st.slider("Derinlik (km)", 3, 40, int(scenario["depth"]), 1, key="scenario_depth")
-            with sc3:
-                animation_step = st.slider("Yayılım zamanı (sn)", 0, 80, 32, 2, key="scenario_time")
 
             def terrain_height(x, y):
                 x_arr = np.asarray(x, dtype=float)
@@ -1827,19 +1878,6 @@ with education_tab:
                 return base_terrain + np.where(active, ripple, 0)
 
             fig_erz = go.Figure()
-            fig_erz.add_trace(go.Surface(
-                x=xx_grid, y=yy_grid, z=deformed_terrain(animation_step),
-                surfacecolor=base_terrain,
-                colorscale=[
-                    [0, "#335c2d"],
-                    [0.32, "#6d8f42"],
-                    [0.62, "#8a6f48"],
-                    [1, "#d6c7a8"],
-                ],
-                opacity=0.96,
-                showscale=False,
-                name="Erzincan Ovası 3B arazi",
-            ))
             fault_x = np.linspace(-92, 92, 80)
             fault_y = -4 + 0.08 * fault_x
             fault_z = terrain_height(fault_x, fault_y) + 0.45
@@ -1909,37 +1947,10 @@ with education_tab:
                     opacity=0.62,
                     name=ring_name,
                 ))
-            wx, wy, wz = ring_on_terrain(event_x, event_y, wave_radius, lift=0.7)
-            fig_erz.add_trace(go.Scatter3d(
-                x=wx, y=wy, z=wz,
-                mode="lines",
-                line=dict(color="#64B5F6", width=8),
-                name="Animasyon dalga cephesi",
-            ))
-            # Slider bazlı Heatmap ve 3B Yayılım hesaplaması
-            frame_radius = min(impact_radius, 3.5 * animation_step)
-            heat_array = np.zeros_like(base_terrain)
-            dynamic_terrain = np.zeros_like(base_terrain)
-            
-            for r in range(base_terrain.shape[0]):
-                for c in range(base_terrain.shape[1]):
-                    d = np.sqrt((xx_grid[r,c] - event_x)**2 + (yy_grid[r,c] - event_y)**2)
-                    # Heatmap rengi
-                    if d <= frame_radius:
-                        heat_array[r,c] = max(0, 1 - (d / impact_radius))
-                    else:
-                        heat_array[r,c] = -0.2
-                    
-                    # 3B Dalga Hareketi (Sarsıntı Merkezi'nden dışa doğru yayılım)
-                    amplitude = 3.0 * np.exp(-d / (impact_radius * 0.4)) # Mesafe ile sönen dalga boyu
-                    envelope = np.exp(-((d - frame_radius) / 8.0)**2)    # Sadece dalga cephesinde aktif
-                    ripple = amplitude * envelope * np.cos((d - frame_radius) * 1.5)
-                    
-                    dynamic_terrain[r,c] = base_terrain[r,c] + ripple
-
+            # Initial Default traces for Surface and Wavefront
             fig_erz.add_trace(go.Surface(
-                x=xx_grid, y=yy_grid, z=dynamic_terrain,
-                surfacecolor=heat_array,
+                x=xx_grid, y=yy_grid, z=base_terrain,
+                surfacecolor=np.zeros_like(base_terrain)-0.2,
                 cmin=-0.2, cmax=1.0,
                 colorscale=[
                     [0, "#335c2d"],     # Terrain low
@@ -1952,8 +1963,7 @@ with education_tab:
                 showscale=False,
                 name="Erzincan Ovası Etki Alanı",
             ))
-
-            frx, fry, frz = ring_on_terrain(event_x, event_y, frame_radius, lift=0.7)
+            frx, fry, frz = ring_on_terrain(event_x, event_y, 0, lift=0.7)
             fig_erz.add_trace(go.Scatter3d(
                 x=frx, y=fry, z=frz,
                 mode="lines",
@@ -1984,6 +1994,39 @@ with education_tab:
                 name="Yerleşim Yerleri"
             ))
 
+            # Frames için hesaplama
+            frames = []
+            for t in range(0, 82, 4):
+                f_radius = min(impact_radius, 3.5 * t)
+                f_heat = np.zeros_like(base_terrain)
+                f_dyn = np.zeros_like(base_terrain)
+                
+                for r in range(base_terrain.shape[0]):
+                    for c in range(base_terrain.shape[1]):
+                        d = np.sqrt((xx_grid[r,c] - event_x)**2 + (yy_grid[r,c] - event_y)**2)
+                        if d <= f_radius:
+                            f_heat[r,c] = max(0, 1 - (d / impact_radius))
+                        else:
+                            f_heat[r,c] = -0.2
+                        
+                        amp = 3.0 * np.exp(-d / (impact_radius * 0.4))
+                        env = np.exp(-((d - f_radius) / 8.0)**2)
+                        rip = amp * env * np.cos((d - f_radius) * 1.5)
+                        f_dyn[r,c] = base_terrain[r,c] + rip
+                
+                f_rx, f_ry, f_rz = ring_on_terrain(event_x, event_y, f_radius, lift=0.7)
+                
+                frames.append(go.Frame(
+                    data=[
+                        go.Surface(z=f_dyn, surfacecolor=f_heat),
+                        go.Scatter3d(x=f_rx, y=f_ry, z=f_rz)
+                    ],
+                    traces=[7, 8],
+                    name=str(t)
+                ))
+                
+            fig_erz.frames = frames
+
             fig_erz.update_layout(
                 uirevision="constant",
                 paper_bgcolor=BG,
@@ -1991,6 +2034,7 @@ with education_tab:
                 font=dict(color=TEXT),
                 height=600,
                 margin=dict(t=8, b=8, l=0, r=0),
+                scene_camera_uirevision="constant",
                 scene=dict(
                     bgcolor=BG2,
                     xaxis=dict(title="Doğu-Batı (km)", range=[-95, 95], color=TEXT, gridcolor=GRID),
@@ -2005,6 +2049,17 @@ with education_tab:
                     ),
                 ),
                 legend=dict(font=dict(color=TEXT), bgcolor="rgba(0,0,0,0)", orientation="h"),
+                updatemenus=[dict(
+                    type="buttons",
+                    showactive=False,
+                    x=0.02,
+                    y=0.02,
+                    buttons=[dict(
+                        label="▶ Animasyonu Oynat",
+                        method="animate",
+                        args=[None, {"frame": {"duration": 100, "redraw": True}, "fromcurrent": True}],
+                    )],
+                )],
             )
             st.plotly_chart(fig_erz, use_container_width=True, config={"displayModeBar": False, "displaylogo": False})
 
