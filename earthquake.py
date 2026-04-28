@@ -1654,7 +1654,6 @@ with education_tab:
                 font=dict(color=TEXT),
                 height=500,
                 margin=dict(t=8, b=8, l=0, r=0),
-                scene_camera_uirevision="constant",
                 scene=dict(
                     bgcolor=BG2,
                     xaxis=dict(title="", range=[-2.4, 2.4], color=TEXT, gridcolor=GRID, showticklabels=False),
@@ -2033,7 +2032,6 @@ with education_tab:
                 font=dict(color=TEXT),
                 height=600,
                 margin=dict(t=8, b=8, l=0, r=0),
-                scene_camera_uirevision="constant",
                 scene=dict(
                     bgcolor=BG2,
                     xaxis=dict(title="Doğu-Batı (km)", range=[-95, 95], color=TEXT, gridcolor=GRID),
