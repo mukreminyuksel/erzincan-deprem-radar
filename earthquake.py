@@ -1575,6 +1575,7 @@ with education_tab:
             with col_fault_controls:
                 selected_fault_type = st.selectbox("Fay tipi", list(fault_info.keys()), key="edu_fault_type")
                 slip = st.slider("Atım miktarı", 0.0, 1.0, 0.45, 0.05, key="edu_slip")
+                step_idx = st.slider("Animasyon İlerlemesi", 0.0, 1.0, 0.0, 0.05, key="edu_fault_step")
             info = fault_info[selected_fault_type]
 
             def displacement_for(mode, factor):
