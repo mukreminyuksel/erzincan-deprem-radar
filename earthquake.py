@@ -1575,7 +1575,7 @@ with education_tab:
             }
             col_fault_controls, _ = st.columns([1.15, 0.85])
             with col_fault_controls:
-                selected_fault_type = st.selectbox("Fay tipi", list(fault_info.keys()), key="edu_fault_type")
+                selected_fault_type = st.radio("Fay tipi", list(fault_info.keys()), key="edu_fault_type", horizontal=True)
                 slip = st.slider("Atım miktarı", 0.0, 1.0, 0.45, 0.05, key="edu_slip")
             info = fault_info[selected_fault_type]
 
