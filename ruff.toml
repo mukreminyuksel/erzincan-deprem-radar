@@ -1,0 +1,28 @@
+# ruff.toml
+line-length = 160
+target-version = "py39"
+
+[lint]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "C4", # flake8-comprehensions
+    "B",  # flake8-bugbear
+]
+ignore = [
+    "E501", # Line too long (we use 160 but sometimes exceed)
+    "B008", # Do not perform function calls in argument defaults (Streamlit uses this a lot)
+    "C408", # Unnecessary dict() call (Plotly uses dict() everywhere)
+    "E701", # Multiple statements on one line (colon)
+    "E702", # Multiple statements on one line (semicolon)
+    "E722", # Do not use bare 'except'
+    "E402", # Module level import not at top of file
+]
+
+[format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"

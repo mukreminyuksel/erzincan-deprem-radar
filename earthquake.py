@@ -1,18 +1,20 @@
-import streamlit as st
-from streamlit_autorefresh import st_autorefresh
-import requests
-from bs4 import BeautifulSoup
+import concurrent.futures
+import importlib
+import json
+import math
+import os
+from datetime import datetime, timedelta
+
+import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+import requests
+import streamlit as st
+from bs4 import BeautifulSoup
 from plotly.subplots import make_subplots
-from datetime import datetime, timedelta
-import math
-import concurrent.futures
-import numpy as np
-import json
-import os
-import importlib
+from streamlit_autorefresh import st_autorefresh
+
 import earthquake_core as _earthquake_core
 
 _earthquake_core = importlib.reload(_earthquake_core)
@@ -867,10 +869,10 @@ def make_mapbox_layout(stil):
 with radar_tab:
     # ─── Harita + Kayan Liste ───────────────────────────────────────────────────
     col_map, col_list = st.columns([2.8, 1])
-    
+
     with col_map:
         st.markdown('<div class="chart-title">🗺️ Deprem Haritasi</div>', unsafe_allow_html=True)
-    
+
         fig_map = go.Figure()
         bands = [
             ("M < 2",  df[df["buyukluk"] < 2],                                        "#43A047"),
@@ -891,7 +893,7 @@ with radar_tab:
                 f"Konum: {safe_html(str(r['konum'])[:55])}<br>"
                 f"Erzincan'a: {r['uzaklik_km']} km<br>"
                 f"Kaynak: {safe_html(r['kaynak'])}", axis=1)
-    
+
             # Siyah dis hat (biraz daha buyuk, tamamen siyah)
             fig_map.add_trace(go.Scattermapbox(
                 lat=sub["lat"], lon=sub["lon"],
@@ -915,13 +917,13 @@ with radar_tab:
             lat_min, lat_max = ERZ_LAT - margin, ERZ_LAT + margin
             lon_min, lon_max = ERZ_LON - margin / math.cos(math.radians(ERZ_LAT)), \
                                ERZ_LON + margin / math.cos(math.radians(ERZ_LAT))
-    
+
             def in_view(fault):
                 return any(lat_min <= la <= lat_max for la in fault["lats"]) and \
                        any(lon_min <= lo <= lon_max for lo in fault["lons"])
-    
+
             visible = [f for f in FAULT_LINES if in_view(f)]
-    
+
             # Renge göre gruplayıp tek trace'e topla (None separator ile)
             by_color = {}
             for fault in visible:
@@ -935,7 +937,7 @@ with radar_tab:
                 if fault["uzunluk"]:
                     label += f" · Uzunluk: {safe_html(fault['uzunluk'])} km"
                 entry["labels"].extend([label] * len(fault["lats"]) + [None])
-    
+
             for color, data in by_color.items():
                 # Gölge (siyah, alt katman)
                 fig_map.add_trace(go.Scattermapbox(
@@ -951,7 +953,7 @@ with radar_tab:
                     text=data["labels"],
                     hovertemplate="<b>%{text}</b><extra></extra>",
                 ))
-    
+
         # Erzincan pin
         pin_color = "#ffffff" if (harita_stil in ["Uydu", "Uydu+Yol", "Koyu"]) else "#1a2a3a"
         fig_map.add_trace(go.Scattermapbox(
@@ -962,10 +964,10 @@ with radar_tab:
             textfont=dict(color=pin_color, size=12, family="Arial Bold"),
             hoverinfo="skip",
         ))
-    
+
         mapbox_cfg = make_mapbox_layout(harita_stil)
         mapbox_cfg.update({"center": dict(lat=ERZ_LAT, lon=ERZ_LON), "zoom": 6})
-    
+
         fig_map.update_layout(
             mapbox=mapbox_cfg,
             margin=dict(t=0, b=0, l=0, r=0),
@@ -983,7 +985,7 @@ with radar_tab:
                         config={"scrollZoom": True, "displayModeBar": True,
                                 "modeBarButtonsToRemove": ["toImage"],
                                 "displaylogo": False})
-    
+
         # Fay hattı renk lejantı
         if show_faults:
             st.markdown(f"""
@@ -1006,10 +1008,10 @@ with radar_tab:
               <span style="margin-left:auto;font-size:0.72rem;opacity:0.7;">Kaynak: MTA Diri Fay Haritası 2013</span>
             </div>
             """, unsafe_allow_html=True)
-    
+
     with col_list:
         st.markdown('<div class="chart-title">⚡ Son Depremler</div>', unsafe_allow_html=True)
-    
+
         lf_col1, lf_col2 = st.columns(2)
         with lf_col1:
             list_mag = st.selectbox("Min büyüklük", [0, 1, 2, 3, 4, 5, 6, 7],
@@ -1019,7 +1021,7 @@ with radar_tab:
             list_time = st.selectbox("Zaman",
                                      ["Tümü", "Son 1 Saat", "Son 6 Saat", "Son 24 Saat"],
                                      key="list_time")
-    
+
         def render_scrollable(data, limit=300):
             if data.empty:
                 st.caption("Bu filtre için deprem yok.")
@@ -1043,7 +1045,7 @@ with radar_tab:
                 )
             st.markdown(f'<div class="eq-scroll-container">{cards}</div>',
                         unsafe_allow_html=True)
-    
+
         df_list = df.copy()
         if list_mag > 0:
             df_list = df_list[df_list["buyukluk"] >= list_mag]
@@ -1053,10 +1055,10 @@ with radar_tab:
             df_list = df_list[df_list["zaman"] >= now_utc - timedelta(hours=6)]
         elif list_time == "Son 24 Saat":
             df_list = df_list[df_list["zaman"] >= now_utc - timedelta(hours=24)]
-    
+
         st.caption(f"{len(df_list)} deprem gösteriliyor")
         render_scrollable(df_list)
-    
+
     # ════════════════════════════════════════════════════════════════
     # DERINLIK – ZAMAN – BUYUKLUK  (tam genislik)
     # ════════════════════════════════════════════════════════════════
@@ -1067,10 +1069,10 @@ with radar_tab:
         "Dikey eksen: zemin yüzeyi en üstte (0 km), aşağı doğru derinlik artar. "
         "Yatay eksen: zaman. Nokta boyutu: büyüklük. Renk: büyüklük sınıfı."
     )
-    
+
     df_plot = df.dropna(subset=["derinlik"]).copy()
     depth_max = min(df_plot["derinlik"].quantile(0.98), 200)
-    
+
     sinif_bands = [
         ("M < 2",  df_plot[df_plot["buyukluk"] < 2],                                        "#43A047"),
         ("M 2-3",  df_plot[(df_plot["buyukluk"] >= 2) & (df_plot["buyukluk"] < 3)],         "#F9A825"),
@@ -1080,9 +1082,9 @@ with radar_tab:
         ("M 6-7",  df_plot[(df_plot["buyukluk"] >= 6) & (df_plot["buyukluk"] < 7)],         "#4A148C"),
         ("M 7+",   df_plot[df_plot["buyukluk"] >= 7],                                        "#B71C1C"),
     ]
-    
+
     fig_depth = go.Figure()
-    
+
     # Derinlik zon bantlari (arka plan)
     zones = [
         (0,  10,  "rgba(67,160,71,0.13)"  if DARK else "rgba(67,160,71,0.18)",  "Yuzeysel  0–10 km"),
@@ -1099,7 +1101,7 @@ with radar_tab:
                 font=dict(size=9, color=ANNOT),
                 xanchor="left", yanchor="middle",
             )
-    
+
     # Zemin yüzeyi referans çizgisi
     zline_color = "rgba(80,200,100,0.7)" if DARK else "rgba(20,120,40,0.8)"
     fig_depth.add_hline(y=0, line=dict(color=zline_color, width=2, dash="dot"))
@@ -1110,7 +1112,7 @@ with radar_tab:
                   family="Arial Bold"),
         xanchor="right", yanchor="bottom",
     )
-    
+
     for label, sub, color in sinif_bands:
         if sub.empty: continue
         fig_depth.add_trace(go.Scatter(
@@ -1129,7 +1131,7 @@ with radar_tab:
                 f"Erzincan'a: {r['uzaklik_km']} km &nbsp;|&nbsp; {safe_html(r['kaynak'])}", axis=1),
             hovertemplate="%{text}<extra></extra>",
         ))
-    
+
     # M4+ etiketler
     big_ann = df_plot[df_plot["buyukluk"] >= 4.0]
     if not big_ann.empty:
@@ -1140,7 +1142,7 @@ with radar_tab:
             textposition="top center",
             textfont=dict(color="#b71c1c" if not DARK else "#ffcdd2", size=11, family="Arial Black"),
         ))
-    
+
     fig_depth.update_layout(
         height=520,
         paper_bgcolor=BG, plot_bgcolor=BG2,
@@ -1176,16 +1178,16 @@ with radar_tab:
     )
     st.plotly_chart(fig_depth, use_container_width=True,
                     config={"displayModeBar": True, "displaylogo": False})
-    
+
     # ════════════════════════════════════════════════════════════════
     # AKTIVITE GRAFİKLERİ
     # ════════════════════════════════════════════════════════════════
     st.markdown("---")
     st.markdown('<div class="chart-title">📊 Deprem Aktivitesi</div>', unsafe_allow_html=True)
-    
+
     view_mode = st.radio("Gorunum:", ["Gunluk", "Saatlik", "Kumulatif"],
                          horizontal=True, key="act_mode")
-    
+
     common_layout = dict(
         paper_bgcolor=BG, plot_bgcolor=BG2,
         font=dict(color=TEXT, size=12, family="Arial"),
@@ -1201,7 +1203,7 @@ with radar_tab:
         hovermode="x unified",
         height=420,
     )
-    
+
     SINIF_COLORS = {
         "Hafif":    "#43A047",
         "Kucuk":    "#F9A825",
@@ -1211,13 +1213,13 @@ with radar_tab:
         "Siddetli": "#4A148C",
         "Yikici":   "#B71C1C",
     }
-    
+
     if view_mode == "Gunluk":
         df["gun"] = df["zaman"].dt.date
         grouped   = df.groupby(["gun", "sinif"]).size().reset_index(name="sayi")
         daily_tot = df.groupby("gun").size().reset_index(name="toplam").sort_values("gun")
         daily_tot["kumulatif"] = daily_tot["toplam"].cumsum()
-    
+
         fig_act = make_subplots(specs=[[{"secondary_y": True}]])
         for sinif, color in SINIF_COLORS.items():
             sub = grouped[grouped["sinif"] == sinif]
@@ -1235,7 +1237,7 @@ with radar_tab:
         fig_act.update_yaxes(title_text="Gunluk Sayi", gridcolor=GRID, secondary_y=False)
         fig_act.update_yaxes(title_text="Kumulatif Toplam", secondary_y=True,
                               gridcolor="rgba(0,0,0,0)")
-    
+
     elif view_mode == "Saatlik":
         df["saat"] = df["zaman"].dt.floor("h")
         hourly = df.groupby("saat").agg(
@@ -1259,7 +1261,7 @@ with radar_tab:
         fig_act.update_yaxes(title_text="Saatlik Sayi", gridcolor=GRID, secondary_y=False)
         fig_act.update_yaxes(title_text="Ort. Buyukluk", secondary_y=True,
                               gridcolor="rgba(0,0,0,0)", range=[0, 6])
-    
+
     else:  # Kumulatif
         df_s = df.sort_values("zaman").copy()
         fig_act = go.Figure()
@@ -1273,10 +1275,10 @@ with radar_tab:
             ))
         fig_act.update_layout(**common_layout)
         fig_act.update_yaxes(title_text="Kumulatif Sayi", gridcolor=GRID)
-    
+
     st.plotly_chart(fig_act, use_container_width=True,
                     config={"displayModeBar": False, "displaylogo": False})
-    
+
     # ─── Buyukluk + Derinlik dagilimi ───────────────────────────────────────────
     col_h1, col_h2 = st.columns(2)
     hist_layout = dict(
@@ -1287,7 +1289,7 @@ with radar_tab:
         yaxis=dict(gridcolor=GRID, title=dict(text="Deprem Sayisi", font=dict(color=TEXT)),
                    tickfont=dict(color=TEXT)),
     )
-    
+
     with col_h1:
         st.markdown('<div class="chart-title">📉 Buyukluk Dagilimi</div>', unsafe_allow_html=True)
         fig_h1 = px.histogram(df, x="buyukluk", nbins=30,
@@ -1298,7 +1300,7 @@ with radar_tab:
         fig_h1.update_layout(**hist_layout)
         st.plotly_chart(fig_h1, use_container_width=True,
                         config={"displayModeBar": False, "displaylogo": False})
-    
+
     with col_h2:
         st.markdown('<div class="chart-title">🏔️ Derinlik Dagilimi</div>', unsafe_allow_html=True)
         fig_h2 = px.histogram(df[df["derinlik"] <= 200], x="derinlik", nbins=30,
@@ -1372,7 +1374,7 @@ with detail_tab:
     event_ids = detail_df["event_id"].tolist()
     if "selected_event_id" not in st.session_state:
         st.session_state.selected_event_id = event_ids[0]
-    
+
     current_val = st.session_state.selected_event_id
     if current_val not in event_ids:
         current_val = event_ids[0]
@@ -1382,7 +1384,7 @@ with detail_tab:
         r["event_id"]: f"{r['zaman_str']} · M{r['buyukluk']:.1f} · {str(r['konum'])[:55]} · {r['kaynak']}"
         for _, r in detail_df.iterrows()
     }
-    
+
     selected_event_id = st.selectbox(
         "Deprem seç",
         event_ids,
@@ -1391,7 +1393,7 @@ with detail_tab:
         format_func=lambda event_id: event_labels.get(event_id, event_id),
     )
     st.session_state.selected_event_id = selected_event_id
-    
+
     event = detail_df[detail_df["event_id"] == selected_event_id].iloc[0]
     nearest_fault = nearest_fault_vertex_distance(event["lat"], event["lon"], FAULT_LINES)
     d1, d2, d3, d4 = st.columns(4)
@@ -1525,7 +1527,7 @@ with education_tab:
             horizontal=True,
             key="edu_mode",
         )
-        
+
         def cuboid_mesh(x0, x1, y0, y1, z0, z1, dx, dy, dz, name, color):
             x = [x0 + dx, x1 + dx, x1 + dx, x0 + dx, x0 + dx, x1 + dx, x1 + dx, x0 + dx]
             y = [y0 + dy, y0 + dy, y1 + dy, y1 + dy, y0 + dy, y0 + dy, y1 + dy, y1 + dy]
@@ -1598,7 +1600,7 @@ with education_tab:
             mode = info["mode"]
             left_disp, right_disp = displacement_for(mode, 1.0)
             fig_fault_demo = go.Figure()
-            
+
             # Initial Traces
             fig_fault_demo.add_trace(cuboid_mesh(-2.0, -0.08, -1.1, 1.1, -0.6, 0.6, **left_disp, name="Sol blok", color="#42A5F5"))
             fig_fault_demo.add_trace(cuboid_mesh(0.08, 2.0, -1.1, 1.1, -0.6, 0.6, **right_disp, name="Sağ blok", color="#FFB74D"))
@@ -1732,9 +1734,9 @@ with education_tab:
                     fillcolor="#E53935", line=dict(color="#B71C1C", width=2)
                 )
 
-            fig_wave2d.add_trace(go.Scatter(x=x_base, y=z_base, mode="markers", 
+            fig_wave2d.add_trace(go.Scatter(x=x_base, y=z_base, mode="markers",
                                             marker=dict(size=8, color=np.zeros_like(x_base), colorscale="YlOrRd", cmin=0, cmax=2.5, showscale=False,
-                                                        line=dict(color="#000000", width=0.5)), 
+                                                        line=dict(color="#000000", width=0.5)),
                                             name="Parçacıklar", hoverinfo="skip"))
             fig_wave2d.add_trace(go.Scatter(x=[focus_x], y=[focus_z], mode="markers+text", text=["Odak"], textposition="bottom right", marker=dict(size=16, color="#E53935", symbol="star"), name="Odak", hoverinfo="skip"))
 
@@ -1776,7 +1778,7 @@ with education_tab:
                 color_array = np.where(energy > 0.1, energy, 0)
 
                 frames.append(go.Frame(
-                    data=[go.Scatter(x=x_base + dx, y=z_base + dz, mode="markers", 
+                    data=[go.Scatter(x=x_base + dx, y=z_base + dz, mode="markers",
                                      marker=dict(size=8, color=color_array, colorscale="YlOrRd", cmin=0, cmax=2.5, showscale=False,
                                                  line=dict(color="#000000", width=0.5)))],
                     traces=[2],
@@ -1858,7 +1860,6 @@ with education_tab:
             erz_surface_z = float(terrain_height(0, 0))
             event_surface_z = float(terrain_height(event_x, event_y))
             impact_radius = min(115, 15 * scenario_mag + max(0, 18 - scenario_depth) * 1.25)
-            wave_radius = min(impact_radius, 3.5 * animation_step)
             intensity_index = min(10, max(1, scenario_mag * 1.45 - math.log10(scenario_depth + 5) * 2.1 + 1.2))
 
             x_grid = np.linspace(-92, 92, 48)
@@ -1982,7 +1983,7 @@ with education_tab:
                 cy.append(city["y"])
                 cz.append(terrain_height(city["x"], city["y"]) + 1.2)
                 ctext.append(city["name"])
-                
+
             fig_erz.add_trace(go.Scatter3d(
                 x=cx, y=cy, z=cz,
                 mode="markers+text",
@@ -1998,7 +1999,7 @@ with education_tab:
                 f_radius = min(impact_radius, 3.5 * t)
                 f_heat = np.zeros_like(base_terrain)
                 f_dyn = np.zeros_like(base_terrain)
-                
+
                 for r in range(base_terrain.shape[0]):
                     for c in range(base_terrain.shape[1]):
                         d = np.sqrt((xx_grid[r,c] - event_x)**2 + (yy_grid[r,c] - event_y)**2)
@@ -2006,14 +2007,14 @@ with education_tab:
                             f_heat[r,c] = max(0, 1 - (d / impact_radius))
                         else:
                             f_heat[r,c] = -0.2
-                        
+
                         amp = 3.0 * np.exp(-d / (impact_radius * 0.4))
                         env = np.exp(-((d - f_radius) / 8.0)**2)
                         rip = amp * env * np.cos((d - f_radius) * 1.5)
                         f_dyn[r,c] = base_terrain[r,c] + rip
-                
+
                 f_rx, f_ry, f_rz = ring_on_terrain(event_x, event_y, f_radius, lift=0.7)
-                
+
                 frames.append(go.Frame(
                     data=[
                         go.Surface(z=f_dyn, surfacecolor=f_heat),
@@ -2022,7 +2023,7 @@ with education_tab:
                     traces=[7, 8],
                     name=str(t)
                 ))
-                
+
             fig_erz.frames = frames
 
             fig_erz.update_layout(
@@ -2998,7 +2999,7 @@ with education_tab:
                     for i, lat_g in enumerate(lats_g):
                         for j, lon_g in enumerate(lons_g):
                             dists = df_mc.apply(
-                                lambda r: haversine(lat_g, lon_g, r["lat"], r["lon"]), axis=1
+                                lambda r, lat=lat_g, lon=lon_g: haversine(lat, lon, r["lat"], r["lon"]), axis=1
                             )
                             sub_g = df_mc[dists <= bg_sr]
                             if len(sub_g) < bg_min:
