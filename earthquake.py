@@ -778,7 +778,7 @@ radar_tab, stats_tab, fault_tab, education_tab, system_tab, report_tab = st.tabs
     "Canlı Radar",
     "İstatistik & Analiz",
     "Fay Sistemleri",
-    "Simülasyonlar",
+    "Bilgi Havuzu",
     "Sistem & Veri",
     "Raporlar",
 ])
