@@ -1670,6 +1670,7 @@ with education_tab:
             c_wave1, c_wave2 = st.columns([1, 2])
             with c_wave1:
                 wave_type = st.radio("Gösterilecek Dalga", ["P Dalgası (Sıkışma)", "S Dalgası (Kesme)", "Rayleigh (Yüzey)"], key="wave_type_radio")
+                step_ps = st.slider("Animasyon Zamanı", 0, 59, 0, 1, key="edu_ps_step")
             with c_wave2:
                 st.info("💡 **İpucu:** Yeraltındaki noktaların dalga geçerken nasıl titreştiğine dikkatlice bakın! P dalgası ileri-geri, S dalgası yukarı-aşağı, Rayleigh ise eliptik olarak sallanır.")
 
@@ -1915,19 +1916,29 @@ with education_tab:
                 line=dict(color="#64B5F6", width=8),
                 name="Animasyon dalga cephesi",
             ))
-            # Slider bazlı Heatmap hesaplaması
+            # Slider bazlı Heatmap ve 3B Yayılım hesaplaması
             frame_radius = min(impact_radius, 3.5 * animation_step)
             heat_array = np.zeros_like(base_terrain)
+            dynamic_terrain = np.zeros_like(base_terrain)
+            
             for r in range(base_terrain.shape[0]):
                 for c in range(base_terrain.shape[1]):
                     d = np.sqrt((xx_grid[r,c] - event_x)**2 + (yy_grid[r,c] - event_y)**2)
+                    # Heatmap rengi
                     if d <= frame_radius:
                         heat_array[r,c] = max(0, 1 - (d / impact_radius))
                     else:
                         heat_array[r,c] = -0.2
+                    
+                    # 3B Dalga Hareketi (Sarsıntı Merkezi'nden dışa doğru yayılım)
+                    amplitude = 3.0 * np.exp(-d / (impact_radius * 0.4)) # Mesafe ile sönen dalga boyu
+                    envelope = np.exp(-((d - frame_radius) / 8.0)**2)    # Sadece dalga cephesinde aktif
+                    ripple = amplitude * envelope * np.cos((d - frame_radius) * 1.5)
+                    
+                    dynamic_terrain[r,c] = base_terrain[r,c] + ripple
 
             fig_erz.add_trace(go.Surface(
-                x=xx_grid, y=yy_grid, z=base_terrain,
+                x=xx_grid, y=yy_grid, z=dynamic_terrain,
                 surfacecolor=heat_array,
                 cmin=-0.2, cmax=1.0,
                 colorscale=[
@@ -1987,6 +1998,11 @@ with education_tab:
                     zaxis=dict(title="Yükselti / sarsıntı", range=[-8, 10], color=TEXT, gridcolor=GRID, showticklabels=False),
                     aspectmode="manual",
                     aspectratio=dict(x=1.7, y=1.05, z=0.45),
+                    camera=dict(
+                        eye=dict(x=0, y=-1.85, z=1.35),
+                        up=dict(x=0, y=0, z=1),
+                        center=dict(x=0, y=0, z=0)
+                    ),
                 ),
                 legend=dict(font=dict(color=TEXT), bgcolor="rgba(0,0,0,0)", orientation="h"),
             )
