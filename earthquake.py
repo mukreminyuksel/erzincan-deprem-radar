@@ -1883,7 +1883,7 @@ with education_tab:
                 text=[f"⭐ Merkez Üssü M{scenario_mag}", "Hiposantr"],
                 textposition=["top center", "bottom center"],
                 line=dict(color="#E53935", width=4),
-                marker=dict(size=[20, 8], color=["#FFD54F", "#FFCDD2"], symbol=["star", "diamond"], line=dict(color="#E53935", width=2)),
+                marker=dict(size=[20, 8], color=["#FFD54F", "#FFCDD2"], symbol=["diamond", "circle"], line=dict(color="#E53935", width=2)),
                 name="Sanal deprem kaynağı",
             ))
 
