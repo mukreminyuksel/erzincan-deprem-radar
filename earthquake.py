@@ -1775,10 +1775,10 @@ with education_tab:
 
         else:
             scenarios = {
-                "Yedisu Segmenti (Doğu)": {"mag": 7.2, "depth": 12, "lat": ERZ_LAT + 0.1, "lon": ERZ_LON + 1.0, "mechanism": "Sağ yanal / Yüksek tehlike"},
-                "Karlıova Kesimi (Uzak Doğu)": {"mag": 7.4, "depth": 15, "lat": ERZ_LAT - 0.2, "lon": ERZ_LON + 1.6, "mechanism": "Kesişim bölgesi"},
-                "Refahiye Segmenti (Batı)": {"mag": 6.8, "depth": 10, "lat": ERZ_LAT + 0.15, "lon": ERZ_LON - 0.8, "mechanism": "Sağ yanal doğrultu atımlı"},
-                "Erzincan Merkez": {"mag": 7.8, "depth": 15, "lat": ERZ_LAT + 0.05, "lon": ERZ_LON - 0.1, "mechanism": "Sağ yanal yıkıcı sarsıntı"},
+                "Yedisu Segmenti (Doğu)": {"mag": 7.2, "depth": 12, "lat": 39.43, "lon": 40.54, "mechanism": "Sağ yanal / Yüksek tehlike"},
+                "Karlıova Kesimi (Uzak Doğu)": {"mag": 7.4, "depth": 15, "lat": 39.30, "lon": 41.01, "mechanism": "Kesişim bölgesi"},
+                "Refahiye Segmenti (Batı)": {"mag": 6.8, "depth": 10, "lat": 39.90, "lon": 38.76, "mechanism": "Sağ yanal doğrultu atımlı"},
+                "Erzincan Merkez": {"mag": 7.8, "depth": 15, "lat": 39.75, "lon": 39.50, "mechanism": "Sağ yanal yıkıcı sarsıntı"},
             }
             selected_scenario = st.selectbox("Merkez Üssü (Episantr) Seçimi", list(scenarios.keys()), key="erz_scenario")
             scenario = scenarios[selected_scenario]
@@ -1852,11 +1852,11 @@ with education_tab:
             ))
 
             cities = [
-                {"name": "Erzincan Merkez", "x": 0, "y": 0, "color": "#00E5FF"},
-                {"name": "Bingöl Karlıova", "x": lonlat_to_xy(ERZ_LAT - 0.2, ERZ_LON + 1.6)[0], "y": lonlat_to_xy(ERZ_LAT - 0.2, ERZ_LON + 1.6)[1], "color": "#FFFFFF"},
-                {"name": "Yedisu", "x": lonlat_to_xy(ERZ_LAT + 0.1, ERZ_LON + 1.0)[0], "y": lonlat_to_xy(ERZ_LAT + 0.1, ERZ_LON + 1.0)[1], "color": "#FFFFFF"},
-                {"name": "Refahiye", "x": lonlat_to_xy(ERZ_LAT + 0.15, ERZ_LON - 0.8)[0], "y": lonlat_to_xy(ERZ_LAT + 0.15, ERZ_LON - 0.8)[1], "color": "#FFFFFF"},
-                {"name": "Tercan", "x": lonlat_to_xy(ERZ_LAT, ERZ_LON + 0.8)[0], "y": lonlat_to_xy(ERZ_LAT, ERZ_LON + 0.8)[1], "color": "#FFFFFF"},
+                {"name": "Erzincan Merkez", "x": lonlat_to_xy(39.75, 39.50)[0], "y": lonlat_to_xy(39.75, 39.50)[1], "color": "#00E5FF"},
+                {"name": "Bingöl Karlıova", "x": lonlat_to_xy(39.30, 41.01)[0], "y": lonlat_to_xy(39.30, 41.01)[1], "color": "#FFFFFF"},
+                {"name": "Yedisu", "x": lonlat_to_xy(39.43, 40.54)[0], "y": lonlat_to_xy(39.43, 40.54)[1], "color": "#FFFFFF"},
+                {"name": "Refahiye", "x": lonlat_to_xy(39.90, 38.76)[0], "y": lonlat_to_xy(39.90, 38.76)[1], "color": "#FFFFFF"},
+                {"name": "Tercan", "x": lonlat_to_xy(39.77, 40.39)[0], "y": lonlat_to_xy(39.77, 40.39)[1], "color": "#FFFFFF"},
             ]
             cx, cy, cz, ctext, ccolors = [], [], [], [], []
             for city in cities:
