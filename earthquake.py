@@ -872,6 +872,140 @@ def make_mapbox_layout(stil):
     else:
         return dict(style="carto-positron")
 
+
+@st.cache_data(show_spinner=False, ttl=300)
+def calc_etas_cache(df_sub_dict, d_frac, b_eta):
+    import math
+
+    import numpy as np
+    import pandas as pd
+    sub = pd.DataFrame(df_sub_dict)
+    eta_list = []
+    log_t_list = []
+    log_r_list = []
+
+    for j in range(1, len(sub)):
+        t_j = sub["zaman"].iloc[j]
+        min_eta = np.inf
+        best_t, best_r = np.nan, np.nan
+        for i in range(j):
+            m_i = sub["buyukluk"].iloc[i]
+            dt_yr = (t_j - sub["zaman"].iloc[i]).total_seconds() / (365.25*86400)
+            if dt_yr <= 0:
+                continue
+            dr = haversine(sub["lat"].iloc[i], sub["lon"].iloc[i],
+                           sub["lat"].iloc[j], sub["lon"].iloc[j])
+            dr = max(dr, 0.1)
+            eta = dt_yr * (dr**(d_frac/b_eta)) * (10**(-b_eta*m_i/2))
+            if eta < min_eta:
+                min_eta, best_t, best_r = eta, dt_yr, dr
+        if np.isfinite(min_eta) and min_eta > 0:
+            eta_list.append(math.log10(min_eta))
+            log_t_list.append(math.log10(max(best_t, 1e-10)))
+            log_r_list.append(math.log10(max(best_r, 0.1)))
+    return eta_list, log_t_list, log_r_list
+
+@st.cache_data(show_spinner=False, ttl=300)
+def calc_rtl_cache(df_dict, rtl_r0, rtl_t0, ERZ_LAT, ERZ_LON):
+    import math
+
+    import pandas as pd
+    exp_df = pd.DataFrame(df_dict)
+    exp_df["L_km"] = exp_df["buyukluk"].apply(
+        lambda m: max(0.1, 10**(-2.44 + 0.59*m))
+    )
+    rtl_times, rtl_scores = [], []
+    step = max(1, len(exp_df) // 80)
+    for idx in range(10, len(exp_df), step):
+        t_ref = exp_df["zaman"].iloc[idx]
+        past = exp_df.iloc[:idx]
+        score = 0.0
+        for _, ev in past.iterrows():
+            r = haversine(ERZ_LAT, ERZ_LON, ev["lat"], ev["lon"])
+            dt_days = (t_ref - ev["zaman"]).total_seconds() / 86400
+            if dt_days <= 0:
+                continue
+            score += (math.exp(-r / rtl_r0) * math.exp(-dt_days / rtl_t0) / ev["L_km"])
+        rtl_times.append(t_ref)
+        rtl_scores.append(score)
+    return rtl_times, rtl_scores
+
+@st.cache_data(show_spinner=False, ttl=300)
+def calc_amr_cache(df_dict):
+    import math
+
+    import numpy as np
+    import pandas as pd
+    amr_df = pd.DataFrame(df_dict).sort_values("zaman").copy()
+    amr_df["benioff"] = amr_df["buyukluk"].apply(
+        lambda m: math.sqrt(10**(1.5*m))
+    )
+    amr_df["cum_ben"] = amr_df["benioff"].cumsum()
+    C_max = amr_df["cum_ben"].max()
+    if C_max > 0:
+        amr_df["C_norm"] = amr_df["cum_ben"] / C_max
+    else:
+        amr_df["C_norm"] = amr_df["cum_ben"]
+
+    t0_amr = amr_df["zaman"].iloc[0]
+    t_days = ((amr_df["zaman"] - t0_amr).dt.total_seconds() / 86400).values
+    C = amr_df["C_norm"].values
+    T_obs = t_days[-1]
+
+    best_rmse, best_m, best_tf, best_fitted = np.inf, 1.0, T_obs*1.5, C
+    for tf_mult in np.linspace(1.05, 4.0, 25):
+        tf = T_obs * tf_mult
+        X_vals = (tf - t_days)
+        X_vals = np.maximum(X_vals, 1e-6)
+        for m_try in np.linspace(0.1, 1.9, 30):
+            X = X_vals ** m_try
+            mat = np.column_stack([np.ones_like(X), X])
+            try:
+                coeffs, _, _, _ = np.linalg.lstsq(mat, C, rcond=None)
+                A_fit, B_fit = coeffs
+                fitted = A_fit + B_fit * X
+                rmse = np.sqrt(np.mean((C - fitted)**2))
+                if rmse < best_rmse:
+                    best_rmse = rmse
+                    best_m = m_try
+                    best_tf = tf
+                    best_fitted = fitted.copy()
+            except Exception:
+                pass
+    return amr_df["zaman"].tolist(), C.tolist(), best_m, best_tf, best_fitted.tolist(), T_obs, t0_amr, best_rmse
+
+# ─── CACHED FUNCTIONS FOR PERFORMANCE ───────────────────────────────────────
+@st.cache_data(show_spinner=False, ttl=300)
+def calc_b_grid_cache(df_mc_dict, bg_n, bg_sr, bg_min, radius_km, ERZ_LAT, ERZ_LON, mc_g):
+    import math
+
+    import numpy as np
+    import pandas as pd
+    df_mc = pd.DataFrame(df_mc_dict)
+    deg = 1 / 111
+    margin_deg = radius_km * deg * 0.75
+    lats_g = np.linspace(ERZ_LAT - margin_deg, ERZ_LAT + margin_deg, bg_n)
+    lons_g = np.linspace(ERZ_LON - margin_deg * 1.3, ERZ_LON + margin_deg * 1.3, bg_n)
+
+    b_grid  = np.full((bg_n, bg_n), np.nan)
+    n_grid  = np.zeros((bg_n, bg_n), dtype=int)
+
+    for i, lat_g in enumerate(lats_g):
+        for j, lon_g in enumerate(lons_g):
+            dists = df_mc.apply(
+                lambda r, lat=lat_g, lon=lon_g: haversine(lat, lon, r["lat"], r["lon"]), axis=1
+            )
+            sub_g = df_mc[dists <= bg_sr]
+            if len(sub_g) < bg_min:
+                continue
+            mean_m = sub_g["buyukluk"].mean()
+            if mean_m <= mc_g:
+                continue
+            b_val = math.log10(math.e) / (mean_m - mc_g)
+            b_grid[i, j] = np.clip(b_val, 0.3, 3.0)
+            n_grid[i, j] = len(sub_g)
+    return b_grid, lats_g, lons_g
+
 with radar_tab:
     # ─── Harita + Kayan Liste ───────────────────────────────────────────────────
     col_map, col_list = st.columns([2.8, 1])
@@ -2510,28 +2644,9 @@ with stats_tab:
                 st.metric("Fraktal boyut d", f"{d_frac}")
 
             with st.spinner("η değerleri hesaplanıyor..."):
-                eta_list, log_t_list, log_r_list = [], [], []
-                n = min(len(exp_df), 400)  # performans sınırı
+                n = min(len(exp_df), 400)
                 sub = exp_df.iloc[:n].reset_index(drop=True)
-                for j in range(1, n):
-                    t_j = sub["zaman"].iloc[j]
-                    min_eta = np.inf
-                    best_t, best_r = np.nan, np.nan
-                    for i in range(j):
-                        m_i = sub["buyukluk"].iloc[i]
-                        dt_yr = (t_j - sub["zaman"].iloc[i]).total_seconds() / (365.25*86400)
-                        if dt_yr <= 0:
-                            continue
-                        dr = haversine(sub["lat"].iloc[i], sub["lon"].iloc[i],
-                                       sub["lat"].iloc[j], sub["lon"].iloc[j])
-                        dr = max(dr, 0.1)
-                        eta = dt_yr * (dr**(d_frac/b_eta)) * (10**(-b_eta*m_i/2))
-                        if eta < min_eta:
-                            min_eta, best_t, best_r = eta, dt_yr, dr
-                    if np.isfinite(min_eta) and min_eta > 0:
-                        eta_list.append(math.log10(min_eta))
-                        log_t_list.append(math.log10(max(best_t, 1e-10)))
-                        log_r_list.append(math.log10(max(best_r, 0.1)))
+                eta_list, log_t_list, log_r_list = calc_etas_cache(sub.to_dict("list"), d_frac, b_eta)
 
             if eta_list:
                 eta_arr = np.array(eta_list)
@@ -2631,26 +2746,7 @@ with stats_tab:
                                30, 730, 180, 30, key="rtl_t0")
 
             with st.spinner("RTL hesaplanıyor..."):
-                # Rupture uzunluğu: Wells & Coppersmith 1994
-                exp_df["L_km"] = exp_df["buyukluk"].apply(
-                    lambda m: max(0.1, 10**(-2.44 + 0.59*m))
-                )
-                rtl_times, rtl_scores = [], []
-                step = max(1, len(exp_df) // 80)  # max 80 nokta
-                for idx in range(10, len(exp_df), step):
-                    t_ref = exp_df["zaman"].iloc[idx]
-                    past = exp_df.iloc[:idx]
-                    score = 0.0
-                    for _, ev in past.iterrows():
-                        r = haversine(ERZ_LAT, ERZ_LON, ev["lat"], ev["lon"])
-                        dt_days = (t_ref - ev["zaman"]).total_seconds() / 86400
-                        if dt_days <= 0:
-                            continue
-                        score += (math.exp(-r / rtl_r0) *
-                                  math.exp(-dt_days / rtl_t0) /
-                                  ev["L_km"])
-                    rtl_times.append(t_ref)
-                    rtl_scores.append(score)
+                rtl_times, rtl_scores = calc_rtl_cache(exp_df.to_dict("list"), rtl_r0, rtl_t0, ERZ_LAT, ERZ_LON)
 
             if len(rtl_scores) >= 5:
                 arr = np.array(rtl_scores)
@@ -2739,45 +2835,8 @@ with stats_tab:
         )
 
         if len(exp_df) >= 20:
-            amr_df = exp_df.sort_values("zaman").copy()
-            amr_df["benioff"] = amr_df["buyukluk"].apply(
-                lambda m: math.sqrt(10**(1.5*m))
-            )
-            amr_df["cum_ben"] = amr_df["benioff"].cumsum()
-            C_max = amr_df["cum_ben"].max()
-            if C_max > 0:
-                amr_df["C_norm"] = amr_df["cum_ben"] / C_max
-            else:
-                amr_df["C_norm"] = amr_df["cum_ben"]
-
-            t0_amr = amr_df["zaman"].iloc[0]
-            t_days = ((amr_df["zaman"] - t0_amr)
-                      .dt.total_seconds() / 86400).values
-            C = amr_df["C_norm"].values
-            T_obs = t_days[-1]
-
-            # Grid search: tf ∈ [T_obs*1.05, T_obs*5], m ∈ [0.1, 2.0]
-            best_rmse, best_m, best_tf, best_fitted = np.inf, 1.0, T_obs*1.5, C
-            for tf_mult in np.linspace(1.05, 4.0, 25):
-                tf = T_obs * tf_mult
-                X_vals = (tf - t_days)
-                X_vals = np.maximum(X_vals, 1e-6)
-                for m_try in np.linspace(0.1, 1.9, 30):
-                    X = X_vals ** m_try
-                    # Least squares: C = A + B*X  →  normal equations
-                    mat = np.column_stack([np.ones_like(X), X])
-                    try:
-                        coeffs, _, _, _ = np.linalg.lstsq(mat, C, rcond=None)
-                        A_fit, B_fit = coeffs
-                        fitted = A_fit + B_fit * X
-                        rmse = np.sqrt(np.mean((C - fitted)**2))
-                        if rmse < best_rmse:
-                            best_rmse = rmse
-                            best_m = m_try
-                            best_tf = tf
-                            best_fitted = fitted.copy()
-                    except Exception:
-                        pass
+            amr_zaman, C, best_m, best_tf, best_fitted, T_obs, t0_amr, best_rmse = calc_amr_cache(exp_df.to_dict("list"))
+            amr_df = pd.DataFrame({"zaman": amr_zaman, "C_norm": C})
 
             tf_date = t0_amr + timedelta(days=float(best_tf))
             m_interp = ("🔴 İvceleniyor — kritik noktaya yaklaşım" if best_m < 0.8
@@ -2855,31 +2914,10 @@ with stats_tab:
             bg_min = st.slider("Min olay sayısı/hücre", 5, 20, 8, 1, key="bg_min")
 
             with st.spinner("Uzamsal b-değerleri hesaplanıyor..."):
-                deg = 1 / 111
-                margin_deg = radius_km * deg * 0.75
-                lats_g = np.linspace(ERZ_LAT - margin_deg, ERZ_LAT + margin_deg, bg_n)
-                lons_g = np.linspace(ERZ_LON - margin_deg * 1.3, ERZ_LON + margin_deg * 1.3, bg_n)
-
                 Mc_g = float(exp_df["buyukluk"].quantile(0.15))
                 df_mc = exp_df[exp_df["buyukluk"] >= Mc_g]
-
-                b_grid  = np.full((bg_n, bg_n), np.nan)
-                n_grid  = np.zeros((bg_n, bg_n), dtype=int)
-
-                for i, lat_g in enumerate(lats_g):
-                    for j, lon_g in enumerate(lons_g):
-                        dists = df_mc.apply(
-                            lambda r, lat=lat_g, lon=lon_g: haversine(lat, lon, r["lat"], r["lon"]), axis=1
-                        )
-                        sub_g = df_mc[dists <= bg_sr]
-                        if len(sub_g) < bg_min:
-                            continue
-                        mean_m = sub_g["buyukluk"].mean()
-                        if mean_m <= Mc_g:
-                            continue
-                        b_val = math.log10(math.e) / (mean_m - Mc_g)
-                        b_grid[i, j] = np.clip(b_val, 0.3, 3.0)
-                        n_grid[i, j] = len(sub_g)
+                # Pass dict instead of DataFrame to st.cache_data to avoid hashing issues if index differs
+                b_grid, lats_g, lons_g = calc_b_grid_cache(df_mc.to_dict("list"), bg_n, bg_sr, bg_min, radius_km, ERZ_LAT, ERZ_LON, Mc_g)
 
             if not np.all(np.isnan(b_grid)):
                 fig_bmap = go.Figure()
