@@ -2170,6 +2170,7 @@ with stats_tab:
                 )
                 st.plotly_chart(fig_pre, use_container_width=True,
                                 config={"displayModeBar": False, "displaylogo": False})
+                st.info("💡 **Basitçe:** Büyük bir depremden önce bazen o bölgede küçük 'haberci' sarsıntılar olur. Bu grafik, bölgede son günlerde şüpheli bir haberci kümelenmesi olup olmadığını test eder.")
 
             # Önemli korelasyon tespitleri
             strong = []
@@ -2271,6 +2272,7 @@ with stats_tab:
                 )
                 st.plotly_chart(fig_b, use_container_width=True,
                                 config={"displayModeBar": False, "displaylogo": False})
+                st.info("💡 **Basitçe (b-Değeri):** Yeraltındaki kayaların ne kadar gerildiğini ölçer. Çizgi aşağıya doğru iniyorsa (mavi çizgi kırmızı çizginin altına düşüyorsa), yeraltındaki stres (gerilim) artıyor demektir.")
                 st.caption(f"Pencere: {WINDOW} deprem | Mc ≈ M{Mc:.1f} | Veri noktası: {len(b_vals)}")
             else:
                 st.info("b-değeri için yeterli veri yok. Zaman aralığını genişletin.")
@@ -2327,6 +2329,7 @@ with stats_tab:
             )
             st.plotly_chart(fig_ben, use_container_width=True,
                             config={"displayModeBar": False, "displaylogo": False})
+            st.info("💡 **Basitçe:** Kayaların zamanla ne kadar bükülüp zorlandığını gösterir. Yokuş yukarı giden sürekli bir eğilim, fay hattında enerjinin damla damla biriktiğini ifade eder.")
 
         # ── Epimerkez Göç Analizi ───────────────────────────────────
         st.markdown("---")
@@ -2383,6 +2386,7 @@ with stats_tab:
             )
             st.plotly_chart(fig_mig, use_container_width=True,
                             config={"displayModeBar": False, "displaylogo": False})
+            st.info("💡 **Basitçe:** Depremlerin harita üzerinde zamanla nereye doğru 'yürüdüğünü' gösterir. Eğer depremler sürekli bir yöne doğru sırayla oluyorsa, fay hattı boyunca bir kırılma hareketi tetikleniyor olabilir.")
 
         with col_mig2:
             st.markdown('<div class="chart-title">📉 Derinlik Göçü (Zaman)</div>', unsafe_allow_html=True)
@@ -2436,6 +2440,7 @@ with stats_tab:
             )
             st.plotly_chart(fig_dep_mig, use_container_width=True,
                             config={"displayModeBar": False, "displaylogo": False})
+            st.info("💡 **Basitçe:** Depremlerin yeraltında aşağıdan yukarıya doğru hareketini gösterir. Derinden yüzeye doğru yaklaşan sürekli depremler, kırılmanın yeryüzüne çıkmaya başladığının bir işareti olabilir.")
     else:
         st.info("Bilimsel analiz için en az 20 deprem gerekli. Zaman aralığını veya yarıçapı genişletin.")
 
@@ -2583,6 +2588,7 @@ with stats_tab:
                     )
                     st.plotly_chart(fig_eta_s, use_container_width=True,
                                     config={"displayModeBar": False, "displaylogo": False})
+                    st.info("💡 **Basitçe:** Her deprem kendinden sonra artçı sarsıntılar doğurur. Bu grafik, şu anki depremlerin normal birer artçı mı yoksa kendi başlarına yeni bir tehlike (ana deprem hazırlığı) mi olduğunu anlamak için sarsıntıların bulaşıcılığını hesaplar.")
 
                 n_clust = int(clustered.sum())
                 n_bg = int((~clustered).sum())
@@ -2695,6 +2701,7 @@ with stats_tab:
                 )
                 st.plotly_chart(fig_rtl, use_container_width=True,
                                 config={"displayModeBar": False, "displaylogo": False})
+                st.info("💡 **Basitçe:** RTL skoru sıfırın altına indiğinde, o bölgedeki deprem aktivitesinde şüpheli bir 'sessizlik' var demektir. Fırtına öncesi sessizlik gibi, fayın kilitlendiğini ve enerji biriktirdiğini gösterebilir.")
 
                 anomaly_periods = sum(1 for z in rtl_z if z < -2)
                 st.info(
@@ -2813,6 +2820,7 @@ with stats_tab:
             )
             st.plotly_chart(fig_amr, use_container_width=True,
                             config={"displayModeBar": False, "displaylogo": False})
+            st.info("💡 **Basitçe:** Depremler büyük bir olaya hazırlanırken bazen enerjilerini giderek hızlanan bir 'ritim' ile serbest bırakırlar. Bu grafik, sarsıntıların giderek artan ve hızlanan bir ritmi (büyük kırılmaya yaklaşma) olup olmadığını ölçer.")
             st.caption(
                 "⚠️ AMR tₓ tahmini istatistiksel bir fit olup kesin deprem tahmini değildir. "
                 "Akademik referans: Bowman et al., JGR 1998."
@@ -2920,6 +2928,7 @@ with stats_tab:
                 )
                 st.plotly_chart(fig_bmap, use_container_width=True,
                                 config={"displayModeBar": False, "displaylogo": False})
+                st.info("💡 **Basitçe:** Haritadaki renkler yeraltı stresini gösterir. **Kırmızı/Sıcak renkli alanlar** fayın çok sıkıştığı ve stresin çok yüksek olduğu (tehlikeli) bölgelerdir. Mavi renkler ise stresin daha düşük olduğu yerlerdir.")
 
                 valid_b = b_grid[~np.isnan(b_grid)]
                 low_b_pct = float(np.mean(valid_b < 0.8) * 100)
