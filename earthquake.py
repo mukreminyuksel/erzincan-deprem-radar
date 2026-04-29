@@ -1834,14 +1834,25 @@ with education_tab:
                 name="Sanal deprem kaynağı"
             ))
 
-            # Başlangıç Dalgaları (Sıfır yarıçap)
-            p_lon, p_lat = create_circle_coords(event_lat, event_lon, 0)
-            s_lon, s_lat = create_circle_coords(event_lat, event_lon, 0)
-            r_lon, r_lat = create_circle_coords(event_lat, event_lon, 0)
+            # Animasyon Süresi (Streamlit Slider tabanlı interaktif scrub)
+            max_t = int(max(dist_to_erz, 220) / vr) + 15
+            if max_t > 150: max_t = 150
+            if max_t < 40: max_t = 40
 
-            fig_erz.add_trace(go.Scattermapbox(lat=p_lat, lon=p_lon, mode="lines", line=dict(color="#29B6F6", width=3), name="P-Dalgası (Hızlı)"))
-            fig_erz.add_trace(go.Scattermapbox(lat=s_lat, lon=s_lon, mode="lines", line=dict(color="#FFA726", width=4), name="S-Dalgası (Yıkıcı)"))
-            fig_erz.add_trace(go.Scattermapbox(lat=r_lat, lon=r_lon, mode="lines", line=dict(color="#F44336", width=6), name="Rayleigh Dalgası (Yüzey)"))
+            st.markdown("### ⏱️ Deprem Yayılım Simülasyonu")
+            sim_time = st.slider("Zamanı ileri/geri alarak sismik dalganın hedeflere varışını gözlemleyin (Saniye)", 0, max_t, 0, step=1, key="sim_slider")
+
+            p_rad = vp * sim_time
+            s_rad = vs * sim_time
+            r_rad = vr * sim_time
+
+            p_lon, p_lat = create_circle_coords(event_lat, event_lon, p_rad)
+            s_lon, s_lat = create_circle_coords(event_lat, event_lon, s_rad)
+            r_lon, r_lat = create_circle_coords(event_lat, event_lon, r_rad)
+
+            fig_erz.add_trace(go.Scattermapbox(lat=p_lat, lon=p_lon, mode="lines", line=dict(color="#29B6F6", width=3), name=f"P-Dalgası (r={p_rad:.0f}km)"))
+            fig_erz.add_trace(go.Scattermapbox(lat=s_lat, lon=s_lon, mode="lines", line=dict(color="#FFA726", width=4), name=f"S-Dalgası (r={s_rad:.0f}km)"))
+            fig_erz.add_trace(go.Scattermapbox(lat=r_lat, lon=r_lon, mode="lines", line=dict(color="#F44336", width=6), name=f"Rayleigh Dalgası (r={r_rad:.0f}km)"))
 
             # Fay Hatları (Canlı Radardaki Altlık)
             if FAULT_LINES:
@@ -1880,33 +1891,6 @@ with education_tab:
                         showlegend=False
                     ))
 
-            frames = []
-            max_t = int(max(dist_to_erz, 220) / vr) + 15
-            if max_t > 150: max_t = 150
-            if max_t < 40: max_t = 40
-
-            for t in range(0, max_t + 2, 2):
-                p_rad = vp * t
-                s_rad = vs * t
-                r_rad = vr * t
-
-                f_plon, f_plat = create_circle_coords(event_lat, event_lon, p_rad)
-                f_slon, f_slat = create_circle_coords(event_lat, event_lon, s_rad)
-                f_rlon, f_rlat = create_circle_coords(event_lat, event_lon, r_rad)
-
-                frames.append(go.Frame(
-                    data=[
-                        go.Scattermapbox(lat=f_plat, lon=f_plon, mode="lines"),
-                        go.Scattermapbox(lat=f_slat, lon=f_slon, mode="lines"),
-                        go.Scattermapbox(lat=f_rlat, lon=f_rlon, mode="lines")
-                    ],
-                    traces=[1, 2, 3], # 0: Merkez, 1: P, 2: S, 3: Rayleigh
-                    name=str(t),
-                    layout=go.Layout(title_text=f"Simülasyon Süresi: t = {t} sn")
-                ))
-
-            fig_erz.frames = frames
-
             fig_erz.update_layout(
                 uirevision="constant",
                 paper_bgcolor=BG,
@@ -1921,17 +1905,6 @@ with education_tab:
                     pitch=0,
                 ),
                 legend=dict(font=dict(color=TEXT), bgcolor="rgba(0,0,0,0)", orientation="h", x=0, y=1.1),
-                updatemenus=[dict(
-                    type="buttons",
-                    showactive=False,
-                    x=0.02,
-                    y=0.02,
-                    buttons=[dict(
-                        label="▶ Animasyonu Oynat (Gerçek Zamanlı)",
-                        method="animate",
-                        args=[None, {"frame": {"duration": 500, "redraw": True}, "transition": {"duration": 0}, "fromcurrent": True}],
-                    )],
-                )],
             )
             st.plotly_chart(fig_erz, use_container_width=True, config={"displayModeBar": False, "displaylogo": False})
 
