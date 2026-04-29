@@ -1821,23 +1821,6 @@ with education_tab:
 
             fig_erz = go.Figure()
 
-            # KAF Geometrisi
-            kaf_pts_lonlat = [
-                (39.30, 41.01), # Karlıova
-                (39.43, 40.54), # Yedisu
-                (39.75, 39.50), # Erzincan
-                (39.90, 38.76), # Refahiye
-            ]
-            kaf_lats = [p[0] for p in kaf_pts_lonlat]
-            kaf_lons = [p[1] for p in kaf_pts_lonlat]
-
-            fig_erz.add_trace(go.Scattermapbox(
-                lat=kaf_lats, lon=kaf_lons,
-                mode="lines",
-                line=dict(color="#FF0000", width=4),
-                name="KAF Doğrultusu",
-            ))
-
             # Merkez Üssü
             event_lat = scenario["lat"]
             event_lon = scenario["lon"]
@@ -1861,6 +1844,43 @@ with education_tab:
             fig_erz.add_trace(go.Scattermapbox(lat=s_lat, lon=s_lon, mode="lines", line=dict(color="#FFA726", width=4), name="S-Dalgası (Yıkıcı)"))
             fig_erz.add_trace(go.Scattermapbox(lat=r_lat, lon=r_lon, mode="lines", line=dict(color="#F44336", width=6), name="Rayleigh Dalgası (Yüzey)"))
 
+            # Fay Hatları (Canlı Radardaki Altlık)
+            if FAULT_LINES:
+                deg = 1.0 / 111.0
+                margin = max(220 * 1.6, 250) * deg
+                lat_min, lat_max = ERZ_LAT - margin, ERZ_LAT + margin
+                lon_min, lon_max = ERZ_LON - margin / math.cos(math.radians(ERZ_LAT)), ERZ_LON + margin / math.cos(math.radians(ERZ_LAT))
+
+                def in_view(fault):
+                    return any(lat_min <= la <= lat_max for la in fault["lats"]) and                            any(lon_min <= lo <= lon_max for lo in fault["lons"])
+
+                visible = [f for f in FAULT_LINES if in_view(f)]
+
+                by_color = {}
+                for fault in visible:
+                    color = fault["color"]
+                    entry = by_color.setdefault(color, {"lats": [], "lons": [], "labels": []})
+                    entry["lats"].extend(fault["lats"] + [None])
+                    entry["lons"].extend(fault["lons"] + [None])
+                    seg = fault["segment"]
+                    label = f"{fault['fay_adi']} — {seg}" if seg else fault["fay_adi"]
+                    label = f"{label}<br>Kayma: {fault['kayma']}"
+                    if fault["uzunluk"]:
+                        label += f" · Uzunluk: {fault['uzunluk']} km"
+                    entry["labels"].extend([label] * len(fault["lats"]) + [None])
+
+                for color, data in by_color.items():
+                    fig_erz.add_trace(go.Scattermapbox(
+                        lat=data["lats"], lon=data["lons"],
+                        mode="lines",
+                        line=dict(width=1.5, color=color),
+                        hoverinfo="text",
+                        text=data["labels"],
+                        hovertemplate="%{text}<extra></extra>",
+                        name="Diri Fay (MTA)",
+                        showlegend=False
+                    ))
+
             frames = []
             max_t = int(max(dist_to_erz, 220) / vr) + 15
             if max_t > 150: max_t = 150
@@ -1881,7 +1901,7 @@ with education_tab:
                         go.Scattermapbox(lat=f_slat, lon=f_slon),
                         go.Scattermapbox(lat=f_rlat, lon=f_rlon)
                     ],
-                    traces=[2, 3, 4], # 0: KAF, 1: Merkez, 2: P, 3: S, 4: Rayleigh
+                    traces=[1, 2, 3], # 0: Merkez, 1: P, 2: S, 3: Rayleigh
                     name=str(t),
                     layout=go.Layout(title_text=f"Simülasyon Süresi: t = {t} sn")
                 ))
