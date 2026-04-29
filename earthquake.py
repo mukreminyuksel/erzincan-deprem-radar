@@ -1896,7 +1896,7 @@ with education_tab:
                 height=650,
                 margin=dict(t=30, b=8, l=0, r=0),
                 mapbox=dict(
-                    style=st.session_state.map_style,
+                    **make_mapbox_layout("Uydu"),
                     center=dict(lat=ERZ_LAT, lon=ERZ_LON),
                     zoom=7.5,
                     pitch=0,
