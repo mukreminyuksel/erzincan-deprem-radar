@@ -1812,11 +1812,21 @@ with education_tab:
             def terrain_height(x, y):
                 x_arr = np.asarray(x, dtype=float)
                 y_arr = np.asarray(y, dtype=float)
-                basin = -0.45 * np.exp(-((y_arr / 30) ** 2 + (x_arr / 100) ** 2))
-                north_south_mountains = 2.15 * (np.abs(y_arr) / 100) ** 1.4
-                east_west_ridges = 0.5 * (np.abs(x_arr) / 150) ** 1.2
-                texture = 0.12 * np.sin(x_arr / 10) * np.cos(y_arr / 10)
-                return basin + north_south_mountains + east_west_ridges + texture
+                # KAF yaklaşık -20 derece yönelimlidir (NW-SE)
+                theta = math.radians(-20)
+                x_rot = x_arr * math.cos(theta) - y_arr * math.sin(theta)
+                y_rot = x_arr * math.sin(theta) + y_arr * math.cos(theta)
+
+                # Erzincan çöküntü ovası (KAF boyu uzanan vadi)
+                basin = -1.5 * np.exp(-((y_rot / 25) ** 2 + (x_rot / 120) ** 2))
+
+                # Munzur ve Keşiş dağları silsilesi
+                mountains = 2.8 * (np.abs(y_rot) / 80) ** 1.35
+
+                # Coğrafi doku (pürüzlülük)
+                texture = 0.25 * np.sin(x_arr / 8) * np.cos(y_arr / 8)
+
+                return basin + mountains + texture
 
             def ring_on_terrain(cx, cy, radius_km, lift=0.32, points=180):
                 if radius_km == 0:
@@ -1827,8 +1837,8 @@ with education_tab:
                 z = terrain_height(x, y) + lift
                 return x, y, z
 
-            x_grid = np.linspace(-220, 220, 60)
-            y_grid = np.linspace(-220, 220, 60)
+            x_grid = np.linspace(-220, 220, 70)
+            y_grid = np.linspace(-220, 220, 70)
             xx_grid, yy_grid = np.meshgrid(x_grid, y_grid)
             base_terrain = terrain_height(xx_grid, yy_grid)
             distance_grid = np.sqrt((xx_grid - event_x) ** 2 + (yy_grid - event_y) ** 2)
@@ -1836,19 +1846,34 @@ with education_tab:
             impact_radius = min(150, 20 * scenario_mag)
             amplitude = min(1.5, 0.15 * scenario_mag)
 
-
             event_surface_z = float(terrain_height(event_x, event_y))
 
             fig_erz = go.Figure()
 
-            fault_x = np.linspace(-220, 220, 100)
-            fault_y = -5 + 0.09 * fault_x
-            fault_z = terrain_height(fault_x, fault_y) + 0.45
+            # KAF Geometrisi: Şehirler üzerinden geçen spline benzeri yapı
+            kaf_pts_lonlat = [
+                (39.30, 41.01), # Karlıova
+                (39.43, 40.54), # Yedisu
+                (39.75, 39.50), # Erzincan
+                (39.90, 38.76), # Refahiye
+            ]
+            kaf_pts_xy = [lonlat_to_xy(lat, lon) for lat, lon in kaf_pts_lonlat]
+            kf_x = np.array([p[0] for p in kaf_pts_xy])
+            kf_y = np.array([p[1] for p in kaf_pts_xy])
+
+            t_orig = np.linspace(0, 1, len(kf_x))
+            t_interp = np.linspace(0, 1, 100)
+            fault_x = np.interp(t_interp, t_orig, kf_x)
+            fault_y = np.interp(t_interp, t_orig, kf_y)
+            # Faya hafif doğal kıvrım ekleyelim
+            fault_y += 6 * np.sin(np.pi * t_interp)
+            fault_z = terrain_height(fault_x, fault_y) + 0.35
+
             fig_erz.add_trace(go.Scatter3d(
                 x=fault_x, y=fault_y, z=fault_z,
                 mode="lines",
-                line=dict(color="#D50000", width=7),
-                name="KAF doğrultusu / sağ yanal zon",
+                line=dict(color="#FF0000", width=8),
+                name="KAF Doğrultusu",
             ))
 
             cities = [
@@ -1858,20 +1883,42 @@ with education_tab:
                 {"name": "Refahiye", "x": lonlat_to_xy(39.90, 38.76)[0], "y": lonlat_to_xy(39.90, 38.76)[1], "color": "#FFFFFF"},
                 {"name": "Tercan", "x": lonlat_to_xy(39.77, 40.39)[0], "y": lonlat_to_xy(39.77, 40.39)[1], "color": "#FFFFFF"},
             ]
+
+            # Konum İğneleri (Map Pins Direkleri)
+            pole_x, pole_y, pole_z = [], [], []
             cx, cy, cz, ctext, ccolors = [], [], [], [], []
+
             for city in cities:
+                z0 = terrain_height(city["x"], city["y"])
+                z_top = z0 + 3.0  # Direk yüksekliği
+
+                pole_x.extend([city["x"], city["x"], None])
+                pole_y.extend([city["y"], city["y"], None])
+                pole_z.extend([z0, z_top, None])
+
                 cx.append(city["x"])
                 cy.append(city["y"])
-                cz.append(terrain_height(city["x"], city["y"]) + 1.5)
+                cz.append(z_top)
                 ctext.append(city["name"])
                 ccolors.append(city["color"])
 
+            # Direklerin Çizimi
+            fig_erz.add_trace(go.Scatter3d(
+                x=pole_x, y=pole_y, z=pole_z,
+                mode="lines",
+                line=dict(color="#FFFFFF", width=4),
+                name="Konum Çubukları",
+                showlegend=False,
+                hoverinfo="skip"
+            ))
+
+            # Direklerin Ucundaki İsim Etiketleri
             fig_erz.add_trace(go.Scatter3d(
                 x=cx, y=cy, z=cz,
                 mode="markers+text",
-                marker=dict(size=9, color=ccolors, line=dict(width=2, color="#000000")),
+                marker=dict(size=12, color=ccolors, line=dict(width=2, color="#000000"), symbol="circle"),
                 text=ctext, textposition="top center",
-                textfont=dict(color="#FFFFFF", size=13, family="Arial Black"),
+                textfont=dict(color="#FFFFFF", size=15, family="Arial Black"),
                 name="Yerleşim Yerleri"
             ))
 
@@ -1892,15 +1939,15 @@ with education_tab:
                 surfacecolor=np.zeros_like(base_terrain)-0.2,
                 cmin=-0.2, cmax=1.0,
                 colorscale=[
-                    [0, "#335c2d"],
-                    [0.16, "#d6c7a8"],
-                    [0.17, "#FDD835"],
-                    [0.5, "#FB8C00"],
-                    [1.0, "#E53935"],
+                    [0.0, "#2b6a3b"],   # Vadi tabanı (Koyu yeşil)
+                    [0.2, "#68944d"],   # Alçak etekler (Açık yeşil)
+                    [0.5, "#d3b987"],   # Dağ etekleri (Açık kahve)
+                    [0.8, "#875f42"],   # Dağ zirveleri (Koyu kahve)
+                    [1.0, "#ffffff"],   # Karlı zirveler (Beyaz)
                 ],
                 opacity=0.96,
                 showscale=False,
-                name="Arazi",
+                name="Fiziki Arazi",
             ))
 
             p_rx, p_ry, p_rz = ring_on_terrain(event_x, event_y, 0, lift=0.5)
