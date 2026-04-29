@@ -1809,154 +1809,57 @@ with education_tab:
 
             st.info(f"📍 **Merkez Üssü - Erzincan Mesafesi:** {dist_to_erz:.0f} km | ⏱️ **Dalga Varış Süreleri:** P Dalgası: **{p_arrival:.1f} sn** | S Dalgası: **{s_arrival:.1f} sn** | Yüzey Dalgası: **{r_arrival:.1f} sn**")
 
-            def terrain_height(x, y):
-                x_arr = np.asarray(x, dtype=float)
-                y_arr = np.asarray(y, dtype=float)
-                # KAF yaklaşık -20 derece yönelimlidir (NW-SE)
-                theta = math.radians(-20)
-                x_rot = x_arr * math.cos(theta) - y_arr * math.sin(theta)
-                y_rot = x_arr * math.sin(theta) + y_arr * math.cos(theta)
-
-                # Erzincan çöküntü ovası (KAF boyu uzanan vadi)
-                basin = -1.5 * np.exp(-((y_rot / 25) ** 2 + (x_rot / 120) ** 2))
-
-                # Munzur ve Keşiş dağları silsilesi
-                mountains = 2.8 * (np.abs(y_rot) / 80) ** 1.35
-
-                # Coğrafi doku (pürüzlülük)
-                texture = 0.25 * np.sin(x_arr / 8) * np.cos(y_arr / 8)
-
-                return basin + mountains + texture
-
-            def ring_on_terrain(cx, cy, radius_km, lift=0.32, points=180):
-                if radius_km == 0:
-                    return [cx], [cy], [terrain_height(cx, cy) + lift]
+            def create_circle_coords(clat, clon, radius_km, points=100):
+                if radius_km <= 0:
+                    return [clon], [clat]
                 angles = np.linspace(0, 2 * math.pi, points)
-                x = cx + radius_km * np.cos(angles)
-                y = cy + radius_km * np.sin(angles)
-                z = terrain_height(x, y) + lift
-                return x, y, z
-
-            x_grid = np.linspace(-220, 220, 70)
-            y_grid = np.linspace(-220, 220, 70)
-            xx_grid, yy_grid = np.meshgrid(x_grid, y_grid)
-            base_terrain = terrain_height(xx_grid, yy_grid)
-            distance_grid = np.sqrt((xx_grid - event_x) ** 2 + (yy_grid - event_y) ** 2)
-
-            impact_radius = min(150, 20 * scenario_mag)
-            amplitude = min(1.5, 0.15 * scenario_mag)
-
-            event_surface_z = float(terrain_height(event_x, event_y))
+                dlat = radius_km / 111.0
+                dlon = radius_km / (111.0 * math.cos(math.radians(clat)))
+                lats = clat + dlat * np.sin(angles)
+                lons = clon + dlon * np.cos(angles)
+                return lons.tolist(), lats.tolist()
 
             fig_erz = go.Figure()
 
-            # KAF Geometrisi: Şehirler üzerinden geçen spline benzeri yapı
+            # KAF Geometrisi
             kaf_pts_lonlat = [
                 (39.30, 41.01), # Karlıova
                 (39.43, 40.54), # Yedisu
                 (39.75, 39.50), # Erzincan
                 (39.90, 38.76), # Refahiye
             ]
-            kaf_pts_xy = [lonlat_to_xy(lat, lon) for lat, lon in kaf_pts_lonlat]
-            kf_x = np.array([p[0] for p in kaf_pts_xy])
-            kf_y = np.array([p[1] for p in kaf_pts_xy])
+            kaf_lats = [p[0] for p in kaf_pts_lonlat]
+            kaf_lons = [p[1] for p in kaf_pts_lonlat]
 
-            t_orig = np.linspace(0, 1, len(kf_x))
-            t_interp = np.linspace(0, 1, 100)
-            fault_x = np.interp(t_interp, t_orig, kf_x)
-            fault_y = np.interp(t_interp, t_orig, kf_y)
-            # Faya hafif doğal kıvrım ekleyelim
-            fault_y += 6 * np.sin(np.pi * t_interp)
-            fault_z = terrain_height(fault_x, fault_y) + 0.35
-
-            fig_erz.add_trace(go.Scatter3d(
-                x=fault_x, y=fault_y, z=fault_z,
+            fig_erz.add_trace(go.Scattermapbox(
+                lat=kaf_lats, lon=kaf_lons,
                 mode="lines",
-                line=dict(color="#FF0000", width=8),
+                line=dict(color="#FF0000", width=4),
                 name="KAF Doğrultusu",
             ))
 
-            cities = [
-                {"name": "Erzincan Merkez", "x": lonlat_to_xy(39.75, 39.50)[0], "y": lonlat_to_xy(39.75, 39.50)[1], "color": "#00E5FF"},
-                {"name": "Bingöl Karlıova", "x": lonlat_to_xy(39.30, 41.01)[0], "y": lonlat_to_xy(39.30, 41.01)[1], "color": "#FFFFFF"},
-                {"name": "Yedisu", "x": lonlat_to_xy(39.43, 40.54)[0], "y": lonlat_to_xy(39.43, 40.54)[1], "color": "#FFFFFF"},
-                {"name": "Refahiye", "x": lonlat_to_xy(39.90, 38.76)[0], "y": lonlat_to_xy(39.90, 38.76)[1], "color": "#FFFFFF"},
-                {"name": "Tercan", "x": lonlat_to_xy(39.77, 40.39)[0], "y": lonlat_to_xy(39.77, 40.39)[1], "color": "#FFFFFF"},
-            ]
+            # Merkez Üssü
+            event_lat = scenario["lat"]
+            event_lon = scenario["lon"]
 
-            # Konum İğneleri (Map Pins Direkleri)
-            pole_x, pole_y, pole_z = [], [], []
-            cx, cy, cz, ctext, ccolors = [], [], [], [], []
-
-            for city in cities:
-                z0 = terrain_height(city["x"], city["y"])
-                z_top = z0 + 3.0  # Direk yüksekliği
-
-                pole_x.extend([city["x"], city["x"], None])
-                pole_y.extend([city["y"], city["y"], None])
-                pole_z.extend([z0, z_top, None])
-
-                cx.append(city["x"])
-                cy.append(city["y"])
-                cz.append(z_top)
-                ctext.append(city["name"])
-                ccolors.append(city["color"])
-
-            # Direklerin Çizimi
-            fig_erz.add_trace(go.Scatter3d(
-                x=pole_x, y=pole_y, z=pole_z,
-                mode="lines",
-                line=dict(color="#FFFFFF", width=4),
-                name="Konum Çubukları",
-                showlegend=False,
-                hoverinfo="skip"
-            ))
-
-            # Direklerin Ucundaki İsim Etiketleri
-            fig_erz.add_trace(go.Scatter3d(
-                x=cx, y=cy, z=cz,
+            fig_erz.add_trace(go.Scattermapbox(
+                lat=[event_lat], lon=[event_lon],
                 mode="markers+text",
-                marker=dict(size=12, color=ccolors, line=dict(width=2, color="#000000"), symbol="circle"),
-                text=ctext, textposition="top center",
-                textfont=dict(color="#FFFFFF", size=15, family="Arial Black"),
-                name="Yerleşim Yerleri"
+                marker=dict(size=20, color="#FFD54F", symbol="star", allowoverlap=True),
+                text=[f"⭐ Merkez Üssü M{scenario_mag}"],
+                textposition="bottom center",
+                textfont=dict(color="#FFFFFF", size=14, family="Arial Black"),
+                name="Sanal deprem kaynağı"
             ))
 
-            fig_erz.add_trace(go.Scatter3d(
-                x=[event_x, event_x],
-                y=[event_y, event_y],
-                z=[event_surface_z + 2, event_surface_z - scenario_depth / 5],
-                mode="lines+markers+text",
-                text=[f"⭐ Merkez Üssü M{scenario_mag}", "Hiposantr"],
-                textposition=["top center", "bottom center"],
-                line=dict(color="#E53935", width=4),
-                marker=dict(size=[20, 8], color=["#FFD54F", "#FFCDD2"], symbol=["diamond", "circle"], line=dict(color="#E53935", width=2)),
-                name="Sanal deprem kaynağı",
-            ))
+            # Başlangıç Dalgaları (Sıfır yarıçap)
+            p_lon, p_lat = create_circle_coords(event_lat, event_lon, 0)
+            s_lon, s_lat = create_circle_coords(event_lat, event_lon, 0)
+            r_lon, r_lat = create_circle_coords(event_lat, event_lon, 0)
 
-            fig_erz.add_trace(go.Surface(
-                x=xx_grid, y=yy_grid, z=base_terrain,
-                surfacecolor=np.zeros_like(base_terrain)-0.2,
-                cmin=-0.2, cmax=1.0,
-                colorscale=[
-                    [0.0, "#2b6a3b"],   # Vadi tabanı (Koyu yeşil)
-                    [0.2, "#68944d"],   # Alçak etekler (Açık yeşil)
-                    [0.5, "#d3b987"],   # Dağ etekleri (Açık kahve)
-                    [0.8, "#875f42"],   # Dağ zirveleri (Koyu kahve)
-                    [1.0, "#ffffff"],   # Karlı zirveler (Beyaz)
-                ],
-                opacity=0.96,
-                showscale=False,
-                name="Fiziki Arazi",
-            ))
-
-            p_rx, p_ry, p_rz = ring_on_terrain(event_x, event_y, 0, lift=0.5)
-            s_rx, s_ry, s_rz = ring_on_terrain(event_x, event_y, 0, lift=0.6)
-            r_rx, r_ry, r_rz = ring_on_terrain(event_x, event_y, 0, lift=0.7)
-
-            fig_erz.add_trace(go.Scatter3d(x=p_rx, y=p_ry, z=p_rz, mode="lines", line=dict(color="#29B6F6", width=4), name="P-Dalgası (Hızlı)"))
-            fig_erz.add_trace(go.Scatter3d(x=s_rx, y=s_ry, z=s_rz, mode="lines", line=dict(color="#FFA726", width=7), name="S-Dalgası (Yıkıcı)"))
-            fig_erz.add_trace(go.Scatter3d(x=r_rx, y=r_ry, z=r_rz, mode="lines", line=dict(color="#F44336", width=12), name="Rayleigh Dalgası (Yüzey)"))
+            fig_erz.add_trace(go.Scattermapbox(lat=p_lat, lon=p_lon, mode="lines", line=dict(color="#29B6F6", width=3), name="P-Dalgası (Hızlı)"))
+            fig_erz.add_trace(go.Scattermapbox(lat=s_lat, lon=s_lon, mode="lines", line=dict(color="#FFA726", width=4), name="S-Dalgası (Yıkıcı)"))
+            fig_erz.add_trace(go.Scattermapbox(lat=r_lat, lon=r_lon, mode="lines", line=dict(color="#F44336", width=6), name="Rayleigh Dalgası (Yüzey)"))
 
             frames = []
             max_t = int(max(dist_to_erz, 220) / vr) + 15
@@ -1968,37 +1871,17 @@ with education_tab:
                 s_rad = vs * t
                 r_rad = vr * t
 
-                f_heat = np.zeros_like(base_terrain)
-                f_dyn = np.zeros_like(base_terrain)
-
-                for row in range(base_terrain.shape[0]):
-                    for col in range(base_terrain.shape[1]):
-                        d = distance_grid[row, col]
-                        if d <= r_rad and d <= impact_radius:
-                            f_heat[row, col] = max(0, 1 - (d / impact_radius))
-                        else:
-                            f_heat[row, col] = -0.2
-
-                        if d <= r_rad and d >= r_rad - 30:
-                            amp = amplitude * np.exp(-d / (impact_radius * 0.5))
-                            env = np.exp(-((d - r_rad) / 8.0)**2)
-                            rip = amp * env * np.cos((d - r_rad) * 1.5)
-                            f_dyn[row, col] = base_terrain[row, col] + rip
-                        else:
-                            f_dyn[row, col] = base_terrain[row, col]
-
-                f_prx, f_pry, f_prz = ring_on_terrain(event_x, event_y, p_rad, lift=0.5)
-                f_srx, f_sry, f_srz = ring_on_terrain(event_x, event_y, s_rad, lift=0.6)
-                f_rrx, f_rry, f_rrz = ring_on_terrain(event_x, event_y, r_rad, lift=0.7)
+                f_plon, f_plat = create_circle_coords(event_lat, event_lon, p_rad)
+                f_slon, f_slat = create_circle_coords(event_lat, event_lon, s_rad)
+                f_rlon, f_rlat = create_circle_coords(event_lat, event_lon, r_rad)
 
                 frames.append(go.Frame(
                     data=[
-                        go.Surface(z=f_dyn, surfacecolor=f_heat),
-                        go.Scatter3d(x=f_prx, y=f_pry, z=f_prz),
-                        go.Scatter3d(x=f_srx, y=f_sry, z=f_srz),
-                        go.Scatter3d(x=f_rrx, y=f_rry, z=f_rrz)
+                        go.Scattermapbox(lat=f_plat, lon=f_plon),
+                        go.Scattermapbox(lat=f_slat, lon=f_slon),
+                        go.Scattermapbox(lat=f_rlat, lon=f_rlon)
                     ],
-                    traces=[3, 4, 5, 6],
+                    traces=[2, 3, 4], # 0: KAF, 1: Merkez, 2: P, 3: S, 4: Rayleigh
                     name=str(t),
                     layout=go.Layout(title_text=f"Simülasyon Süresi: t = {t} sn")
                 ))
@@ -2012,18 +1895,11 @@ with education_tab:
                 font=dict(color=TEXT),
                 height=650,
                 margin=dict(t=30, b=8, l=0, r=0),
-                scene=dict(
-                    bgcolor=BG2,
-                    xaxis=dict(title="Doğu-Batı (km)", range=[-225, 225], color=TEXT, gridcolor=GRID),
-                    yaxis=dict(title="Kuzey-Güney (km)", range=[-225, 225], color=TEXT, gridcolor=GRID),
-                    zaxis=dict(title="Yükselti / sarsıntı", range=[-8, 12], color=TEXT, gridcolor=GRID, showticklabels=False),
-                    aspectmode="manual",
-                    aspectratio=dict(x=1.9, y=1.05, z=0.45),
-                    camera=dict(
-                        eye=dict(x=0, y=-1.95, z=1.45),
-                        up=dict(x=0, y=0, z=1),
-                        center=dict(x=0, y=0, z=0)
-                    ),
+                mapbox=dict(
+                    style=st.session_state.map_style,
+                    center=dict(lat=ERZ_LAT, lon=ERZ_LON),
+                    zoom=7.5,
+                    pitch=0,
                 ),
                 legend=dict(font=dict(color=TEXT), bgcolor="rgba(0,0,0,0)", orientation="h", x=0, y=1.1),
                 updatemenus=[dict(
@@ -2044,6 +1920,7 @@ with education_tab:
             c1.metric("Mekanizma", scenario["mechanism"])
             intensity_index = min(10, max(1, scenario_mag * 1.45 - math.log10(scenario_depth + 5) * 2.1 + 1.2))
             c2.metric("Eğitim etki göstergesi", f"{intensity_index:.1f} / 10")
+            impact_radius = min(150, 20 * scenario_mag)
             c3.metric("Yıkıcı etki yarıçapı", f"{impact_radius:.0f} km")
             st.markdown("---")
             st.markdown("**3B sahne bilgisi:** Harita Karlıova'dan Refahiye'ye kadar genişletilmiştir. Mavi halka P-Dalgasını (Hızlı, uyarıcı), Turuncu halka S-Dalgasını (Kesme) ve Kırmızı halka Rayleigh Yüzey Dalgasını (En yıkıcı) temsil eder.")
