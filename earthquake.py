@@ -2024,6 +2024,7 @@ with education_tab:
             st.markdown("**Dalgalanma:** Yüzeydeki sarsıntı enerjisini kavramsal olarak yansıtır. Daha detaylı veriler için ShakeMap kullanılır.")
             st.warning("Bu çıktı resmi deprem senaryosu, yapı tasarım girdisi veya afet tahmini değildir; yalnızca eğitim amaçlı nitel bir görselleştirmedir.")
 
+with stats_tab:
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown('<div class="chart-title">🔬 Bilimsel Analizler (Derinlik, G-R & B-Value)</div>', unsafe_allow_html=True)
     agreement = source_agreement_summary(df.to_dict("records"))
@@ -3034,6 +3035,7 @@ with education_tab:
         else:
             st.info("Uzamsal b-haritası için en az 25 deprem gerekli.")
 
+with system_tab:
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown('<div class="chart-title">📋 3. Ham Veri Tablosu</div>', unsafe_allow_html=True)
     # ─── Tam tablo ──────────────────────────────────────────────────────────────
