@@ -404,6 +404,7 @@ ALL_FETCHERS = {
 
 @st.cache_data(ttl=120, show_spinner=False)
 def fetch_all(lat, lon, radius_km, min_mag, start_dt, end_dt, active_sources):
+    # Cache buster for mag_color change
     statuses = {}
     all_rows = []
     fetchers = {k: v for k, v in ALL_FETCHERS.items() if k in active_sources}
