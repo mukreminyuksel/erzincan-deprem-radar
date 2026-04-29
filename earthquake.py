@@ -117,7 +117,7 @@ def fetch_usgs(lat, lon, radius_km, min_mag, start_dt, end_dt):
             "starttime": start.strftime("%Y-%m-%dT%H:%M:%S"),
             "endtime": end.strftime("%Y-%m-%dT%H:%M:%S"),
             "orderby": "time", "limit": 1000,
-        }, timeout=14)
+        }, timeout=4.0)
         r.raise_for_status()
         rows = []
         for f in r.json().get("features", []):
@@ -135,7 +135,7 @@ def fetch_usgs_fast(lat, lon, radius_km, min_mag, start_dt, end_dt):
         feed_url = usgs_feed_url_for_window(start_dt, end_dt)
         if not feed_url:
             return [], "ATLANDI: 30 gun+"
-        r = requests.get(feed_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
+        r = requests.get(feed_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=4.0)
         r.raise_for_status()
         rows = parse_usgs_feed_features(
             r.json().get("features", []), lat, lon, radius_km, min_mag
@@ -158,7 +158,7 @@ def fetch_emsc(lat, lon, radius_km, min_mag, start_dt, end_dt):
             "start": start.strftime("%Y-%m-%dT%H:%M:%S"),
             "end": end.strftime("%Y-%m-%dT%H:%M:%S"),
             "orderby": "time", "limit": 1000,
-        }, timeout=14)
+        }, timeout=4.0)
         r.raise_for_status()
         rows = []
         for f in r.json().get("features", []):
@@ -183,7 +183,7 @@ def fetch_afad(lat, lon, radius_km, min_mag, start_dt, end_dt):
             "minlon": lon - margin, "maxlon": lon + margin,
             "minmag": min_mag, "format": "json", "limit": 1000,
             "orderby": "timedesc",
-        }, headers={"User-Agent": "Mozilla/5.0"}, timeout=14)
+        }, headers={"User-Agent": "Mozilla/5.0"}, timeout=4.0)
         r.raise_for_status()
         rows = []
         for d in r.json():
@@ -207,7 +207,7 @@ def fetch_kandilli(lat, lon, radius_km, min_mag, start_dt, end_dt):
     # Kandilli UTC+3 kullanir — UTC'ye ceviriyoruz
     try:
         r = requests.get("http://www.koeri.boun.edu.tr/scripts/lst0.asp",
-                         headers={"User-Agent": "Mozilla/5.0"}, timeout=18)
+                         headers={"User-Agent": "Mozilla/5.0"}, timeout=4.0)
         r.raise_for_status()
         content = r.content.decode("iso-8859-9", errors="replace")
         soup = BeautifulSoup(content, "html.parser")
@@ -256,7 +256,7 @@ def fetch_gfz(lat, lon, radius_km, min_mag, start_dt, end_dt):
             "starttime": start.strftime("%Y-%m-%dT%H:%M:%S"),
             "endtime": end.strftime("%Y-%m-%dT%H:%M:%S"),
             "orderby": "time", "limit": 1000,
-        }, timeout=14)
+        }, timeout=4.0)
         r.raise_for_status()
         rows = []
         for line in r.text.strip().split("\n"):
@@ -289,7 +289,7 @@ def fetch_iris(lat, lon, radius_km, min_mag, start_dt, end_dt):
             "starttime": start.strftime("%Y-%m-%dT%H:%M:%S"),
             "endtime": end.strftime("%Y-%m-%dT%H:%M:%S"),
             "orderby": "time", "limit": 1000,
-        }, timeout=14)
+        }, timeout=4.0)
         r.raise_for_status()
         rows = []
         for line in r.text.strip().split("\n"):
@@ -319,7 +319,7 @@ def fetch_afad_html(lat, lon, radius_km, min_mag, start_dt, end_dt):
         start, end = to_utc_naive(start_dt), to_utc_naive(end_dt)
         r = requests.get(
             "https://deprem.afad.gov.tr/last-earthquakes.html",
-            headers={"User-Agent": "Mozilla/5.0"}, timeout=14,
+            headers={"User-Agent": "Mozilla/5.0"}, timeout=4.0,
         )
         r.raise_for_status()
         soup = BeautifulSoup(r.content.decode("utf-8", errors="replace"), "html.parser")
@@ -367,7 +367,7 @@ def fetch_ingv(lat, lon, radius_km, min_mag, start_dt, end_dt):
             "starttime": start.strftime("%Y-%m-%dT%H:%M:%S"),
             "endtime": end.strftime("%Y-%m-%dT%H:%M:%S"),
             "orderby": "time", "limit": 1000,
-        }, timeout=14)
+        }, timeout=4.0)
         r.raise_for_status()
         rows = []
         for line in r.text.strip().split("\n"):
@@ -2195,974 +2195,990 @@ def compute_environmental_features(row, full_df):
 with stats_tab:
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown('<div class="chart-title">🔬 Bilimsel Analizler (Derinlik, G-R & B-Value)</div>', unsafe_allow_html=True)
-    agreement = source_agreement_summary(df.to_dict("records"))
-    energy_total = float(df["buyukluk"].apply(estimate_energy_joules).sum())
-    recent_factor = min(40, len(last24h) * 4)
-    mag_factor = min(35, max(0, (df["buyukluk"].max() - 2.0) * 12))
-    source_factor = min(15, agreement["source_count"] * 2)
-    fault_factor = min(10, max(0, 10 - float(df["uzaklik_km"].min()) / 10))
-    activity_score = round(min(100, recent_factor + mag_factor + source_factor + fault_factor))
 
-    a1, a2, a3, a4 = st.columns(4)
-    with a1:
-        st.markdown(
-            f'<div class="stat-box"><div style="font-size:1.35rem;font-weight:800;color:#90caf9">{activity_score}/100</div>'
-            f'<div style="font-size:0.7rem;opacity:0.6">Aktivite Skoru</div></div>',
-            unsafe_allow_html=True,
-        )
-    with a2:
-        st.markdown(
-            f'<div class="stat-box"><div style="font-size:1.35rem;font-weight:800;color:#ce93d8">{agreement["source_count"]}</div>'
-            f'<div style="font-size:0.7rem;opacity:0.6">Kaynak Kapsamı</div></div>',
-            unsafe_allow_html=True,
-        )
-    with a3:
-        st.markdown(
-            f'<div class="stat-box"><div style="font-size:1.35rem;font-weight:800;color:#ffb74d">{energy_total:,.0e}</div>'
-            f'<div style="font-size:0.7rem;opacity:0.6">Yaklaşık Enerji J</div></div>',
-            unsafe_allow_html=True,
-        )
-    with a4:
-        st.markdown(
-            f'<div class="stat-box"><div style="font-size:1.35rem;font-weight:800;color:#a5d6a7">{df["uzaklik_km"].min():.1f} km</div>'
-            f'<div style="font-size:0.7rem;opacity:0.6">En Yakın Olay</div></div>',
-            unsafe_allow_html=True,
-        )
+    if "run_analysis" not in st.session_state:
+        st.session_state.run_analysis = False
+        
+    col_btn1, col_btn2 = st.columns([3, 1])
+    with col_btn1:
+        if st.button("🚀 Bilimsel Analizleri Çalıştır (Korelasyon, b-Değeri vb.)", use_container_width=True, type="primary"):
+            st.session_state.run_analysis = True
+    with col_btn2:
+        if st.button("🛑 Kapat", use_container_width=True):
+            st.session_state.run_analysis = False
+            st.rerun()
 
-    src_counts = df.groupby("kaynak").size().sort_values(ascending=False).reset_index(name="kayıt")
-    energy_df = df.sort_values("zaman").copy()
-    energy_df["enerji_j"] = energy_df["buyukluk"].apply(estimate_energy_joules)
-    energy_df["kumulatif_enerji"] = energy_df["enerji_j"].cumsum()
-    src_col, energy_col = st.columns([1, 1.3])
-    with src_col:
-        st.markdown('<div class="chart-title">📡 Kaynak Kapsamı</div>', unsafe_allow_html=True)
-        fig_src = px.bar(src_counts, x="kaynak", y="kayıt", color="kaynak")
-        fig_src.update_layout(
-            paper_bgcolor=BG, plot_bgcolor=BG2,
-            font=dict(color=TEXT, size=10),
-            margin=dict(t=5, b=35, l=35, r=10),
-            height=240,
-            showlegend=False,
-            xaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT, size=9)),
-            yaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT, size=9)),
-        )
-        st.plotly_chart(fig_src, use_container_width=True, config={"displayModeBar": False, "displaylogo": False})
-    with energy_col:
-        st.markdown('<div class="chart-title">⚡ Kümülatif Enerji Salınımı</div>', unsafe_allow_html=True)
-        fig_energy = go.Figure(go.Scatter(
-            x=energy_df["zaman"], y=energy_df["kumulatif_enerji"],
-            mode="lines", line=dict(color="#ffb74d", width=2.5),
-            fill="tozeroy", fillcolor="rgba(255,183,77,0.12)",
-        ))
-        fig_energy.update_layout(
-            paper_bgcolor=BG, plot_bgcolor=BG2,
-            font=dict(color=TEXT, size=10),
-            margin=dict(t=5, b=35, l=55, r=10),
-            height=240,
-            xaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT, size=9)),
-            yaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT, size=9), title="Joule"),
-        )
-        st.plotly_chart(fig_energy, use_container_width=True, config={"displayModeBar": False, "displaylogo": False})
-        st.info("💡 **Basitçe:** Bu grafik, fay hattında biriken enerjinin zaman içindeki tablosudur. Eğrinin yatay ve düz ilerlediği dönemler fayın **'kilitlendiği' ve enerji biriktirdiği** (suskunluk) tehlikeli zamanları gösterir. Çizginin aniden dik bir şekilde yukarı fırladığı anlar ise büyük bir depremin patlayarak bu gerilimi boşalttığı rahatlama anlarıdır. Eğer uzun süredir çizgi düz ilerliyorsa, fay büyük bir olaya hazırlanıyor demektir.")
+    if not st.session_state.run_analysis:
+        st.info("İşlemci (CPU) performansını korumak için ağır bilimsel istatistik hesaplamaları beklemeye alındı. Analizleri başlatmak için yukarıdaki **Çalıştır** düğmesine tıklayın.", icon="⏸️")
+    else:
+        agreement = source_agreement_summary(df.to_dict("records"))
+        energy_total = float(df["buyukluk"].apply(estimate_energy_joules).sum())
+        recent_factor = min(40, len(last24h) * 4)
+        mag_factor = min(35, max(0, (df["buyukluk"].max() - 2.0) * 12))
+        source_factor = min(15, agreement["source_count"] * 2)
+        fault_factor = min(10, max(0, 10 - float(df["uzaklik_km"].min()) / 10))
+        activity_score = round(min(100, recent_factor + mag_factor + source_factor + fault_factor))
 
-    # ════════════════════════════════════════════════════════════════
-    # KORELASYON MATRİSİ — En büyük deprem öncesi öncü örüntüler
-    # ════════════════════════════════════════════════════════════════
-    st.markdown("---")
-    st.markdown('<div class="chart-title">🔬 Öncü Deprem Korelasyon Analizi</div>', unsafe_allow_html=True)
-    st.caption(
-        "Seçilen dönemdeki en büyük deprem baz alınır. "
-        "O depremin öncesinde aynı bölgede yaşanan depremlerin özellikleri arasındaki korelasyon gösterilir. "
-        "Negatif 'gün_önce' = ana depremi geç takip eden artçılar. "
-        "Güçlü korelasyonlar (|r| > 0.5) potansiyel öncü örüntülere işaret edebilir."
-    )
-
-    if len(df) >= 5:
-        # En büyük depremi bul
-        idx_max = df["buyukluk"].idxmax()
-        main_eq = df.loc[idx_max]
-
-        korr_pencere_gun = st.slider(
-            "Analiz penceresi (ana deprem öncesi kaç gün)",
-            min_value=3, max_value=90, value=30, step=3,
-            key="korr_pencere",
-        )
-        korr_radius = st.slider(
-            "Etki yarıçapı (km)",
-            min_value=30, max_value=300, value=100, step=10,
-            key="korr_radius",
-        )
-
-        pencere_baslangic = main_eq["zaman"] - timedelta(days=korr_pencere_gun)
-
-        # Öncü adaylar: ana depremi geçmeden önce, belirtilen zaman aralığında
-        time_filtered = df[
-            (df["zaman"] < main_eq["zaman"]) &
-            (df["zaman"] >= pencere_baslangic) &
-            (df.index != idx_max)
-        ].copy()
-
-        if not time_filtered.empty:
-            time_filtered["uzaklik_ana"] = time_filtered.apply(
-                lambda r: haversine(main_eq["lat"], main_eq["lon"], r["lat"], r["lon"]), axis=1
+        a1, a2, a3, a4 = st.columns(4)
+        with a1:
+            st.markdown(
+                f'<div class="stat-box"><div style="font-size:1.35rem;font-weight:800;color:#90caf9">{activity_score}/100</div>'
+                f'<div style="font-size:0.7rem;opacity:0.6">Aktivite Skoru</div></div>',
+                unsafe_allow_html=True,
             )
-            precursors = time_filtered[time_filtered["uzaklik_ana"] <= korr_radius].copy()
-        else:
-            precursors = pd.DataFrame()
-            
-        # PERFORMANS OPTİMİZASYONU: Çok fazla öncü varsa sistemi kitlememek için rastgele 600 örneklem al
-        if len(precursors) > 600:
-            precursors = precursors.sample(600, random_state=42)
+        with a2:
+            st.markdown(
+                f'<div class="stat-box"><div style="font-size:1.35rem;font-weight:800;color:#ce93d8">{agreement["source_count"]}</div>'
+                f'<div style="font-size:0.7rem;opacity:0.6">Kaynak Kapsamı</div></div>',
+                unsafe_allow_html=True,
+            )
+        with a3:
+            st.markdown(
+                f'<div class="stat-box"><div style="font-size:1.35rem;font-weight:800;color:#ffb74d">{energy_total:,.0e}</div>'
+                f'<div style="font-size:0.7rem;opacity:0.6">Yaklaşık Enerji J</div></div>',
+                unsafe_allow_html=True,
+            )
+        with a4:
+            st.markdown(
+                f'<div class="stat-box"><div style="font-size:1.35rem;font-weight:800;color:#a5d6a7">{df["uzaklik_km"].min():.1f} km</div>'
+                f'<div style="font-size:0.7rem;opacity:0.6">En Yakın Olay</div></div>',
+                unsafe_allow_html=True,
+            )
 
-        col_info1, col_info2, col_info3 = st.columns(3)
-        with col_info1:
-            st.markdown(f"""
-            <div class="stat-box">
-              <div style="font-size:0.75rem;color:{SUBTEXT}">Ana Deprem</div>
-              <div style="font-size:1.4rem;font-weight:800;color:#E53935">M{main_eq['buyukluk']:.1f}</div>
-              <div style="font-size:0.72rem;color:{SUBTEXT}">{main_eq['zaman_str']}</div>
-            </div>""", unsafe_allow_html=True)
-        with col_info2:
-            st.markdown(f"""
-            <div class="stat-box">
-              <div style="font-size:0.75rem;color:{SUBTEXT}">Konum</div>
-              <div style="font-size:0.9rem;font-weight:700">{safe_html(str(main_eq['konum'])[:40])}</div>
-              <div style="font-size:0.72rem;color:{SUBTEXT}">{main_eq['lat']:.3f}N, {main_eq['lon']:.3f}E · {main_eq['derinlik']:.0f} km</div>
-            </div>""", unsafe_allow_html=True)
-        with col_info3:
-            st.markdown(f"""
-            <div class="stat-box">
-              <div style="font-size:0.75rem;color:{SUBTEXT}">Öncü Aday Sayısı</div>
-              <div style="font-size:1.4rem;font-weight:800;color:#1a73e8">{len(precursors)}</div>
-              <div style="font-size:0.72rem;color:{SUBTEXT}">{korr_pencere_gun} gün · {korr_radius} km yarıçap</div>
-            </div>""", unsafe_allow_html=True)
+        src_counts = df.groupby("kaynak").size().sort_values(ascending=False).reset_index(name="kayıt")
+        energy_df = df.sort_values("zaman").copy()
+        energy_df["enerji_j"] = energy_df["buyukluk"].apply(estimate_energy_joules)
+        energy_df["kumulatif_enerji"] = energy_df["enerji_j"].cumsum()
+        src_col, energy_col = st.columns([1, 1.3])
+        with src_col:
+            st.markdown('<div class="chart-title">📡 Kaynak Kapsamı</div>', unsafe_allow_html=True)
+            fig_src = px.bar(src_counts, x="kaynak", y="kayıt", color="kaynak")
+            fig_src.update_layout(
+                paper_bgcolor=BG, plot_bgcolor=BG2,
+                font=dict(color=TEXT, size=10),
+                margin=dict(t=5, b=35, l=35, r=10),
+                height=240,
+                showlegend=False,
+                xaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT, size=9)),
+                yaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT, size=9)),
+            )
+            st.plotly_chart(fig_src, use_container_width=True, config={"displayModeBar": False, "displaylogo": False})
+        with energy_col:
+            st.markdown('<div class="chart-title">⚡ Kümülatif Enerji Salınımı</div>', unsafe_allow_html=True)
+            fig_energy = go.Figure(go.Scatter(
+                x=energy_df["zaman"], y=energy_df["kumulatif_enerji"],
+                mode="lines", line=dict(color="#ffb74d", width=2.5),
+                fill="tozeroy", fillcolor="rgba(255,183,77,0.12)",
+            ))
+            fig_energy.update_layout(
+                paper_bgcolor=BG, plot_bgcolor=BG2,
+                font=dict(color=TEXT, size=10),
+                margin=dict(t=5, b=35, l=55, r=10),
+                height=240,
+                xaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT, size=9)),
+                yaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT, size=9), title="Joule"),
+            )
+            st.plotly_chart(fig_energy, use_container_width=True, config={"displayModeBar": False, "displaylogo": False})
+            st.info("💡 **Basitçe:** Bu grafik, fay hattında biriken enerjinin zaman içindeki tablosudur. Eğrinin yatay ve düz ilerlediği dönemler fayın **'kilitlendiği' ve enerji biriktirdiği** (suskunluk) tehlikeli zamanları gösterir. Çizginin aniden dik bir şekilde yukarı fırladığı anlar ise büyük bir depremin patlayarak bu gerilimi boşalttığı rahatlama anlarıdır. Eğer uzun süredir çizgi düz ilerliyorsa, fay büyük bir olaya hazırlanıyor demektir.")
 
-        st.markdown("<br>", unsafe_allow_html=True)
+        # ════════════════════════════════════════════════════════════════
+        # KORELASYON MATRİSİ — En büyük deprem öncesi öncü örüntüler
+        # ════════════════════════════════════════════════════════════════
+        st.markdown("---")
+        st.markdown('<div class="chart-title">🔬 Öncü Deprem Korelasyon Analizi</div>', unsafe_allow_html=True)
+        st.caption(
+            "Seçilen dönemdeki en büyük deprem baz alınır. "
+            "O depremin öncesinde aynı bölgede yaşanan depremlerin özellikleri arasındaki korelasyon gösterilir. "
+            "Negatif 'gün_önce' = ana depremi geç takip eden artçılar. "
+            "Güçlü korelasyonlar (|r| > 0.5) potansiyel öncü örüntülere işaret edebilir."
+        )
 
-        if len(precursors) >= 4:
-            # Özellik matrisi oluştur
-            precursors["gun_once"] = (main_eq["zaman"] - precursors["zaman"]).dt.total_seconds() / 86400
-            
-            # Yeni çevresel özellikleri hesapla ve ekle
-            env_features = precursors.apply(lambda r: compute_environmental_features(r, df), axis=1)
-            for col in env_features.columns:
-                precursors[col] = env_features[col]
+        if len(df) >= 5:
+            # En büyük depremi bul
+            idx_max = df["buyukluk"].idxmax()
+            main_eq = df.loc[idx_max]
 
-            feat_cols = {
-                "gun_once":   "Gün Önce",
-                "uzaklik_ana": "Ana Şoka Uzaklık (km)",
-                "derinlik":   "Derinlik (km)",
-                "buyukluk":   "Büyüklük (M)",
-                "mevsim":     "Mevsim İndeksi",
-                "sicaklik":   "Ort. Sıcaklık (°C)",
-                "ay_cekim":   "Ay Çekim Gücü",
-                "gunes_uzaklik": "Güneş Uzaklık (AU)",
-                "gezegen_cekim": "Gezegen Çekimi",
-                "haftalik_aktivite": "Haftalık Sismik Yoğunluk",
-            }
-            corr_df = precursors[list(feat_cols.keys())].dropna()
-            corr_df.columns = list(feat_cols.values())
-            corr_matrix = corr_df.corr()
+            korr_pencere_gun = st.slider(
+                "Analiz penceresi (ana deprem öncesi kaç gün)",
+                min_value=3, max_value=90, value=30, step=3,
+                key="korr_pencere",
+            )
+            korr_radius = st.slider(
+                "Etki yarıçapı (km)",
+                min_value=30, max_value=300, value=100, step=10,
+                key="korr_radius",
+            )
 
-            col_hm, col_sc = st.columns([1, 1.2])
+            pencere_baslangic = main_eq["zaman"] - timedelta(days=korr_pencere_gun)
 
-            with col_hm:
-                st.markdown('<div class="chart-title">🟥 Korelasyon Matrisi</div>', unsafe_allow_html=True)
-                # Renk: kırmızı=pozitif, mavi=negatif korelasyon
-                fig_corr = go.Figure(go.Heatmap(
-                    z=corr_matrix.values,
-                    x=corr_matrix.columns.tolist(),
-                    y=corr_matrix.columns.tolist(),
-                    colorscale="RdBu_r",
-                    zmin=-1, zmax=1,
-                    text=[[f"{v:.2f}" for v in row] for row in corr_matrix.values],
-                    texttemplate="%{text}",
-                    textfont=dict(size=10, color=TEXT),
-                    hovertemplate="<b>%{y} ↔ %{x}</b><br>r = %{z:.3f}<extra></extra>",
-                    showscale=True,
-                    colorbar=dict(
-                        title=dict(text="r", font=dict(color=TEXT)),
-                        tickfont=dict(color=TEXT),
-                        thickness=14, len=0.85,
-                    ),
-                ))
-                fig_corr.update_layout(
-                    paper_bgcolor=BG, plot_bgcolor=BG2,
-                    font=dict(color=TEXT, size=10, family="Arial"),
-                    height=550,
-                    margin=dict(t=10, b=10, l=10, r=60),
-                    xaxis=dict(tickfont=dict(color=TEXT), tickangle=-45),
-                    yaxis=dict(tickfont=dict(color=TEXT)),
+            # Öncü adaylar: ana depremi geçmeden önce, belirtilen zaman aralığında
+            time_filtered = df[
+                (df["zaman"] < main_eq["zaman"]) &
+                (df["zaman"] >= pencere_baslangic) &
+                (df.index != idx_max)
+            ].copy()
+
+            if not time_filtered.empty:
+                time_filtered["uzaklik_ana"] = time_filtered.apply(
+                    lambda r: haversine(main_eq["lat"], main_eq["lon"], r["lat"], r["lon"]), axis=1
                 )
-                st.plotly_chart(fig_corr, use_container_width=True,
-                                config={"displayModeBar": False, "displaylogo": False})
+                precursors = time_filtered[time_filtered["uzaklik_ana"] <= korr_radius].copy()
+            else:
+                precursors = pd.DataFrame()
+            
+            # PERFORMANS OPTİMİZASYONU: Çok fazla öncü varsa sistemi kitlememek için rastgele 600 örneklem al
+            if len(precursors) > 600:
+                precursors = precursors.sample(600, random_state=42)
 
-            with col_sc:
-                st.markdown('<div class="chart-title">📍 Öncü Adaylar — Zaman & Büyüklük</div>', unsafe_allow_html=True)
-                fig_pre = go.Figure()
+            col_info1, col_info2, col_info3 = st.columns(3)
+            with col_info1:
+                st.markdown(f"""
+                <div class="stat-box">
+                  <div style="font-size:0.75rem;color:{SUBTEXT}">Ana Deprem</div>
+                  <div style="font-size:1.4rem;font-weight:800;color:#E53935">M{main_eq['buyukluk']:.1f}</div>
+                  <div style="font-size:0.72rem;color:{SUBTEXT}">{main_eq['zaman_str']}</div>
+                </div>""", unsafe_allow_html=True)
+            with col_info2:
+                st.markdown(f"""
+                <div class="stat-box">
+                  <div style="font-size:0.75rem;color:{SUBTEXT}">Konum</div>
+                  <div style="font-size:0.9rem;font-weight:700">{safe_html(str(main_eq['konum'])[:40])}</div>
+                  <div style="font-size:0.72rem;color:{SUBTEXT}">{main_eq['lat']:.3f}N, {main_eq['lon']:.3f}E · {main_eq['derinlik']:.0f} km</div>
+                </div>""", unsafe_allow_html=True)
+            with col_info3:
+                st.markdown(f"""
+                <div class="stat-box">
+                  <div style="font-size:0.75rem;color:{SUBTEXT}">Öncü Aday Sayısı</div>
+                  <div style="font-size:1.4rem;font-weight:800;color:#1a73e8">{len(precursors)}</div>
+                  <div style="font-size:0.72rem;color:{SUBTEXT}">{korr_pencere_gun} gün · {korr_radius} km yarıçap</div>
+                </div>""", unsafe_allow_html=True)
 
-                # Öncü depremler — boyut=büyüklük, renk=derinlik
-                fig_pre.add_trace(go.Scatter(
-                    x=precursors["gun_once"],
-                    y=precursors["buyukluk"],
-                    mode="markers",
-                    name="Öncü aday",
-                    marker=dict(
-                        size=precursors["buyukluk"].apply(lambda m: max(8, m * 7)),
-                        color=precursors["derinlik"],
-                        colorscale="Viridis",
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            if len(precursors) >= 4:
+                # Özellik matrisi oluştur
+                precursors["gun_once"] = (main_eq["zaman"] - precursors["zaman"]).dt.total_seconds() / 86400
+            
+                # Yeni çevresel özellikleri hesapla ve ekle
+                env_features = precursors.apply(lambda r: compute_environmental_features(r, df), axis=1)
+                for col in env_features.columns:
+                    precursors[col] = env_features[col]
+
+                feat_cols = {
+                    "gun_once":   "Gün Önce",
+                    "uzaklik_ana": "Ana Şoka Uzaklık (km)",
+                    "derinlik":   "Derinlik (km)",
+                    "buyukluk":   "Büyüklük (M)",
+                    "mevsim":     "Mevsim İndeksi",
+                    "sicaklik":   "Ort. Sıcaklık (°C)",
+                    "ay_cekim":   "Ay Çekim Gücü",
+                    "gunes_uzaklik": "Güneş Uzaklık (AU)",
+                    "gezegen_cekim": "Gezegen Çekimi",
+                    "haftalik_aktivite": "Haftalık Sismik Yoğunluk",
+                }
+                corr_df = precursors[list(feat_cols.keys())].dropna()
+                corr_df.columns = list(feat_cols.values())
+                corr_matrix = corr_df.corr()
+
+                col_hm, col_sc = st.columns([1, 1.2])
+
+                with col_hm:
+                    st.markdown('<div class="chart-title">🟥 Korelasyon Matrisi</div>', unsafe_allow_html=True)
+                    # Renk: kırmızı=pozitif, mavi=negatif korelasyon
+                    fig_corr = go.Figure(go.Heatmap(
+                        z=corr_matrix.values,
+                        x=corr_matrix.columns.tolist(),
+                        y=corr_matrix.columns.tolist(),
+                        colorscale="RdBu_r",
+                        zmin=-1, zmax=1,
+                        text=[[f"{v:.2f}" for v in row] for row in corr_matrix.values],
+                        texttemplate="%{text}",
+                        textfont=dict(size=10, color=TEXT),
+                        hovertemplate="<b>%{y} ↔ %{x}</b><br>r = %{z:.3f}<extra></extra>",
                         showscale=True,
                         colorbar=dict(
-                            title=dict(text="Derinlik km", font=dict(color=TEXT, size=10)),
-                            tickfont=dict(color=TEXT, size=9),
-                            thickness=12, len=0.7, x=1.02,
+                            title=dict(text="r", font=dict(color=TEXT)),
+                            tickfont=dict(color=TEXT),
+                            thickness=14, len=0.85,
                         ),
-                        line=dict(width=1, color="rgba(255,255,255,0.4)" if DARK else "rgba(0,0,0,0.2)"),
-                        opacity=0.85,
-                    ),
-                    text=precursors.apply(lambda r:
-                        f"<b>M{r['buyukluk']:.1f}</b><br>"
-                        f"Ana depremi {r['gun_once']:.1f} gün önce<br>"
-                        f"Uzaklık: {r['uzaklik_ana']:.1f} km<br>"
-                        f"Derinlik: {r['derinlik']:.1f} km<br>"
-                        f"Zaman: {r['zaman_str']}", axis=1),
-                    hovertemplate="%{text}<extra></extra>",
-                ))
+                    ))
+                    fig_corr.update_layout(
+                        paper_bgcolor=BG, plot_bgcolor=BG2,
+                        font=dict(color=TEXT, size=10, family="Arial"),
+                        height=550,
+                        margin=dict(t=10, b=10, l=10, r=60),
+                        xaxis=dict(tickfont=dict(color=TEXT), tickangle=-45),
+                        yaxis=dict(tickfont=dict(color=TEXT)),
+                    )
+                    st.plotly_chart(fig_corr, use_container_width=True,
+                                    config={"displayModeBar": False, "displaylogo": False})
 
-                # Ana deprem işareti
-                fig_pre.add_vline(x=0, line=dict(color="#E53935", width=2, dash="dot"))
-                fig_pre.add_annotation(
-                    x=0, y=main_eq["buyukluk"],
-                    text=f"  ← Ana M{main_eq['buyukluk']:.1f}",
-                    showarrow=False,
-                    font=dict(color="#E53935", size=11, family="Arial Bold"),
-                    xanchor="left",
-                )
+                with col_sc:
+                    st.markdown('<div class="chart-title">📍 Öncü Adaylar — Zaman & Büyüklük</div>', unsafe_allow_html=True)
+                    fig_pre = go.Figure()
 
-                fig_pre.update_layout(
-                    paper_bgcolor=BG, plot_bgcolor=BG2,
-                    font=dict(color=TEXT, size=11, family="Arial"),
-                    height=370,
-                    margin=dict(t=10, b=40, l=55, r=80),
-                    xaxis=dict(
-                        title=dict(text="Ana Depremden Kaç Gün Önce", font=dict(color=TEXT)),
-                        gridcolor=GRID, tickfont=dict(color=TEXT),
-                        autorange="reversed",
-                    ),
-                    yaxis=dict(
-                        title=dict(text="Büyüklük (M)", font=dict(color=TEXT)),
-                        gridcolor=GRID, tickfont=dict(color=TEXT),
-                    ),
-                    legend=dict(font=dict(color=TEXT), bgcolor="rgba(0,0,0,0)"),
-                    hovermode="closest",
-                )
-                st.plotly_chart(fig_pre, use_container_width=True,
-                                config={"displayModeBar": False, "displaylogo": False})
-                st.info("💡 **Basitçe:** Büyük bir deprem gelmeden günler veya haftalar önce, fay hattında çatırdamalar başlar ve küçük sarsıntılar oluşur. Buna **Öncü Deprem** (Foreshock) denir. Bu grafik, bölgedeki sarsıntıların sıradan rastgele titreşimler mi yoksa yaklaşan büyük bir ana depremin ayak sesleri mi (anormal kümelenme) olduğunu matematiksel olarak test eder.")
+                    # Öncü depremler — boyut=büyüklük, renk=derinlik
+                    fig_pre.add_trace(go.Scatter(
+                        x=precursors["gun_once"],
+                        y=precursors["buyukluk"],
+                        mode="markers",
+                        name="Öncü aday",
+                        marker=dict(
+                            size=precursors["buyukluk"].apply(lambda m: max(8, m * 7)),
+                            color=precursors["derinlik"],
+                            colorscale="Viridis",
+                            showscale=True,
+                            colorbar=dict(
+                                title=dict(text="Derinlik km", font=dict(color=TEXT, size=10)),
+                                tickfont=dict(color=TEXT, size=9),
+                                thickness=12, len=0.7, x=1.02,
+                            ),
+                            line=dict(width=1, color="rgba(255,255,255,0.4)" if DARK else "rgba(0,0,0,0.2)"),
+                            opacity=0.85,
+                        ),
+                        text=precursors.apply(lambda r:
+                            f"<b>M{r['buyukluk']:.1f}</b><br>"
+                            f"Ana depremi {r['gun_once']:.1f} gün önce<br>"
+                            f"Uzaklık: {r['uzaklik_ana']:.1f} km<br>"
+                            f"Derinlik: {r['derinlik']:.1f} km<br>"
+                            f"Zaman: {r['zaman_str']}", axis=1),
+                        hovertemplate="%{text}<extra></extra>",
+                    ))
 
-            # Önemli korelasyon tespitleri
-            strong = []
-            for i in range(len(corr_matrix.columns)):
-                for j in range(i + 1, len(corr_matrix.columns)):
-                    r = corr_matrix.iloc[i, j]
-                    if abs(r) >= 0.4:
-                        col_a = corr_matrix.columns[i]
-                        col_b = corr_matrix.columns[j]
-                        yön = "pozitif ↑" if r > 0 else "negatif ↓"
-                        kuvvet = "güçlü" if abs(r) >= 0.65 else "orta"
-                        strong.append(f"**{col_a}** ↔ **{col_b}**: r={r:.2f} ({kuvvet} {yön})")
-            if strong:
-                st.markdown("**Dikkat çeken korelasyonlar (|r| ≥ 0.40):**")
-                for s in strong:
-                    st.markdown(f"- {s}")
+                    # Ana deprem işareti
+                    fig_pre.add_vline(x=0, line=dict(color="#E53935", width=2, dash="dot"))
+                    fig_pre.add_annotation(
+                        x=0, y=main_eq["buyukluk"],
+                        text=f"  ← Ana M{main_eq['buyukluk']:.1f}",
+                        showarrow=False,
+                        font=dict(color="#E53935", size=11, family="Arial Bold"),
+                        xanchor="left",
+                    )
+
+                    fig_pre.update_layout(
+                        paper_bgcolor=BG, plot_bgcolor=BG2,
+                        font=dict(color=TEXT, size=11, family="Arial"),
+                        height=370,
+                        margin=dict(t=10, b=40, l=55, r=80),
+                        xaxis=dict(
+                            title=dict(text="Ana Depremden Kaç Gün Önce", font=dict(color=TEXT)),
+                            gridcolor=GRID, tickfont=dict(color=TEXT),
+                            autorange="reversed",
+                        ),
+                        yaxis=dict(
+                            title=dict(text="Büyüklük (M)", font=dict(color=TEXT)),
+                            gridcolor=GRID, tickfont=dict(color=TEXT),
+                        ),
+                        legend=dict(font=dict(color=TEXT), bgcolor="rgba(0,0,0,0)"),
+                        hovermode="closest",
+                    )
+                    st.plotly_chart(fig_pre, use_container_width=True,
+                                    config={"displayModeBar": False, "displaylogo": False})
+                    st.info("💡 **Basitçe:** Büyük bir deprem gelmeden günler veya haftalar önce, fay hattında çatırdamalar başlar ve küçük sarsıntılar oluşur. Buna **Öncü Deprem** (Foreshock) denir. Bu grafik, bölgedeki sarsıntıların sıradan rastgele titreşimler mi yoksa yaklaşan büyük bir ana depremin ayak sesleri mi (anormal kümelenme) olduğunu matematiksel olarak test eder.")
+
+                # Önemli korelasyon tespitleri
+                strong = []
+                for i in range(len(corr_matrix.columns)):
+                    for j in range(i + 1, len(corr_matrix.columns)):
+                        r = corr_matrix.iloc[i, j]
+                        if abs(r) >= 0.4:
+                            col_a = corr_matrix.columns[i]
+                            col_b = corr_matrix.columns[j]
+                            yön = "pozitif ↑" if r > 0 else "negatif ↓"
+                            kuvvet = "güçlü" if abs(r) >= 0.65 else "orta"
+                            strong.append(f"**{col_a}** ↔ **{col_b}**: r={r:.2f} ({kuvvet} {yön})")
+                if strong:
+                    st.markdown("**Dikkat çeken korelasyonlar (|r| ≥ 0.40):**")
+                    for s in strong:
+                        st.markdown(f"- {s}")
+                else:
+                    st.info("Bu dönemde belirgin bir korelasyon örüntüsü tespit edilmedi (|r| < 0.40).")
+
+                with st.expander("🤔 Korelasyon (r) değerleri ne anlama geliyor?"):
+                    st.markdown("""
+                    **Korelasyon (r değeri)**, iki olayın birbiriyle ne kadar bağlantılı hareket ettiğini gösterir ve -1 ile +1 arasında bir puan alır.
+                
+                    *   **Güçlü Pozitif (r > +0.65) ↑**: İki özellik *aynı anda* artar veya azalır. Birlikte hareket ederler.
+                    *   **Orta Pozitif (r: +0.40 ile +0.65)**: Aynı yönde bir eğilim var ancak kusursuz bir kural değil.
+                    *   **Güçlü Negatif (r < -0.65) ↓**: Biri artarken diğeri *kesinlikle* azalır. Ters orantı vardır.
+                    *   **Orta Negatif (r: -0.40 ile -0.65)**: Ters yönde bir eğilim seziliyor.
+                
+                    *(Sıfıra yakın puanlar ise o iki değişken arasında hiçbir mantıksal veya fiziksel bağ olmadığını kanıtlar.)*
+                    """)
+
+                with st.expander("🌍 Verilerin Kaynağı, Astronomik Detaylar ve Bilimsel Anlamı"):
+                    st.markdown("""
+                    **Veriler Nereden Geliyor?**
+                    *   **Sismik Veriler:** AFAD, Kandilli, EMSC ve USGS gibi resmi rasathanelerden anlık çekilmektedir.
+                    *   **Astronomik Veriler (Ay, Güneş, Gezegenler):** NASA'nın *Jet Propulsion Laboratory (JPL)* standartlarını kullanan yüksek hassasiyetli `ephem` Python astronomi kütüphanesi tarafından, her bir depremin saniyesi saniyesine Dünya'ya olan konumları hesaplanarak matrise işlenmektedir.
+                    *   **İklim ve Hava Durumu:** API yoğunluğunu engellemek için, bulunduğunuz enlemin tarihsel sıcaklık modellerine dayalı olarak (Ocak'ta en düşük, Temmuz'da en yüksek olacak şekilde) matematiksel bir iklim simülasyonu uygulanır. Bu sayede hava sıcaklığı ile deprem sıklığı (sismik yoğunluk) arasındaki ilişki test edilebilir.
+
+                    **Astronomik Verilerin Anlamı ve Değişim Döngüleri:**
+                
+                    *   **Ay Çekim Gücü (Tidal Stres):** Ay'ın Dünya etrafındaki yörüngesi tam yuvarlak değil, eliptiktir. Bir ay (yaklaşık 29.5 gün) içerisinde Dünya'ya en yakın olduğu **Yerberi (Perigee)** konumunda kütleçekim kuvveti maksimuma ulaşır. Ay uzaklaştıkça (**Yeröte - Apogee**) bu güç azalır. Çekim gücündeki bu artış, yerkabuğunda okyanuslardaki gelgitlere benzer bir esneme yaratarak faylardaki sürtünmeyi (çok minimal seviyede) değiştirebilir.
+                
+                    *   **Güneşe Uzaklık (AU):** Dünya'nın da Güneş etrafındaki yörüngesi eliptiktir. Sanılanın aksine Dünya, Güneş'e **Ocak ayının ilk haftasında** (Günberi - Perihelion) en yakın konumdadır. **Temmuz ayı başlarında** ise en uzak (Günöte - Aphelion) konumdadır. Dünya Güneş'e yaklaştığında yörüngedeki hızı artar. Bu hız değişimi, Dünya'nın sıvı çekirdeği ile sert yerkabuğu arasındaki açısal momentumu mikroskobik olarak etkileyebilir.
+                
+                    *   **Gezegen Çekimi (Jüpiter ve Venüs):** Dünya'ya en çok kütleçekim etkisi uygulayan gezegenler Jüpiter (devasa kütlesinden dolayı) ve Venüs'tür (bize çok yakın olmasından dolayı). Bu gezegenlerin çekim kuvveti, Dünya ile Güneş etrafında aynı hizaya geldikleri (kavuşum) aylarda zirve yapar. Venüs etkisi birkaç ayda bir, Jüpiter etkisi ise Dünya'nın onu yakalayıp geçtiği her ~13 ayda bir tavan yapar.
+                
+                    *   **Dünyanın Geoid Şekli:** Dünya kusursuz bir küre değildir; kutuplardan basık, ekvatordan şişkindir. Ay ve Güneş'in yörüngesel hizalanmaları ekvatoral şişkinliğe denk geldiğinde, gezegenimizin dönüş eksenine ekstra bir tork (burulma) kuvveti biner. Levha tektoniğinin (kıtaların kaymasının) altındaki devasa konveksiyon akımlarına minik ama sismolojide tartışılan bir "tetikleyici" faktör olarak dahil olabilir. Korelasyon matrisi tam olarak bu uçuk varsayımları kendi gözlerinizle test etmeniz için tasarlanmıştır!
+                    """)
             else:
-                st.info("Bu dönemde belirgin bir korelasyon örüntüsü tespit edilmedi (|r| < 0.40).")
-
-            with st.expander("🤔 Korelasyon (r) değerleri ne anlama geliyor?"):
-                st.markdown("""
-                **Korelasyon (r değeri)**, iki olayın birbiriyle ne kadar bağlantılı hareket ettiğini gösterir ve -1 ile +1 arasında bir puan alır.
-                
-                *   **Güçlü Pozitif (r > +0.65) ↑**: İki özellik *aynı anda* artar veya azalır. Birlikte hareket ederler.
-                *   **Orta Pozitif (r: +0.40 ile +0.65)**: Aynı yönde bir eğilim var ancak kusursuz bir kural değil.
-                *   **Güçlü Negatif (r < -0.65) ↓**: Biri artarken diğeri *kesinlikle* azalır. Ters orantı vardır.
-                *   **Orta Negatif (r: -0.40 ile -0.65)**: Ters yönde bir eğilim seziliyor.
-                
-                *(Sıfıra yakın puanlar ise o iki değişken arasında hiçbir mantıksal veya fiziksel bağ olmadığını kanıtlar.)*
-                """)
-
-            with st.expander("🌍 Verilerin Kaynağı, Astronomik Detaylar ve Bilimsel Anlamı"):
-                st.markdown("""
-                **Veriler Nereden Geliyor?**
-                *   **Sismik Veriler:** AFAD, Kandilli, EMSC ve USGS gibi resmi rasathanelerden anlık çekilmektedir.
-                *   **Astronomik Veriler (Ay, Güneş, Gezegenler):** NASA'nın *Jet Propulsion Laboratory (JPL)* standartlarını kullanan yüksek hassasiyetli `ephem` Python astronomi kütüphanesi tarafından, her bir depremin saniyesi saniyesine Dünya'ya olan konumları hesaplanarak matrise işlenmektedir.
-                *   **İklim ve Hava Durumu:** API yoğunluğunu engellemek için, bulunduğunuz enlemin tarihsel sıcaklık modellerine dayalı olarak (Ocak'ta en düşük, Temmuz'da en yüksek olacak şekilde) matematiksel bir iklim simülasyonu uygulanır. Bu sayede hava sıcaklığı ile deprem sıklığı (sismik yoğunluk) arasındaki ilişki test edilebilir.
-
-                **Astronomik Verilerin Anlamı ve Değişim Döngüleri:**
-                
-                *   **Ay Çekim Gücü (Tidal Stres):** Ay'ın Dünya etrafındaki yörüngesi tam yuvarlak değil, eliptiktir. Bir ay (yaklaşık 29.5 gün) içerisinde Dünya'ya en yakın olduğu **Yerberi (Perigee)** konumunda kütleçekim kuvveti maksimuma ulaşır. Ay uzaklaştıkça (**Yeröte - Apogee**) bu güç azalır. Çekim gücündeki bu artış, yerkabuğunda okyanuslardaki gelgitlere benzer bir esneme yaratarak faylardaki sürtünmeyi (çok minimal seviyede) değiştirebilir.
-                
-                *   **Güneşe Uzaklık (AU):** Dünya'nın da Güneş etrafındaki yörüngesi eliptiktir. Sanılanın aksine Dünya, Güneş'e **Ocak ayının ilk haftasında** (Günberi - Perihelion) en yakın konumdadır. **Temmuz ayı başlarında** ise en uzak (Günöte - Aphelion) konumdadır. Dünya Güneş'e yaklaştığında yörüngedeki hızı artar. Bu hız değişimi, Dünya'nın sıvı çekirdeği ile sert yerkabuğu arasındaki açısal momentumu mikroskobik olarak etkileyebilir.
-                
-                *   **Gezegen Çekimi (Jüpiter ve Venüs):** Dünya'ya en çok kütleçekim etkisi uygulayan gezegenler Jüpiter (devasa kütlesinden dolayı) ve Venüs'tür (bize çok yakın olmasından dolayı). Bu gezegenlerin çekim kuvveti, Dünya ile Güneş etrafında aynı hizaya geldikleri (kavuşum) aylarda zirve yapar. Venüs etkisi birkaç ayda bir, Jüpiter etkisi ise Dünya'nın onu yakalayıp geçtiği her ~13 ayda bir tavan yapar.
-                
-                *   **Dünyanın Geoid Şekli:** Dünya kusursuz bir küre değildir; kutuplardan basık, ekvatordan şişkindir. Ay ve Güneş'in yörüngesel hizalanmaları ekvatoral şişkinliğe denk geldiğinde, gezegenimizin dönüş eksenine ekstra bir tork (burulma) kuvveti biner. Levha tektoniğinin (kıtaların kaymasının) altındaki devasa konveksiyon akımlarına minik ama sismolojide tartışılan bir "tetikleyici" faktör olarak dahil olabilir. Korelasyon matrisi tam olarak bu uçuk varsayımları kendi gözlerinizle test etmeniz için tasarlanmıştır!
-                """)
+                st.info(f"Korelasyon analizi için en az 4 öncü aday gerekli. "
+                        f"Mevcut: {len(precursors)}. Yarıçapı veya pencereyi genişletin.")
         else:
-            st.info(f"Korelasyon analizi için en az 4 öncü aday gerekli. "
-                    f"Mevcut: {len(precursors)}. Yarıçapı veya pencereyi genişletin.")
-    else:
-        st.info("Korelasyon analizi için yeterli veri yok.")
+            st.info("Korelasyon analizi için yeterli veri yok.")
 
-    # ════════════════════════════════════════════════════════════════
-    # BİLİMSEL ANALİZ: b-değeri · Benioff Zorlanması · Epimerkez Göçü
-    # ════════════════════════════════════════════════════════════════
-    st.markdown("---")
-    st.markdown('<div class="chart-title">🧪 Bilimsel Sismoloji Analizleri</div>', unsafe_allow_html=True)
-    st.caption(
-        "b-değeri (Gutenberg-Richter) · Benioff kümülatif zorlanması · Epimerkez göç analizi. "
-        "Bu üç gösterge akademik çalışmalarda öncü örüntü araştırmalarında kullanılır."
-    )
+        # ════════════════════════════════════════════════════════════════
+        # BİLİMSEL ANALİZ: b-değeri · Benioff Zorlanması · Epimerkez Göçü
+        # ════════════════════════════════════════════════════════════════
+        st.markdown("---")
+        st.markdown('<div class="chart-title">🧪 Bilimsel Sismoloji Analizleri</div>', unsafe_allow_html=True)
+        st.caption(
+            "b-değeri (Gutenberg-Richter) · Benioff kümülatif zorlanması · Epimerkez göç analizi. "
+            "Bu üç gösterge akademik çalışmalarda öncü örüntü araştırmalarında kullanılır."
+        )
 
-    sci_df = df.dropna(subset=["buyukluk", "derinlik", "lat", "lon"]).copy()
-    sci_df = sci_df.sort_values("zaman").reset_index(drop=True)
+        sci_df = df.dropna(subset=["buyukluk", "derinlik", "lat", "lon"]).copy()
+        sci_df = sci_df.sort_values("zaman").reset_index(drop=True)
 
-    if len(sci_df) >= 20:
-        col_b, col_ben = st.columns(2)
+        if len(sci_df) >= 20:
+            col_b, col_ben = st.columns(2)
 
-        # ── b-değeri kayan pencere ──────────────────────────────────
-        with col_b:
-            st.markdown('<div class="chart-title">📐 b-Değeri Zaman Serisi</div>', unsafe_allow_html=True)
-            st.caption("Kayan pencerede Gutenberg-Richter b-değeri. Büyük deprem öncesi düşüş öncü sinyal olabilir.")
+            # ── b-değeri kayan pencere ──────────────────────────────────
+            with col_b:
+                st.markdown('<div class="chart-title">📐 b-Değeri Zaman Serisi</div>', unsafe_allow_html=True)
+                st.caption("Kayan pencerede Gutenberg-Richter b-değeri. Büyük deprem öncesi düşüş öncü sinyal olabilir.")
 
-            WINDOW = max(20, len(sci_df) // 8)
-            Mc = float(sci_df["buyukluk"].quantile(0.15))  # yaklaşık tamamlanma büyüklüğü
+                WINDOW = max(20, len(sci_df) // 8)
+                Mc = float(sci_df["buyukluk"].quantile(0.15))  # yaklaşık tamamlanma büyüklüğü
 
-            b_vals, b_times, b_counts = [], [], []
-            for i in range(WINDOW, len(sci_df) + 1, max(1, WINDOW // 4)):
-                chunk = sci_df.iloc[i - WINDOW:i]
-                above = chunk[chunk["buyukluk"] >= Mc]
-                if len(above) < 10:
-                    continue
-                mean_m = above["buyukluk"].mean()
-                if mean_m <= Mc:
-                    continue
-                b = math.log10(math.e) / (mean_m - Mc)
-                b_vals.append(round(b, 3))
-                b_times.append(chunk["zaman"].iloc[-1])
-                b_counts.append(len(above))
+                b_vals, b_times, b_counts = [], [], []
+                for i in range(WINDOW, len(sci_df) + 1, max(1, WINDOW // 4)):
+                    chunk = sci_df.iloc[i - WINDOW:i]
+                    above = chunk[chunk["buyukluk"] >= Mc]
+                    if len(above) < 10:
+                        continue
+                    mean_m = above["buyukluk"].mean()
+                    if mean_m <= Mc:
+                        continue
+                    b = math.log10(math.e) / (mean_m - Mc)
+                    b_vals.append(round(b, 3))
+                    b_times.append(chunk["zaman"].iloc[-1])
+                    b_counts.append(len(above))
 
-            if len(b_vals) >= 3:
-                b_mean = sum(b_vals) / len(b_vals)
-                fig_b = go.Figure()
-                fig_b.add_hline(y=b_mean,
-                                line=dict(color="#90caf9", width=1, dash="dot"))
-                fig_b.add_annotation(
-                    x=b_times[-1], y=b_mean,
-                    text=f"  Ortalama b={b_mean:.2f}",
-                    showarrow=False, font=dict(color="#90caf9", size=9), xanchor="left",
-                )
-                colors_b = [mag_color(4.5 - b * 0.8) for b in b_vals]
-                fig_b.add_trace(go.Scatter(
-                    x=b_times, y=b_vals, mode="lines+markers",
-                    name="b-değeri",
-                    line=dict(color="#64b5f6", width=2),
-                    marker=dict(size=7, color=colors_b,
-                                line=dict(width=1, color="rgba(255,255,255,0.3)" if DARK else "rgba(0,0,0,0.2)")),
-                    hovertemplate="<b>b = %{y:.3f}</b><br>%{x}<extra></extra>",
+                if len(b_vals) >= 3:
+                    b_mean = sum(b_vals) / len(b_vals)
+                    fig_b = go.Figure()
+                    fig_b.add_hline(y=b_mean,
+                                    line=dict(color="#90caf9", width=1, dash="dot"))
+                    fig_b.add_annotation(
+                        x=b_times[-1], y=b_mean,
+                        text=f"  Ortalama b={b_mean:.2f}",
+                        showarrow=False, font=dict(color="#90caf9", size=9), xanchor="left",
+                    )
+                    colors_b = [mag_color(4.5 - b * 0.8) for b in b_vals]
+                    fig_b.add_trace(go.Scatter(
+                        x=b_times, y=b_vals, mode="lines+markers",
+                        name="b-değeri",
+                        line=dict(color="#64b5f6", width=2),
+                        marker=dict(size=7, color=colors_b,
+                                    line=dict(width=1, color="rgba(255,255,255,0.3)" if DARK else "rgba(0,0,0,0.2)")),
+                        hovertemplate="<b>b = %{y:.3f}</b><br>%{x}<extra></extra>",
+                    ))
+                    fig_b.add_hrect(y0=0, y1=0.7,
+                                    fillcolor="rgba(229,57,53,0.08)", layer="below", line_width=0)
+                    fig_b.add_annotation(
+                        x=b_times[0], y=0.35,
+                        text="  b < 0.7: Yüksek stres bölgesi",
+                        showarrow=False, font=dict(size=8, color="rgba(229,57,53,0.8)"), xanchor="left",
+                    )
+                    fig_b.update_layout(
+                        paper_bgcolor=BG, plot_bgcolor=BG2,
+                        font=dict(color=TEXT, size=11),
+                        height=300, margin=dict(t=10, b=40, l=55, r=20),
+                        xaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT)),
+                        yaxis=dict(
+                            title=dict(text="b-değeri", font=dict(color=TEXT)),
+                            gridcolor=GRID, tickfont=dict(color=TEXT), range=[0, 2.5],
+                        ),
+                        legend=dict(font=dict(color=TEXT), bgcolor="rgba(0,0,0,0)"),
+                    )
+                    st.plotly_chart(fig_b, use_container_width=True,
+                                    config={"displayModeBar": False, "displaylogo": False})
+                    st.info("💡 **Basitçe (b-Değeri):** **b-Değeri**, sismolojinin en önemli uyarıcılarından biridir. Küçük depremlerin büyük depremlere olan oranını gösterir. Mavi çizginin yokuş aşağı inmesi (değerin düşmesi), fay hattındaki **stresin (gerilimin) aşırı yükseldiğini** ve kayaların artık kopma noktasına yaklaştığını gösterir. b-değerinin aniden çakılması, büyük bir depremin habercisi olarak kabul edilir.")
+                    st.caption(f"Pencere: {WINDOW} deprem | Mc ≈ M{Mc:.1f} | Veri noktası: {len(b_vals)}")
+                else:
+                    st.info("b-değeri için yeterli veri yok. Zaman aralığını genişletin.")
+
+            # ── Kümülatif Benioff Zorlanması ────────────────────────────
+            with col_ben:
+                st.markdown('<div class="chart-title">⚡ Benioff Kümülatif Zorlanması</div>', unsafe_allow_html=True)
+                st.caption("√Enerji toplamı. İvmelenen eğri (concave up) büyük deprem öncesi kritik nokta işareti olabilir.")
+
+                # Enerji ∝ 10^(1.5M) → Benioff strain = Σ√(10^(1.5M))
+                sci_df["benioff"] = sci_df["buyukluk"].apply(lambda m: math.sqrt(10 ** (1.5 * m)))
+                sci_df["cum_benioff"] = sci_df["benioff"].cumsum()
+                # Normalize 0-100
+                b_max = sci_df["cum_benioff"].max()
+                sci_df["cum_norm"] = sci_df["cum_benioff"] / b_max * 100 if b_max > 0 else 0
+
+                fig_ben = go.Figure()
+                fig_ben.add_trace(go.Scatter(
+                    x=sci_df["zaman"], y=sci_df["cum_norm"],
+                    mode="lines", name="Benioff Zorlanması",
+                    line=dict(color="#ffb74d", width=2.5),
+                    fill="tozeroy",
+                    fillcolor="rgba(255,183,77,0.12)" if DARK else "rgba(255,183,77,0.20)",
+                    hovertemplate="<b>%{y:.1f}</b><br>%{x}<extra></extra>",
                 ))
-                fig_b.add_hrect(y0=0, y1=0.7,
-                                fillcolor="rgba(229,57,53,0.08)", layer="below", line_width=0)
-                fig_b.add_annotation(
-                    x=b_times[0], y=0.35,
-                    text="  b < 0.7: Yüksek stres bölgesi",
-                    showarrow=False, font=dict(size=8, color="rgba(229,57,53,0.8)"), xanchor="left",
-                )
-                fig_b.update_layout(
+                # M4+ olayları kırmızı çizgi ile işaretle
+                big_events = sci_df[sci_df["buyukluk"] >= 4.0]
+                for _, ev in big_events.iterrows():
+                    fig_ben.add_vline(
+                        x=ev["zaman"].timestamp() * 1000,
+                        line=dict(color="#E53935", width=1.2, dash="dot"),
+                    )
+                if not big_events.empty:
+                    fig_ben.add_trace(go.Scatter(
+                        x=big_events["zaman"],
+                        y=sci_df.loc[big_events.index, "cum_norm"],
+                        mode="markers", name="M4+ olaylar",
+                        marker=dict(size=9, color="#E53935", symbol="triangle-up",
+                                    line=dict(width=1, color="rgba(255,255,255,0.5)")),
+                        hovertemplate="<b>M%{text}</b><br>%{x}<extra></extra>",
+                        text=big_events["buyukluk"].apply(lambda m: f"{m:.1f}"),
+                    ))
+                fig_ben.update_layout(
                     paper_bgcolor=BG, plot_bgcolor=BG2,
                     font=dict(color=TEXT, size=11),
                     height=300, margin=dict(t=10, b=40, l=55, r=20),
                     xaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT)),
                     yaxis=dict(
-                        title=dict(text="b-değeri", font=dict(color=TEXT)),
-                        gridcolor=GRID, tickfont=dict(color=TEXT), range=[0, 2.5],
+                        title=dict(text="Kümülatif Benioff (normalize %)", font=dict(color=TEXT)),
+                        gridcolor=GRID, tickfont=dict(color=TEXT),
                     ),
-                    legend=dict(font=dict(color=TEXT), bgcolor="rgba(0,0,0,0)"),
+                    legend=dict(font=dict(color=TEXT), bgcolor="rgba(0,0,0,0)",
+                                orientation="h", x=0, y=1.08),
                 )
-                st.plotly_chart(fig_b, use_container_width=True,
+                st.plotly_chart(fig_ben, use_container_width=True,
                                 config={"displayModeBar": False, "displaylogo": False})
-                st.info("💡 **Basitçe (b-Değeri):** **b-Değeri**, sismolojinin en önemli uyarıcılarından biridir. Küçük depremlerin büyük depremlere olan oranını gösterir. Mavi çizginin yokuş aşağı inmesi (değerin düşmesi), fay hattındaki **stresin (gerilimin) aşırı yükseldiğini** ve kayaların artık kopma noktasına yaklaştığını gösterir. b-değerinin aniden çakılması, büyük bir depremin habercisi olarak kabul edilir.")
-                st.caption(f"Pencere: {WINDOW} deprem | Mc ≈ M{Mc:.1f} | Veri noktası: {len(b_vals)}")
-            else:
-                st.info("b-değeri için yeterli veri yok. Zaman aralığını genişletin.")
+                st.info("💡 **Basitçe:** Yeraltındaki kayalar lastik gibi esneyebilir. **Benioff Zorlanması**, bu esnemenin miktarını ölçer. Grafik sürekli yukarı doğru tırmanıyorsa, tektonik plakalar birbirini itiyor ve yeraltındaki kayalar giderek daha fazla bükülüyor demektir. Eğrinin zirveye ulaştığı nokta, kayanın artık dayanamayıp kırıldığı (deprem) anı temsil eder.")
 
-        # ── Kümülatif Benioff Zorlanması ────────────────────────────
-        with col_ben:
-            st.markdown('<div class="chart-title">⚡ Benioff Kümülatif Zorlanması</div>', unsafe_allow_html=True)
-            st.caption("√Enerji toplamı. İvmelenen eğri (concave up) büyük deprem öncesi kritik nokta işareti olabilir.")
+            # ── Epimerkez Göç Analizi ───────────────────────────────────
+            st.markdown("---")
+            col_mig1, col_mig2 = st.columns(2)
 
-            # Enerji ∝ 10^(1.5M) → Benioff strain = Σ√(10^(1.5M))
-            sci_df["benioff"] = sci_df["buyukluk"].apply(lambda m: math.sqrt(10 ** (1.5 * m)))
-            sci_df["cum_benioff"] = sci_df["benioff"].cumsum()
-            # Normalize 0-100
-            b_max = sci_df["cum_benioff"].max()
-            sci_df["cum_norm"] = sci_df["cum_benioff"] / b_max * 100 if b_max > 0 else 0
+            with col_mig1:
+                st.markdown('<div class="chart-title">🧭 Epimerkez Göç Haritası</div>', unsafe_allow_html=True)
+                st.caption("Depremlerin zamansal sıralaması. Mor=eski, sarı=yeni. Fay segmentine doğru göç öncü işaret olabilir.")
 
-            fig_ben = go.Figure()
-            fig_ben.add_trace(go.Scatter(
-                x=sci_df["zaman"], y=sci_df["cum_norm"],
-                mode="lines", name="Benioff Zorlanması",
-                line=dict(color="#ffb74d", width=2.5),
-                fill="tozeroy",
-                fillcolor="rgba(255,183,77,0.12)" if DARK else "rgba(255,183,77,0.20)",
-                hovertemplate="<b>%{y:.1f}</b><br>%{x}<extra></extra>",
-            ))
-            # M4+ olayları kırmızı çizgi ile işaretle
-            big_events = sci_df[sci_df["buyukluk"] >= 4.0]
-            for _, ev in big_events.iterrows():
-                fig_ben.add_vline(
-                    x=ev["zaman"].timestamp() * 1000,
-                    line=dict(color="#E53935", width=1.2, dash="dot"),
-                )
-            if not big_events.empty:
-                fig_ben.add_trace(go.Scatter(
-                    x=big_events["zaman"],
-                    y=sci_df.loc[big_events.index, "cum_norm"],
-                    mode="markers", name="M4+ olaylar",
-                    marker=dict(size=9, color="#E53935", symbol="triangle-up",
-                                line=dict(width=1, color="rgba(255,255,255,0.5)")),
-                    hovertemplate="<b>M%{text}</b><br>%{x}<extra></extra>",
-                    text=big_events["buyukluk"].apply(lambda m: f"{m:.1f}"),
-                ))
-            fig_ben.update_layout(
-                paper_bgcolor=BG, plot_bgcolor=BG2,
-                font=dict(color=TEXT, size=11),
-                height=300, margin=dict(t=10, b=40, l=55, r=20),
-                xaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT)),
-                yaxis=dict(
-                    title=dict(text="Kümülatif Benioff (normalize %)", font=dict(color=TEXT)),
-                    gridcolor=GRID, tickfont=dict(color=TEXT),
-                ),
-                legend=dict(font=dict(color=TEXT), bgcolor="rgba(0,0,0,0)",
-                            orientation="h", x=0, y=1.08),
-            )
-            st.plotly_chart(fig_ben, use_container_width=True,
-                            config={"displayModeBar": False, "displaylogo": False})
-            st.info("💡 **Basitçe:** Yeraltındaki kayalar lastik gibi esneyebilir. **Benioff Zorlanması**, bu esnemenin miktarını ölçer. Grafik sürekli yukarı doğru tırmanıyorsa, tektonik plakalar birbirini itiyor ve yeraltındaki kayalar giderek daha fazla bükülüyor demektir. Eğrinin zirveye ulaştığı nokta, kayanın artık dayanamayıp kırıldığı (deprem) anı temsil eder.")
-
-        # ── Epimerkez Göç Analizi ───────────────────────────────────
-        st.markdown("---")
-        col_mig1, col_mig2 = st.columns(2)
-
-        with col_mig1:
-            st.markdown('<div class="chart-title">🧭 Epimerkez Göç Haritası</div>', unsafe_allow_html=True)
-            st.caption("Depremlerin zamansal sıralaması. Mor=eski, sarı=yeni. Fay segmentine doğru göç öncü işaret olabilir.")
-
-            n_pts = len(sci_df)
-            time_idx = list(range(n_pts))
-            fig_mig = go.Figure()
-            fig_mig.add_trace(go.Scatter(
-                x=sci_df["lon"], y=sci_df["lat"],
-                mode="markers",
-                marker=dict(
-                    size=sci_df["buyukluk"].apply(lambda m: max(5, m * 5)),
-                    color=time_idx,
-                    colorscale="Plasma",
-                    showscale=True,
-                    colorbar=dict(
-                        title=dict(text="Zaman →", font=dict(color=TEXT, size=10)),
-                        tickfont=dict(color=TEXT, size=9),
-                        tickvals=[0, n_pts - 1],
-                        ticktext=["Eski", "Yeni"],
-                        thickness=12, len=0.7,
+                n_pts = len(sci_df)
+                time_idx = list(range(n_pts))
+                fig_mig = go.Figure()
+                fig_mig.add_trace(go.Scatter(
+                    x=sci_df["lon"], y=sci_df["lat"],
+                    mode="markers",
+                    marker=dict(
+                        size=sci_df["buyukluk"].apply(lambda m: max(5, m * 5)),
+                        color=time_idx,
+                        colorscale="Plasma",
+                        showscale=True,
+                        colorbar=dict(
+                            title=dict(text="Zaman →", font=dict(color=TEXT, size=10)),
+                            tickfont=dict(color=TEXT, size=9),
+                            tickvals=[0, n_pts - 1],
+                            ticktext=["Eski", "Yeni"],
+                            thickness=12, len=0.7,
+                        ),
+                        opacity=0.85,
+                        line=dict(width=0.8, color="rgba(255,255,255,0.3)" if DARK else "rgba(0,0,0,0.2)"),
                     ),
-                    opacity=0.85,
-                    line=dict(width=0.8, color="rgba(255,255,255,0.3)" if DARK else "rgba(0,0,0,0.2)"),
-                ),
-                text=sci_df.apply(lambda r:
-                    f"<b>M{r['buyukluk']:.1f}</b><br>{r['zaman_str']}<br>{safe_html(str(r['konum'])[:40])}", axis=1),
-                hovertemplate="%{text}<extra></extra>",
-            ))
-            # Erzincan merkezi
-            fig_mig.add_trace(go.Scatter(
-                x=[ERZ_LON], y=[ERZ_LAT], mode="markers+text",
-                marker=dict(size=14, color="#ff3333", symbol="star"),
-                text=["ERZ"], textposition="top right",
-                textfont=dict(color="#ff3333", size=10),
-                name="Erzincan", showlegend=False,
-                hoverinfo="skip",
-            ))
-            fig_mig.update_layout(
-                paper_bgcolor=BG, plot_bgcolor=BG2,
-                font=dict(color=TEXT, size=11),
-                height=340, margin=dict(t=10, b=40, l=55, r=80),
-                xaxis=dict(title=dict(text="Boylam", font=dict(color=TEXT)),
-                           gridcolor=GRID, tickfont=dict(color=TEXT)),
-                yaxis=dict(title=dict(text="Enlem", font=dict(color=TEXT)),
-                           gridcolor=GRID, tickfont=dict(color=TEXT),
-                           scaleanchor="x", scaleratio=1),
-                hovermode="closest",
-            )
-            st.plotly_chart(fig_mig, use_container_width=True,
-                            config={"displayModeBar": False, "displaylogo": False})
-            st.info("💡 **Basitçe:** Depremler bazen rastgele değil, tıpkı devrilen domino taşları gibi belli bir yöne doğru ilerler. Bu harita, sarsıntıların **doğuya mı, batıya mı** doğru kaydığını gösterir. Fay üzerindeki enerjinin bir noktadan başka bir noktaya transfer edilmesi (göç etmesi), yakında hangi şehrin veya fay segmentinin tehlikeye gireceğini anlamamızı sağlar.")
-
-        with col_mig2:
-            st.markdown('<div class="chart-title">📉 Derinlik Göçü (Zaman)</div>', unsafe_allow_html=True)
-            st.caption("Derinlik zamanla azalıyorsa (yukarı göç) stres/sıvı yükselimi olabilir — öncü örüntü.")
-
-            sci_df_dep = sci_df.dropna(subset=["derinlik"]).copy()
-            fig_dep_mig = go.Figure()
-            fig_dep_mig.add_trace(go.Scatter(
-                x=sci_df_dep["zaman"], y=sci_df_dep["derinlik"],
-                mode="markers",
-                marker=dict(
-                    size=sci_df_dep["buyukluk"].apply(lambda m: max(5, m * 4.5)),
-                    color=sci_df_dep["buyukluk"],
-                    colorscale="YlOrRd",
-                    showscale=True,
-                    colorbar=dict(
-                        title=dict(text="M", font=dict(color=TEXT, size=10)),
-                        tickfont=dict(color=TEXT, size=9),
-                        thickness=12, len=0.65,
-                    ),
-                    opacity=0.85,
-                    line=dict(width=0.8, color="rgba(255,255,255,0.3)" if DARK else "rgba(0,0,0,0.2)"),
-                ),
-                hovertemplate="<b>%{y:.1f} km</b><br>%{x}<extra></extra>",
-            ))
-            # Trend çizgisi
-            if len(sci_df_dep) >= 10:
-                x_num = (sci_df_dep["zaman"] - sci_df_dep["zaman"].min()).dt.total_seconds()
-                coeffs = np.polyfit(x_num, sci_df_dep["derinlik"], 1)
-                trend_y = coeffs[0] * x_num + coeffs[1]
-                yön = "▼ Derinleşiyor" if coeffs[0] > 0 else "▲ Yüzeye yaklaşıyor"
-                fig_dep_mig.add_trace(go.Scatter(
-                    x=sci_df_dep["zaman"], y=trend_y,
-                    mode="lines", name=f"Trend ({yön})",
-                    line=dict(color="#ef5350" if coeffs[0] < 0 else "#66bb6a",
-                              width=2.5, dash="dash"),
+                    text=sci_df.apply(lambda r:
+                        f"<b>M{r['buyukluk']:.1f}</b><br>{r['zaman_str']}<br>{safe_html(str(r['konum'])[:40])}", axis=1),
+                    hovertemplate="%{text}<extra></extra>",
                 ))
-            fig_dep_mig.update_layout(
-                paper_bgcolor=BG, plot_bgcolor=BG2,
-                font=dict(color=TEXT, size=11),
-                height=340, margin=dict(t=10, b=40, l=60, r=80),
-                xaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT)),
-                yaxis=dict(
-                    title=dict(text="Derinlik (km) — aşağı artar", font=dict(color=TEXT)),
-                    gridcolor=GRID, tickfont=dict(color=TEXT),
-                    autorange="reversed",
-                ),
-                legend=dict(font=dict(color=TEXT), bgcolor="rgba(0,0,0,0)",
-                            x=0, y=1.08, orientation="h"),
-                hovermode="closest",
-            )
-            st.plotly_chart(fig_dep_mig, use_container_width=True,
-                            config={"displayModeBar": False, "displaylogo": False})
-            st.info("💡 **Basitçe:** Depremlerin sadece haritada değil, **yeraltındaki derinliklerinde de bir hareketi** vardır. Sarsıntıların 20 km derinlikten başlayıp gün geçtikçe 5 km, 2 km gibi yüzeye doğru tırmanması, yeraltındaki kırılmanın (veya magmanın) yüzeye doğru bir yol bulmaya çalıştığını ve yakında yıkıcı bir sığ deprem üretebileceğini işaret eder.")
-    else:
-        st.info("Bilimsel analiz için en az 20 deprem gerekli. Zaman aralığını veya yarıçapı genişletin.")
-
-    # ════════════════════════════════════════════════════════════════
-    # DENEYSEL AKADEMİK ANALİZLER
-    # ════════════════════════════════════════════════════════════════
-    st.markdown("---")
-    st.markdown('<div class="chart-title">🔭 Deneysel Akademik Analizler</div>', unsafe_allow_html=True)
-    st.caption(
-        "Zaliapin-Ben-Zion η-değeri (2013) · Sobolev-Tyupkin RTL Sessizlik (1997) · "
-        "Bowman AMR Güç Yasası (1998) · Uzamsal b-Değeri Haritası. "
-        "Bu analizler peer-reviewed seismoloji literatüründen alınan yöntemlerdir."
-    )
-
-    exp_tab1, exp_tab2, exp_tab3, exp_tab4 = st.tabs([
-        "η Kümeleme (Zaliapin-BZ)", "RTL Sessizlik (Sobolev)", "AMR Güç Yasası (Bowman)", "Uzamsal b-Haritası"
-    ])
-
-    exp_df = df.dropna(subset=["buyukluk","lat","lon","derinlik"]).copy()
-    exp_df = exp_df.sort_values("zaman").reset_index(drop=True)
-
-    # ── ORTAK: b-değeri (MLE) ───────────────────────────────────────
-    def calc_b_mle(magnitudes, Mc=None):
-        mags = np.array(magnitudes, dtype=float)
-        if Mc is None:
-            Mc = float(np.percentile(mags, 15))
-        above = mags[mags >= Mc]
-        if len(above) < 5:
-            return 1.0, Mc
-        mean_m = above.mean()
-        if mean_m <= Mc:
-            return 1.0, Mc
-        return math.log10(math.e) / (mean_m - Mc), Mc
-
-    # ─────────────────────────────────────────────────────────────────
-    # TAB 1 — η (Zaliapin & Ben-Zion 2013)
-    # Normalize uzay-zaman nearest-neighbor mesafesi
-    # η_ij = t_ij × r_ij^(d/b) × 10^(-b×m_i/2)
-    # ─────────────────────────────────────────────────────────────────
-    with exp_tab1:
-        st.markdown("**Zaliapin & Ben-Zion (2013) — Deprem Kümeleme Analizi**")
-        st.markdown(
-            "Her deprem için en yakın 'ebeveyn' deprem hesaplanır: "
-            "`η = Δt × r^(d/b) × 10^(−b·m/2)`. "
-            "Log(η) histogramı bimodal olduğunda — sol tepe = artçı/öncü kümeler, "
-            "sağ tepe = bağımsız depremler. Bu ayrım klasik yöntemlerden çok daha hassastır."
-        )
-
-        if len(exp_df) >= 15:
-            b_eta, Mc_eta = calc_b_mle(exp_df["buyukluk"].tolist())
-            d_frac = 1.6  # Türkiye için tipik fraktal boyut
-
-            eta_col1, eta_col2 = st.columns([1, 1])
-            with eta_col1:
-                st.metric("Hesaplanan b", f"{b_eta:.3f}")
-                st.metric("Mc (tamamlanma)", f"M{Mc_eta:.2f}")
-                st.metric("Fraktal boyut d", f"{d_frac}")
-
-            with st.spinner("η değerleri hesaplanıyor..."):
-                n = min(len(exp_df), 400)
-                sub = exp_df.iloc[:n].reset_index(drop=True)
-                eta_list, log_t_list, log_r_list = calc_etas_cache(sub.to_dict("list"), d_frac, b_eta)
-
-            if eta_list:
-                eta_arr = np.array(eta_list)
-                # Eşik: histogram çukuru (yaklaşık medyan - 0.5 std)
-                eta_thresh = float(np.percentile(eta_arr, 35))
-
-                col_eh, col_es = st.columns(2)
-                with col_eh:
-                    fig_eta_h = go.Figure(go.Histogram(
-                        x=eta_arr, nbinsx=50,
-                        marker_color="#64b5f6", opacity=0.8,
-                        name="log(η)",
-                    ))
-                    fig_eta_h.add_vline(x=eta_thresh,
-                        line=dict(color="#E53935", width=2, dash="dash"))
-                    fig_eta_h.add_annotation(
-                        x=eta_thresh, y=0.95,
-                        text=f"  Eşik η={eta_thresh:.1f}",
-                        showarrow=False, yref="paper",
-                        font=dict(color="#E53935", size=10),
-                    )
-                    fig_eta_h.update_layout(
-                        paper_bgcolor=BG, plot_bgcolor=BG2,
-                        font=dict(color=TEXT, size=11), height=300,
-                        margin=dict(t=30, b=40, l=55, r=20),
-                        title=dict(text="log(η) Dağılımı — Bimodal = iki popülasyon",
-                                   font=dict(color=TEXT, size=11)),
-                        xaxis=dict(title=dict(text="log₁₀(η)", font=dict(color=TEXT)),
-                                   gridcolor=GRID, tickfont=dict(color=TEXT)),
-                        yaxis=dict(title=dict(text="Sayı", font=dict(color=TEXT)),
-                                   gridcolor=GRID, tickfont=dict(color=TEXT)),
-                    )
-                    st.plotly_chart(fig_eta_h, use_container_width=True,
-                                    config={"displayModeBar": False, "displaylogo": False})
-
-                with col_es:
-                    clustered = eta_arr < eta_thresh
-                    colors_eta = np.where(clustered,
-                        "#E53935" if DARK else "#c62828",
-                        "#64b5f6" if DARK else "#1565c0")
-                    fig_eta_s = go.Figure()
-                    for label, mask, col in [
-                        ("Tetiklenmiş (küme)", clustered, "#E53935"),
-                        ("Bağımsız (arka plan)", ~clustered, "#64b5f6"),
-                    ]:
-                        fig_eta_s.add_trace(go.Scatter(
-                            x=np.array(log_t_list)[mask],
-                            y=np.array(log_r_list)[mask],
-                            mode="markers", name=label,
-                            marker=dict(size=5, color=col, opacity=0.7),
-                        ))
-                    fig_eta_s.update_layout(
-                        paper_bgcolor=BG, plot_bgcolor=BG2,
-                        font=dict(color=TEXT, size=11), height=300,
-                        margin=dict(t=30, b=40, l=55, r=20),
-                        title=dict(text="log(Δt) – log(r) Uzayı",
-                                   font=dict(color=TEXT, size=11)),
-                        xaxis=dict(title=dict(text="log₁₀(Δt [yıl])", font=dict(color=TEXT)),
-                                   gridcolor=GRID, tickfont=dict(color=TEXT)),
-                        yaxis=dict(title=dict(text="log₁₀(r [km])", font=dict(color=TEXT)),
-                                   gridcolor=GRID, tickfont=dict(color=TEXT)),
-                        legend=dict(font=dict(color=TEXT), bgcolor="rgba(0,0,0,0)",
-                                    x=0, y=1.08, orientation="h"),
-                    )
-                    st.plotly_chart(fig_eta_s, use_container_width=True,
-                                    config={"displayModeBar": False, "displaylogo": False})
-                    st.info("💡 **Basitçe:** Tıpkı bir virüsün insanlara bulaşması gibi, depremler de birbirini tetikler (ETAS Modeli). Bu grafik, yaşanan sarsıntıların sadece eski bir depremin **zararsız artçıları mı**, yoksa yepyeni ve daha büyük bir depremi doğuracak **tehlikeli tetikleyiciler mi** olduğunu analiz eder. 'Bulaşıcılık' seviyesi yüksekse alarm zilleri çalmaya başlar.")
-
-                n_clust = int(clustered.sum())
-                n_bg = int((~clustered).sum())
-                st.info(
-                    f"**Tetiklenmiş depremler:** {n_clust} (%{100*n_clust/len(eta_arr):.0f})  |  "
-                    f"**Bağımsız arka plan:** {n_bg} (%{100*n_bg/len(eta_arr):.0f})  |  "
-                    f"Eşik: log(η) = {eta_thresh:.2f}"
-                )
-            else:
-                st.warning("η hesabı için yeterli event çifti oluşturulamadı.")
-        else:
-            st.info("η analizi için en az 15 deprem gerekli.")
-
-    # ─────────────────────────────────────────────────────────────────
-    # TAB 2 — RTL (Sobolev & Tyupkin 1997)
-    # Sismik sessizlik anomali tespiti
-    # ─────────────────────────────────────────────────────────────────
-    with exp_tab2:
-        st.markdown("**Sobolev & Tyupkin (1997) — RTL Sismik Sessizlik Algoritması**")
-        st.markdown(
-            "Bölge-Zaman-Uzunluk ağırlıklı sismisiyet oranı hesaplanır. "
-            "Normalize Z-skoru **–2 altına** düştüğünde istatistiksel sessizlik anlamına gelir. "
-            "Büyük depremlerin %60–80'i öncesinde RTL < –2 gözlemlendi (literatür)."
-        )
-
-        if len(exp_df) >= 20:
-            rtl_r0 = st.slider("r₀ (km) — mekansal ağırlık uzunluğu",
-                               30, 300, 100, 10, key="rtl_r0")
-            rtl_t0 = st.slider("t₀ (gün) — zamansal ağırlık uzunluğu",
-                               30, 730, 180, 30, key="rtl_t0")
-
-            with st.spinner("RTL hesaplanıyor..."):
-                rtl_times, rtl_scores = calc_rtl_cache(exp_df.to_dict("list"), rtl_r0, rtl_t0, ERZ_LAT, ERZ_LON)
-
-            if len(rtl_scores) >= 5:
-                arr = np.array(rtl_scores)
-                mu, sigma = arr.mean(), arr.std()
-                rtl_z = ((arr - mu) / sigma).tolist() if sigma > 0 else (arr - mu).tolist()
-
-                colors_rtl = [
-                    "#E53935" if z < -2 else
-                    "#FB8C00" if z < -1 else
-                    "#64b5f6"
-                    for z in rtl_z
-                ]
-                fig_rtl = go.Figure()
-                fig_rtl.add_hrect(y0=-2, y1=min(rtl_z)-0.5,
-                                  fillcolor="rgba(229,57,53,0.10)", layer="below", line_width=0)
-                fig_rtl.add_hline(y=-2, line=dict(color="#E53935", width=1.5, dash="dash"))
-                fig_rtl.add_hline(y=-1, line=dict(color="#FB8C00", width=1, dash="dot"))
-                fig_rtl.add_annotation(
-                    x=rtl_times[-1], y=-2,
-                    text="  RTL < –2: Sessizlik Anomalisi",
-                    showarrow=False, font=dict(color="#E53935", size=10), xanchor="left",
-                )
-                fig_rtl.add_trace(go.Scatter(
-                    x=rtl_times, y=rtl_z,
-                    mode="lines+markers",
-                    line=dict(color="#90caf9", width=2),
-                    marker=dict(size=6, color=colors_rtl,
-                                line=dict(width=1, color="rgba(255,255,255,0.3)" if DARK else "rgba(0,0,0,0.2)")),
-                    hovertemplate="<b>RTL Z = %{y:.2f}</b><br>%{x}<extra></extra>",
-                    name="RTL Z-skoru",
+                # Erzincan merkezi
+                fig_mig.add_trace(go.Scatter(
+                    x=[ERZ_LON], y=[ERZ_LAT], mode="markers+text",
+                    marker=dict(size=14, color="#ff3333", symbol="star"),
+                    text=["ERZ"], textposition="top right",
+                    textfont=dict(color="#ff3333", size=10),
+                    name="Erzincan", showlegend=False,
+                    hoverinfo="skip",
                 ))
-                # M4+ olayları işaretle
-                big_ev = exp_df[exp_df["buyukluk"] >= 4.0]
-                for _, ev in big_ev.iterrows():
-                    fig_rtl.add_vline(x=ev["zaman"],
-                        line=dict(color="#7B1FA2", width=1.5, dash="dot"))
-                if not big_ev.empty:
-                    fig_rtl.add_trace(go.Scatter(
-                        x=big_ev["zaman"],
-                        y=[min(rtl_z)] * len(big_ev),
-                        mode="markers", name="M4+ olaylar",
-                        marker=dict(size=10, color="#7B1FA2", symbol="triangle-up"),
-                        hovertemplate="M%{text}<extra></extra>",
-                        text=big_ev["buyukluk"].apply(lambda m: f"{m:.1f}"),
-                    ))
-                fig_rtl.update_layout(
+                fig_mig.update_layout(
                     paper_bgcolor=BG, plot_bgcolor=BG2,
-                    font=dict(color=TEXT, size=12), height=420,
-                    margin=dict(t=20, b=50, l=60, r=30),
+                    font=dict(color=TEXT, size=11),
+                    height=340, margin=dict(t=10, b=40, l=55, r=80),
+                    xaxis=dict(title=dict(text="Boylam", font=dict(color=TEXT)),
+                               gridcolor=GRID, tickfont=dict(color=TEXT)),
+                    yaxis=dict(title=dict(text="Enlem", font=dict(color=TEXT)),
+                               gridcolor=GRID, tickfont=dict(color=TEXT),
+                               scaleanchor="x", scaleratio=1),
+                    hovermode="closest",
+                )
+                st.plotly_chart(fig_mig, use_container_width=True,
+                                config={"displayModeBar": False, "displaylogo": False})
+                st.info("💡 **Basitçe:** Depremler bazen rastgele değil, tıpkı devrilen domino taşları gibi belli bir yöne doğru ilerler. Bu harita, sarsıntıların **doğuya mı, batıya mı** doğru kaydığını gösterir. Fay üzerindeki enerjinin bir noktadan başka bir noktaya transfer edilmesi (göç etmesi), yakında hangi şehrin veya fay segmentinin tehlikeye gireceğini anlamamızı sağlar.")
+
+            with col_mig2:
+                st.markdown('<div class="chart-title">📉 Derinlik Göçü (Zaman)</div>', unsafe_allow_html=True)
+                st.caption("Derinlik zamanla azalıyorsa (yukarı göç) stres/sıvı yükselimi olabilir — öncü örüntü.")
+
+                sci_df_dep = sci_df.dropna(subset=["derinlik"]).copy()
+                fig_dep_mig = go.Figure()
+                fig_dep_mig.add_trace(go.Scatter(
+                    x=sci_df_dep["zaman"], y=sci_df_dep["derinlik"],
+                    mode="markers",
+                    marker=dict(
+                        size=sci_df_dep["buyukluk"].apply(lambda m: max(5, m * 4.5)),
+                        color=sci_df_dep["buyukluk"],
+                        colorscale="YlOrRd",
+                        showscale=True,
+                        colorbar=dict(
+                            title=dict(text="M", font=dict(color=TEXT, size=10)),
+                            tickfont=dict(color=TEXT, size=9),
+                            thickness=12, len=0.65,
+                        ),
+                        opacity=0.85,
+                        line=dict(width=0.8, color="rgba(255,255,255,0.3)" if DARK else "rgba(0,0,0,0.2)"),
+                    ),
+                    hovertemplate="<b>%{y:.1f} km</b><br>%{x}<extra></extra>",
+                ))
+                # Trend çizgisi
+                if len(sci_df_dep) >= 10:
+                    x_num = (sci_df_dep["zaman"] - sci_df_dep["zaman"].min()).dt.total_seconds()
+                    coeffs = np.polyfit(x_num, sci_df_dep["derinlik"], 1)
+                    trend_y = coeffs[0] * x_num + coeffs[1]
+                    yön = "▼ Derinleşiyor" if coeffs[0] > 0 else "▲ Yüzeye yaklaşıyor"
+                    fig_dep_mig.add_trace(go.Scatter(
+                        x=sci_df_dep["zaman"], y=trend_y,
+                        mode="lines", name=f"Trend ({yön})",
+                        line=dict(color="#ef5350" if coeffs[0] < 0 else "#66bb6a",
+                                  width=2.5, dash="dash"),
+                    ))
+                fig_dep_mig.update_layout(
+                    paper_bgcolor=BG, plot_bgcolor=BG2,
+                    font=dict(color=TEXT, size=11),
+                    height=340, margin=dict(t=10, b=40, l=60, r=80),
                     xaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT)),
                     yaxis=dict(
-                        title=dict(text="RTL Z-skoru (σ)", font=dict(color=TEXT)),
+                        title=dict(text="Derinlik (km) — aşağı artar", font=dict(color=TEXT)),
+                        gridcolor=GRID, tickfont=dict(color=TEXT),
+                        autorange="reversed",
+                    ),
+                    legend=dict(font=dict(color=TEXT), bgcolor="rgba(0,0,0,0)",
+                                x=0, y=1.08, orientation="h"),
+                    hovermode="closest",
+                )
+                st.plotly_chart(fig_dep_mig, use_container_width=True,
+                                config={"displayModeBar": False, "displaylogo": False})
+                st.info("💡 **Basitçe:** Depremlerin sadece haritada değil, **yeraltındaki derinliklerinde de bir hareketi** vardır. Sarsıntıların 20 km derinlikten başlayıp gün geçtikçe 5 km, 2 km gibi yüzeye doğru tırmanması, yeraltındaki kırılmanın (veya magmanın) yüzeye doğru bir yol bulmaya çalıştığını ve yakında yıkıcı bir sığ deprem üretebileceğini işaret eder.")
+        else:
+            st.info("Bilimsel analiz için en az 20 deprem gerekli. Zaman aralığını veya yarıçapı genişletin.")
+
+        # ════════════════════════════════════════════════════════════════
+        # DENEYSEL AKADEMİK ANALİZLER
+        # ════════════════════════════════════════════════════════════════
+        st.markdown("---")
+        st.markdown('<div class="chart-title">🔭 Deneysel Akademik Analizler</div>', unsafe_allow_html=True)
+        st.caption(
+            "Zaliapin-Ben-Zion η-değeri (2013) · Sobolev-Tyupkin RTL Sessizlik (1997) · "
+            "Bowman AMR Güç Yasası (1998) · Uzamsal b-Değeri Haritası. "
+            "Bu analizler peer-reviewed seismoloji literatüründen alınan yöntemlerdir."
+        )
+
+        exp_tab1, exp_tab2, exp_tab3, exp_tab4 = st.tabs([
+            "η Kümeleme (Zaliapin-BZ)", "RTL Sessizlik (Sobolev)", "AMR Güç Yasası (Bowman)", "Uzamsal b-Haritası"
+        ])
+
+        exp_df = df.dropna(subset=["buyukluk","lat","lon","derinlik"]).copy()
+        exp_df = exp_df.sort_values("zaman").reset_index(drop=True)
+
+        # ── ORTAK: b-değeri (MLE) ───────────────────────────────────────
+        def calc_b_mle(magnitudes, Mc=None):
+            mags = np.array(magnitudes, dtype=float)
+            if Mc is None:
+                Mc = float(np.percentile(mags, 15))
+            above = mags[mags >= Mc]
+            if len(above) < 5:
+                return 1.0, Mc
+            mean_m = above.mean()
+            if mean_m <= Mc:
+                return 1.0, Mc
+            return math.log10(math.e) / (mean_m - Mc), Mc
+
+        # ─────────────────────────────────────────────────────────────────
+        # TAB 1 — η (Zaliapin & Ben-Zion 2013)
+        # Normalize uzay-zaman nearest-neighbor mesafesi
+        # η_ij = t_ij × r_ij^(d/b) × 10^(-b×m_i/2)
+        # ─────────────────────────────────────────────────────────────────
+        with exp_tab1:
+            st.markdown("**Zaliapin & Ben-Zion (2013) — Deprem Kümeleme Analizi**")
+            st.markdown(
+                "Her deprem için en yakın 'ebeveyn' deprem hesaplanır: "
+                "`η = Δt × r^(d/b) × 10^(−b·m/2)`. "
+                "Log(η) histogramı bimodal olduğunda — sol tepe = artçı/öncü kümeler, "
+                "sağ tepe = bağımsız depremler. Bu ayrım klasik yöntemlerden çok daha hassastır."
+            )
+
+            if len(exp_df) >= 15:
+                b_eta, Mc_eta = calc_b_mle(exp_df["buyukluk"].tolist())
+                d_frac = 1.6  # Türkiye için tipik fraktal boyut
+
+                eta_col1, eta_col2 = st.columns([1, 1])
+                with eta_col1:
+                    st.metric("Hesaplanan b", f"{b_eta:.3f}")
+                    st.metric("Mc (tamamlanma)", f"M{Mc_eta:.2f}")
+                    st.metric("Fraktal boyut d", f"{d_frac}")
+
+                with st.spinner("η değerleri hesaplanıyor..."):
+                    n = min(len(exp_df), 400)
+                    sub = exp_df.iloc[:n].reset_index(drop=True)
+                    eta_list, log_t_list, log_r_list = calc_etas_cache(sub.to_dict("list"), d_frac, b_eta)
+
+                if eta_list:
+                    eta_arr = np.array(eta_list)
+                    # Eşik: histogram çukuru (yaklaşık medyan - 0.5 std)
+                    eta_thresh = float(np.percentile(eta_arr, 35))
+
+                    col_eh, col_es = st.columns(2)
+                    with col_eh:
+                        fig_eta_h = go.Figure(go.Histogram(
+                            x=eta_arr, nbinsx=50,
+                            marker_color="#64b5f6", opacity=0.8,
+                            name="log(η)",
+                        ))
+                        fig_eta_h.add_vline(x=eta_thresh,
+                            line=dict(color="#E53935", width=2, dash="dash"))
+                        fig_eta_h.add_annotation(
+                            x=eta_thresh, y=0.95,
+                            text=f"  Eşik η={eta_thresh:.1f}",
+                            showarrow=False, yref="paper",
+                            font=dict(color="#E53935", size=10),
+                        )
+                        fig_eta_h.update_layout(
+                            paper_bgcolor=BG, plot_bgcolor=BG2,
+                            font=dict(color=TEXT, size=11), height=300,
+                            margin=dict(t=30, b=40, l=55, r=20),
+                            title=dict(text="log(η) Dağılımı — Bimodal = iki popülasyon",
+                                       font=dict(color=TEXT, size=11)),
+                            xaxis=dict(title=dict(text="log₁₀(η)", font=dict(color=TEXT)),
+                                       gridcolor=GRID, tickfont=dict(color=TEXT)),
+                            yaxis=dict(title=dict(text="Sayı", font=dict(color=TEXT)),
+                                       gridcolor=GRID, tickfont=dict(color=TEXT)),
+                        )
+                        st.plotly_chart(fig_eta_h, use_container_width=True,
+                                        config={"displayModeBar": False, "displaylogo": False})
+
+                    with col_es:
+                        clustered = eta_arr < eta_thresh
+                        colors_eta = np.where(clustered,
+                            "#E53935" if DARK else "#c62828",
+                            "#64b5f6" if DARK else "#1565c0")
+                        fig_eta_s = go.Figure()
+                        for label, mask, col in [
+                            ("Tetiklenmiş (küme)", clustered, "#E53935"),
+                            ("Bağımsız (arka plan)", ~clustered, "#64b5f6"),
+                        ]:
+                            fig_eta_s.add_trace(go.Scatter(
+                                x=np.array(log_t_list)[mask],
+                                y=np.array(log_r_list)[mask],
+                                mode="markers", name=label,
+                                marker=dict(size=5, color=col, opacity=0.7),
+                            ))
+                        fig_eta_s.update_layout(
+                            paper_bgcolor=BG, plot_bgcolor=BG2,
+                            font=dict(color=TEXT, size=11), height=300,
+                            margin=dict(t=30, b=40, l=55, r=20),
+                            title=dict(text="log(Δt) – log(r) Uzayı",
+                                       font=dict(color=TEXT, size=11)),
+                            xaxis=dict(title=dict(text="log₁₀(Δt [yıl])", font=dict(color=TEXT)),
+                                       gridcolor=GRID, tickfont=dict(color=TEXT)),
+                            yaxis=dict(title=dict(text="log₁₀(r [km])", font=dict(color=TEXT)),
+                                       gridcolor=GRID, tickfont=dict(color=TEXT)),
+                            legend=dict(font=dict(color=TEXT), bgcolor="rgba(0,0,0,0)",
+                                        x=0, y=1.08, orientation="h"),
+                        )
+                        st.plotly_chart(fig_eta_s, use_container_width=True,
+                                        config={"displayModeBar": False, "displaylogo": False})
+                        st.info("💡 **Basitçe:** Tıpkı bir virüsün insanlara bulaşması gibi, depremler de birbirini tetikler (ETAS Modeli). Bu grafik, yaşanan sarsıntıların sadece eski bir depremin **zararsız artçıları mı**, yoksa yepyeni ve daha büyük bir depremi doğuracak **tehlikeli tetikleyiciler mi** olduğunu analiz eder. 'Bulaşıcılık' seviyesi yüksekse alarm zilleri çalmaya başlar.")
+
+                    n_clust = int(clustered.sum())
+                    n_bg = int((~clustered).sum())
+                    st.info(
+                        f"**Tetiklenmiş depremler:** {n_clust} (%{100*n_clust/len(eta_arr):.0f})  |  "
+                        f"**Bağımsız arka plan:** {n_bg} (%{100*n_bg/len(eta_arr):.0f})  |  "
+                        f"Eşik: log(η) = {eta_thresh:.2f}"
+                    )
+                else:
+                    st.warning("η hesabı için yeterli event çifti oluşturulamadı.")
+            else:
+                st.info("η analizi için en az 15 deprem gerekli.")
+
+        # ─────────────────────────────────────────────────────────────────
+        # TAB 2 — RTL (Sobolev & Tyupkin 1997)
+        # Sismik sessizlik anomali tespiti
+        # ─────────────────────────────────────────────────────────────────
+        with exp_tab2:
+            st.markdown("**Sobolev & Tyupkin (1997) — RTL Sismik Sessizlik Algoritması**")
+            st.markdown(
+                "Bölge-Zaman-Uzunluk ağırlıklı sismisiyet oranı hesaplanır. "
+                "Normalize Z-skoru **–2 altına** düştüğünde istatistiksel sessizlik anlamına gelir. "
+                "Büyük depremlerin %60–80'i öncesinde RTL < –2 gözlemlendi (literatür)."
+            )
+
+            if len(exp_df) >= 20:
+                rtl_r0 = st.slider("r₀ (km) — mekansal ağırlık uzunluğu",
+                                   30, 300, 100, 10, key="rtl_r0")
+                rtl_t0 = st.slider("t₀ (gün) — zamansal ağırlık uzunluğu",
+                                   30, 730, 180, 30, key="rtl_t0")
+
+                with st.spinner("RTL hesaplanıyor..."):
+                    rtl_times, rtl_scores = calc_rtl_cache(exp_df.to_dict("list"), rtl_r0, rtl_t0, ERZ_LAT, ERZ_LON)
+
+                if len(rtl_scores) >= 5:
+                    arr = np.array(rtl_scores)
+                    mu, sigma = arr.mean(), arr.std()
+                    rtl_z = ((arr - mu) / sigma).tolist() if sigma > 0 else (arr - mu).tolist()
+
+                    colors_rtl = [
+                        "#E53935" if z < -2 else
+                        "#FB8C00" if z < -1 else
+                        "#64b5f6"
+                        for z in rtl_z
+                    ]
+                    fig_rtl = go.Figure()
+                    fig_rtl.add_hrect(y0=-2, y1=min(rtl_z)-0.5,
+                                      fillcolor="rgba(229,57,53,0.10)", layer="below", line_width=0)
+                    fig_rtl.add_hline(y=-2, line=dict(color="#E53935", width=1.5, dash="dash"))
+                    fig_rtl.add_hline(y=-1, line=dict(color="#FB8C00", width=1, dash="dot"))
+                    fig_rtl.add_annotation(
+                        x=rtl_times[-1], y=-2,
+                        text="  RTL < –2: Sessizlik Anomalisi",
+                        showarrow=False, font=dict(color="#E53935", size=10), xanchor="left",
+                    )
+                    fig_rtl.add_trace(go.Scatter(
+                        x=rtl_times, y=rtl_z,
+                        mode="lines+markers",
+                        line=dict(color="#90caf9", width=2),
+                        marker=dict(size=6, color=colors_rtl,
+                                    line=dict(width=1, color="rgba(255,255,255,0.3)" if DARK else "rgba(0,0,0,0.2)")),
+                        hovertemplate="<b>RTL Z = %{y:.2f}</b><br>%{x}<extra></extra>",
+                        name="RTL Z-skoru",
+                    ))
+                    # M4+ olayları işaretle
+                    big_ev = exp_df[exp_df["buyukluk"] >= 4.0]
+                    for _, ev in big_ev.iterrows():
+                        fig_rtl.add_vline(x=ev["zaman"],
+                            line=dict(color="#7B1FA2", width=1.5, dash="dot"))
+                    if not big_ev.empty:
+                        fig_rtl.add_trace(go.Scatter(
+                            x=big_ev["zaman"],
+                            y=[min(rtl_z)] * len(big_ev),
+                            mode="markers", name="M4+ olaylar",
+                            marker=dict(size=10, color="#7B1FA2", symbol="triangle-up"),
+                            hovertemplate="M%{text}<extra></extra>",
+                            text=big_ev["buyukluk"].apply(lambda m: f"{m:.1f}"),
+                        ))
+                    fig_rtl.update_layout(
+                        paper_bgcolor=BG, plot_bgcolor=BG2,
+                        font=dict(color=TEXT, size=12), height=420,
+                        margin=dict(t=20, b=50, l=60, r=30),
+                        xaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT)),
+                        yaxis=dict(
+                            title=dict(text="RTL Z-skoru (σ)", font=dict(color=TEXT)),
+                            gridcolor=GRID, tickfont=dict(color=TEXT),
+                        ),
+                        legend=dict(font=dict(color=TEXT), bgcolor="rgba(0,0,0,0)",
+                                    x=0, y=1.06, orientation="h"),
+                        hovermode="x unified",
+                    )
+                    st.plotly_chart(fig_rtl, use_container_width=True,
+                                    config={"displayModeBar": False, "displaylogo": False})
+                    st.info("💡 **Basitçe:** Fay hatları büyük bir deprem üretmeden önce genellikle tamamen sessizleşir. **RTL Skoru**, bu fırtına öncesi sessizliği tespit eder. Grafikteki çizgi sıfırın altına (negatif bölgeye) inip uzun süre orada kalıyorsa, fay hattı tamamen **kilitlenmiş ve enerjisini hapsediyor** demektir. Bu kilit ne kadar uzun sürerse, kırılma o kadar şiddetli olur.")
+
+                    anomaly_periods = sum(1 for z in rtl_z if z < -2)
+                    st.info(
+                        f"**Sessizlik anomalisi (RTL < –2):** {anomaly_periods} nokta / {len(rtl_z)} toplam  |  "
+                        f"r₀={rtl_r0} km · t₀={rtl_t0} gün  |  "
+                        f"Mor dikey çizgiler = M4+ olaylar"
+                    )
+                else:
+                    st.warning("RTL için yeterli zaman noktası oluşturulamadı.")
+            else:
+                st.info("RTL için en az 20 deprem gerekli.")
+
+        # ─────────────────────────────────────────────────────────────────
+        # TAB 3 — AMR (Bowman et al. 1998)
+        # Accelerating Moment Release — güç yasası fit
+        # C(t) = A + B·(tf − t)^m  →  m < 1 ivcelenme
+        # ─────────────────────────────────────────────────────────────────
+        with exp_tab3:
+            st.markdown("**Bowman et al. (1998) — Accelerating Moment Release (AMR)**")
+            st.markdown(
+                "Kümülatif Benioff zorlanmasına `C(t) = A + B·(tₓ − t)^m` güç yasası fit edilir. "
+                "**m < 1** → ivcelenen yayılım, büyük deprem yakın. "
+                "**m ≈ 1** → lineer (stabil). **m > 1** → yavaşlama. "
+                "tₓ = tahmini kritik zaman (potansiyel kırılma anı)."
+            )
+
+            if len(exp_df) >= 20:
+                amr_zaman, C, best_m, best_tf, best_fitted, T_obs, t0_amr, best_rmse = calc_amr_cache(exp_df.to_dict("list"))
+                amr_df = pd.DataFrame({"zaman": amr_zaman, "C_norm": C})
+
+                tf_date = t0_amr + timedelta(days=float(best_tf))
+                m_interp = ("🔴 İvceleniyor — kritik noktaya yaklaşım" if best_m < 0.8
+                            else "🟡 Lineer yayılım — stabil" if best_m < 1.2
+                            else "🟢 Yavaşlıyor — enerji dağılıyor")
+
+                col_amr1, col_amr2, col_amr3 = st.columns(3)
+                col_amr1.metric("m (güç yasası üssü)", f"{best_m:.3f}")
+                col_amr2.metric("tₓ (tahmini kritik)", tf_date.strftime("%d.%m.%Y") if best_tf < T_obs * 20 else "Belirsiz")
+                col_amr3.metric("RMSE", f"{best_rmse:.4f}")
+                st.info(m_interp)
+
+                fig_amr = go.Figure()
+                fig_amr.add_trace(go.Scatter(
+                    x=amr_df["zaman"], y=C,
+                    mode="lines", name="Gözlenen Benioff",
+                    line=dict(color="#ffb74d", width=2.5),
+                    fill="tozeroy",
+                    fillcolor="rgba(255,183,77,0.10)" if DARK else "rgba(255,183,77,0.18)",
+                ))
+                fig_amr.add_trace(go.Scatter(
+                    x=amr_df["zaman"], y=best_fitted,
+                    mode="lines", name=f"AMR fit (m={best_m:.2f})",
+                    line=dict(
+                        color="#E53935" if best_m < 0.8 else "#66bb6a",
+                        width=2, dash="dash"
+                    ),
+                ))
+                # Kritik zaman çizgisi
+                if tf_date > amr_df["zaman"].max():
+                    fig_amr.add_vline(x=tf_date,
+                        line=dict(color="#E53935", width=1.5, dash="dot"))
+                    fig_amr.add_annotation(
+                        x=tf_date, y=1.0,
+                        text=f"  tₓ={tf_date.strftime('%d.%m')}",
+                        showarrow=False, yref="paper",
+                        font=dict(color="#E53935", size=10), xanchor="left",
+                    )
+                fig_amr.update_layout(
+                    paper_bgcolor=BG, plot_bgcolor=BG2,
+                    font=dict(color=TEXT, size=12), height=400,
+                    margin=dict(t=20, b=50, l=65, r=30),
+                    xaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT)),
+                    yaxis=dict(
+                        title=dict(text="Kümülatif Benioff (normalize)", font=dict(color=TEXT)),
                         gridcolor=GRID, tickfont=dict(color=TEXT),
                     ),
                     legend=dict(font=dict(color=TEXT), bgcolor="rgba(0,0,0,0)",
                                 x=0, y=1.06, orientation="h"),
-                    hovermode="x unified",
                 )
-                st.plotly_chart(fig_rtl, use_container_width=True,
+                st.plotly_chart(fig_amr, use_container_width=True,
                                 config={"displayModeBar": False, "displaylogo": False})
-                st.info("💡 **Basitçe:** Fay hatları büyük bir deprem üretmeden önce genellikle tamamen sessizleşir. **RTL Skoru**, bu fırtına öncesi sessizliği tespit eder. Grafikteki çizgi sıfırın altına (negatif bölgeye) inip uzun süre orada kalıyorsa, fay hattı tamamen **kilitlenmiş ve enerjisini hapsediyor** demektir. Bu kilit ne kadar uzun sürerse, kırılma o kadar şiddetli olur.")
-
-                anomaly_periods = sum(1 for z in rtl_z if z < -2)
-                st.info(
-                    f"**Sessizlik anomalisi (RTL < –2):** {anomaly_periods} nokta / {len(rtl_z)} toplam  |  "
-                    f"r₀={rtl_r0} km · t₀={rtl_t0} gün  |  "
-                    f"Mor dikey çizgiler = M4+ olaylar"
+                st.info("💡 **Basitçe:** Büyük bir dal kırılmadan önce çatırdama sesleri nasıl giderek hızlanır ve artarsa, fay hatları da aynısını yapar. **AMR Analizi**, bu sismik çatırdamaların ritmini ölçer. Kırmızı çizgi giderek hızlanarak dikey bir duvara tırmanıyorsa (hızlanan enerji salınımı), fayın kritik bir kopma noktasına doğru hızla ilerlediğini anlarız.")
+                st.caption(
+                    "⚠️ AMR tₓ tahmini istatistiksel bir fit olup kesin deprem tahmini değildir. "
+                    "Akademik referans: Bowman et al., JGR 1998."
                 )
             else:
-                st.warning("RTL için yeterli zaman noktası oluşturulamadı.")
-        else:
-            st.info("RTL için en az 20 deprem gerekli.")
+                st.info("AMR için en az 20 deprem gerekli.")
 
-    # ─────────────────────────────────────────────────────────────────
-    # TAB 3 — AMR (Bowman et al. 1998)
-    # Accelerating Moment Release — güç yasası fit
-    # C(t) = A + B·(tf − t)^m  →  m < 1 ivcelenme
-    # ─────────────────────────────────────────────────────────────────
-    with exp_tab3:
-        st.markdown("**Bowman et al. (1998) — Accelerating Moment Release (AMR)**")
-        st.markdown(
-            "Kümülatif Benioff zorlanmasına `C(t) = A + B·(tₓ − t)^m` güç yasası fit edilir. "
-            "**m < 1** → ivcelenen yayılım, büyük deprem yakın. "
-            "**m ≈ 1** → lineer (stabil). **m > 1** → yavaşlama. "
-            "tₓ = tahmini kritik zaman (potansiyel kırılma anı)."
-        )
-
-        if len(exp_df) >= 20:
-            amr_zaman, C, best_m, best_tf, best_fitted, T_obs, t0_amr, best_rmse = calc_amr_cache(exp_df.to_dict("list"))
-            amr_df = pd.DataFrame({"zaman": amr_zaman, "C_norm": C})
-
-            tf_date = t0_amr + timedelta(days=float(best_tf))
-            m_interp = ("🔴 İvceleniyor — kritik noktaya yaklaşım" if best_m < 0.8
-                        else "🟡 Lineer yayılım — stabil" if best_m < 1.2
-                        else "🟢 Yavaşlıyor — enerji dağılıyor")
-
-            col_amr1, col_amr2, col_amr3 = st.columns(3)
-            col_amr1.metric("m (güç yasası üssü)", f"{best_m:.3f}")
-            col_amr2.metric("tₓ (tahmini kritik)", tf_date.strftime("%d.%m.%Y") if best_tf < T_obs * 20 else "Belirsiz")
-            col_amr3.metric("RMSE", f"{best_rmse:.4f}")
-            st.info(m_interp)
-
-            fig_amr = go.Figure()
-            fig_amr.add_trace(go.Scatter(
-                x=amr_df["zaman"], y=C,
-                mode="lines", name="Gözlenen Benioff",
-                line=dict(color="#ffb74d", width=2.5),
-                fill="tozeroy",
-                fillcolor="rgba(255,183,77,0.10)" if DARK else "rgba(255,183,77,0.18)",
-            ))
-            fig_amr.add_trace(go.Scatter(
-                x=amr_df["zaman"], y=best_fitted,
-                mode="lines", name=f"AMR fit (m={best_m:.2f})",
-                line=dict(
-                    color="#E53935" if best_m < 0.8 else "#66bb6a",
-                    width=2, dash="dash"
-                ),
-            ))
-            # Kritik zaman çizgisi
-            if tf_date > amr_df["zaman"].max():
-                fig_amr.add_vline(x=tf_date,
-                    line=dict(color="#E53935", width=1.5, dash="dot"))
-                fig_amr.add_annotation(
-                    x=tf_date, y=1.0,
-                    text=f"  tₓ={tf_date.strftime('%d.%m')}",
-                    showarrow=False, yref="paper",
-                    font=dict(color="#E53935", size=10), xanchor="left",
-                )
-            fig_amr.update_layout(
-                paper_bgcolor=BG, plot_bgcolor=BG2,
-                font=dict(color=TEXT, size=12), height=400,
-                margin=dict(t=20, b=50, l=65, r=30),
-                xaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT)),
-                yaxis=dict(
-                    title=dict(text="Kümülatif Benioff (normalize)", font=dict(color=TEXT)),
-                    gridcolor=GRID, tickfont=dict(color=TEXT),
-                ),
-                legend=dict(font=dict(color=TEXT), bgcolor="rgba(0,0,0,0)",
-                            x=0, y=1.06, orientation="h"),
+        # ─────────────────────────────────────────────────────────────────
+        # TAB 4 — Uzamsal b-Değeri Haritası
+        # ─────────────────────────────────────────────────────────────────
+        with exp_tab4:
+            st.markdown("**Uzamsal b-Değeri Haritası — Stres Zonları**")
+            st.markdown(
+                "Bölge grid'e bölünür, her hücrede Gutenberg-Richter b-değeri MLE ile hesaplanır. "
+                "**Düşük b (kırmızı) = yüksek gerilme alanı**, kırılma potansiyeli yüksek. "
+                "**Yüksek b (mavi) = heterojen veya düşük gerilme** ortamı."
             )
-            st.plotly_chart(fig_amr, use_container_width=True,
-                            config={"displayModeBar": False, "displaylogo": False})
-            st.info("💡 **Basitçe:** Büyük bir dal kırılmadan önce çatırdama sesleri nasıl giderek hızlanır ve artarsa, fay hatları da aynısını yapar. **AMR Analizi**, bu sismik çatırdamaların ritmini ölçer. Kırmızı çizgi giderek hızlanarak dikey bir duvara tırmanıyorsa (hızlanan enerji salınımı), fayın kritik bir kopma noktasına doğru hızla ilerlediğini anlarız.")
-            st.caption(
-                "⚠️ AMR tₓ tahmini istatistiksel bir fit olup kesin deprem tahmini değildir. "
-                "Akademik referans: Bowman et al., JGR 1998."
-            )
-        else:
-            st.info("AMR için en az 20 deprem gerekli.")
 
-    # ─────────────────────────────────────────────────────────────────
-    # TAB 4 — Uzamsal b-Değeri Haritası
-    # ─────────────────────────────────────────────────────────────────
-    with exp_tab4:
-        st.markdown("**Uzamsal b-Değeri Haritası — Stres Zonları**")
-        st.markdown(
-            "Bölge grid'e bölünür, her hücrede Gutenberg-Richter b-değeri MLE ile hesaplanır. "
-            "**Düşük b (kırmızı) = yüksek gerilme alanı**, kırılma potansiyeli yüksek. "
-            "**Yüksek b (mavi) = heterojen veya düşük gerilme** ortamı."
-        )
+            if len(exp_df) >= 25:
+                bg_n = st.slider("Grid çözünürlüğü (NxN)", 8, 20, 12, 1, key="bg_n")
+                bg_sr = st.slider("Hücre arama yarıçapı (km)", 20, 150, 60, 10, key="bg_sr")
+                bg_min = st.slider("Min olay sayısı/hücre", 5, 20, 8, 1, key="bg_min")
 
-        if len(exp_df) >= 25:
-            bg_n = st.slider("Grid çözünürlüğü (NxN)", 8, 20, 12, 1, key="bg_n")
-            bg_sr = st.slider("Hücre arama yarıçapı (km)", 20, 150, 60, 10, key="bg_sr")
-            bg_min = st.slider("Min olay sayısı/hücre", 5, 20, 8, 1, key="bg_min")
+                with st.spinner("Uzamsal b-değerleri hesaplanıyor..."):
+                    Mc_g = float(exp_df["buyukluk"].quantile(0.15))
+                    df_mc = exp_df[exp_df["buyukluk"] >= Mc_g]
+                    # Pass dict instead of DataFrame to st.cache_data to avoid hashing issues if index differs
+                    b_grid, lats_g, lons_g = calc_b_grid_cache(df_mc.to_dict("list"), bg_n, bg_sr, bg_min, radius_km, ERZ_LAT, ERZ_LON, Mc_g)
 
-            with st.spinner("Uzamsal b-değerleri hesaplanıyor..."):
-                Mc_g = float(exp_df["buyukluk"].quantile(0.15))
-                df_mc = exp_df[exp_df["buyukluk"] >= Mc_g]
-                # Pass dict instead of DataFrame to st.cache_data to avoid hashing issues if index differs
-                b_grid, lats_g, lons_g = calc_b_grid_cache(df_mc.to_dict("list"), bg_n, bg_sr, bg_min, radius_km, ERZ_LAT, ERZ_LON, Mc_g)
+                if not np.all(np.isnan(b_grid)):
+                    fig_bmap = go.Figure()
 
-            if not np.all(np.isnan(b_grid)):
-                fig_bmap = go.Figure()
+                    # b-değeri heatmap (interpolated)
+                    fig_bmap.add_trace(go.Heatmap(
+                        x=lons_g, y=lats_g, z=b_grid,
+                        colorscale="RdBu",  # Kırmızı=düşük b, Mavi=yüksek b
+                        zmin=0.5, zmax=2.0,
+                        reversescale=False,
+                        opacity=0.75,
+                        colorbar=dict(
+                            title=dict(text="b-değeri", font=dict(color=TEXT)),
+                            tickfont=dict(color=TEXT),
+                            thickness=14,
+                        ),
+                        hovertemplate="lon=%{x:.2f} lat=%{y:.2f}<br>b=%{z:.2f}<extra></extra>",
+                    ))
 
-                # b-değeri heatmap (interpolated)
-                fig_bmap.add_trace(go.Heatmap(
-                    x=lons_g, y=lats_g, z=b_grid,
-                    colorscale="RdBu",  # Kırmızı=düşük b, Mavi=yüksek b
-                    zmin=0.5, zmax=2.0,
-                    reversescale=False,
-                    opacity=0.75,
-                    colorbar=dict(
-                        title=dict(text="b-değeri", font=dict(color=TEXT)),
-                        tickfont=dict(color=TEXT),
-                        thickness=14,
-                    ),
-                    hovertemplate="lon=%{x:.2f} lat=%{y:.2f}<br>b=%{z:.2f}<extra></extra>",
-                ))
+                    # Deprem noktaları üzerine
+                    fig_bmap.add_trace(go.Scatter(
+                        x=exp_df["lon"], y=exp_df["lat"],
+                        mode="markers", name="Depremler",
+                        marker=dict(
+                            size=exp_df["buyukluk"].apply(lambda m: max(4, m*4)),
+                            color=exp_df["buyukluk"].apply(mag_color),
+                            opacity=0.6,
+                            line=dict(width=0.5, color="rgba(0,0,0,0.3)"),
+                        ),
+                        hovertemplate="M%{text}<extra></extra>",
+                        text=exp_df["buyukluk"].apply(lambda m: f"{m:.1f}"),
+                    ))
 
-                # Deprem noktaları üzerine
-                fig_bmap.add_trace(go.Scatter(
-                    x=exp_df["lon"], y=exp_df["lat"],
-                    mode="markers", name="Depremler",
-                    marker=dict(
-                        size=exp_df["buyukluk"].apply(lambda m: max(4, m*4)),
-                        color=exp_df["buyukluk"].apply(mag_color),
-                        opacity=0.6,
-                        line=dict(width=0.5, color="rgba(0,0,0,0.3)"),
-                    ),
-                    hovertemplate="M%{text}<extra></extra>",
-                    text=exp_df["buyukluk"].apply(lambda m: f"{m:.1f}"),
-                ))
+                    # Erzincan
+                    fig_bmap.add_trace(go.Scatter(
+                        x=[ERZ_LON], y=[ERZ_LAT],
+                        mode="markers+text", name="Erzincan",
+                        marker=dict(size=14, color="#ff3333", symbol="star"),
+                        text=["ERZ"], textposition="top right",
+                        textfont=dict(color="#ff3333", size=10),
+                        hoverinfo="skip",
+                    ))
 
-                # Erzincan
-                fig_bmap.add_trace(go.Scatter(
-                    x=[ERZ_LON], y=[ERZ_LAT],
-                    mode="markers+text", name="Erzincan",
-                    marker=dict(size=14, color="#ff3333", symbol="star"),
-                    text=["ERZ"], textposition="top right",
-                    textfont=dict(color="#ff3333", size=10),
-                    hoverinfo="skip",
-                ))
+                    fig_bmap.update_layout(
+                        paper_bgcolor=BG, plot_bgcolor=BG2,
+                        font=dict(color=TEXT, size=11), height=500,
+                        margin=dict(t=10, b=40, l=60, r=20),
+                        xaxis=dict(title=dict(text="Boylam", font=dict(color=TEXT)),
+                                   gridcolor=GRID, tickfont=dict(color=TEXT),
+                                   scaleanchor="y", scaleratio=1),
+                        yaxis=dict(title=dict(text="Enlem", font=dict(color=TEXT)),
+                                   gridcolor=GRID, tickfont=dict(color=TEXT)),
+                        legend=dict(font=dict(color=TEXT), bgcolor="rgba(0,0,0,0)",
+                                    x=0, y=1.06, orientation="h"),
+                        hovermode="closest",
+                    )
+                    st.plotly_chart(fig_bmap, use_container_width=True,
+                                    config={"displayModeBar": False, "displaylogo": False})
+                    st.info("💡 **Basitçe:** Bu harita, yeraltının bir nevi 'Tansiyon (Kan Basıncı) Haritası'dır. Haritadaki **kırmızı ve koyu sarı bölgeler**, kayaların en çok sıkıştığı, b-değerinin düştüğü ve büyük bir kırılma (deprem) ihtimalinin en yüksek olduğu stres noktalarını (Asperite) işaret eder. Açık mavi bölgeler ise enerjisini boşaltmış rahat bölgelerdir.")
 
-                fig_bmap.update_layout(
-                    paper_bgcolor=BG, plot_bgcolor=BG2,
-                    font=dict(color=TEXT, size=11), height=500,
-                    margin=dict(t=10, b=40, l=60, r=20),
-                    xaxis=dict(title=dict(text="Boylam", font=dict(color=TEXT)),
-                               gridcolor=GRID, tickfont=dict(color=TEXT),
-                               scaleanchor="y", scaleratio=1),
-                    yaxis=dict(title=dict(text="Enlem", font=dict(color=TEXT)),
-                               gridcolor=GRID, tickfont=dict(color=TEXT)),
-                    legend=dict(font=dict(color=TEXT), bgcolor="rgba(0,0,0,0)",
-                                x=0, y=1.06, orientation="h"),
-                    hovermode="closest",
-                )
-                st.plotly_chart(fig_bmap, use_container_width=True,
-                                config={"displayModeBar": False, "displaylogo": False})
-                st.info("💡 **Basitçe:** Bu harita, yeraltının bir nevi 'Tansiyon (Kan Basıncı) Haritası'dır. Haritadaki **kırmızı ve koyu sarı bölgeler**, kayaların en çok sıkıştığı, b-değerinin düştüğü ve büyük bir kırılma (deprem) ihtimalinin en yüksek olduğu stres noktalarını (Asperite) işaret eder. Açık mavi bölgeler ise enerjisini boşaltmış rahat bölgelerdir.")
-
-                valid_b = b_grid[~np.isnan(b_grid)]
-                low_b_pct = float(np.mean(valid_b < 0.8) * 100)
-                st.info(
-                    f"Mc ≈ M{Mc_g:.1f} | Hücre arama r={bg_sr} km | "
-                    f"Dolu hücre: {(~np.isnan(b_grid)).sum()}/{bg_n*bg_n} | "
-                    f"Düşük-b (< 0.8) bölge: %{low_b_pct:.0f} — yüksek gerilme zonu"
-                )
+                    valid_b = b_grid[~np.isnan(b_grid)]
+                    low_b_pct = float(np.mean(valid_b < 0.8) * 100)
+                    st.info(
+                        f"Mc ≈ M{Mc_g:.1f} | Hücre arama r={bg_sr} km | "
+                        f"Dolu hücre: {(~np.isnan(b_grid)).sum()}/{bg_n*bg_n} | "
+                        f"Düşük-b (< 0.8) bölge: %{low_b_pct:.0f} — yüksek gerilme zonu"
+                    )
+                else:
+                    st.warning("Yeterli veri yok. Grid yarıçapını veya min olay eşiğini düşürün.")
             else:
-                st.warning("Yeterli veri yok. Grid yarıçapını veya min olay eşiğini düşürün.")
-        else:
-            st.info("Uzamsal b-haritası için en az 25 deprem gerekli.")
+                st.info("Uzamsal b-haritası için en az 25 deprem gerekli.")
 
 with system_tab:
     st.markdown("<br>", unsafe_allow_html=True)
