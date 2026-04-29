@@ -1813,8 +1813,8 @@ with education_tab:
                 x_arr = np.asarray(x, dtype=float)
                 y_arr = np.asarray(y, dtype=float)
                 basin = -0.45 * np.exp(-((y_arr / 30) ** 2 + (x_arr / 100) ** 2))
-                north_south_mountains = 2.15 * (np.abs(y_arr) / 60) ** 1.65
-                east_west_ridges = 0.5 * (np.abs(x_arr) / 110) ** 1.35
+                north_south_mountains = 2.15 * (np.abs(y_arr) / 100) ** 1.4
+                east_west_ridges = 0.5 * (np.abs(x_arr) / 150) ** 1.2
                 texture = 0.12 * np.sin(x_arr / 10) * np.cos(y_arr / 10)
                 return basin + north_south_mountains + east_west_ridges + texture
 
@@ -1827,8 +1827,8 @@ with education_tab:
                 z = terrain_height(x, y) + lift
                 return x, y, z
 
-            x_grid = np.linspace(-120, 180, 50)
-            y_grid = np.linspace(-80, 80, 40)
+            x_grid = np.linspace(-220, 220, 60)
+            y_grid = np.linspace(-220, 220, 60)
             xx_grid, yy_grid = np.meshgrid(x_grid, y_grid)
             base_terrain = terrain_height(xx_grid, yy_grid)
             distance_grid = np.sqrt((xx_grid - event_x) ** 2 + (yy_grid - event_y) ** 2)
@@ -1841,7 +1841,7 @@ with education_tab:
 
             fig_erz = go.Figure()
 
-            fault_x = np.linspace(-120, 180, 100)
+            fault_x = np.linspace(-220, 220, 100)
             fault_y = -5 + 0.09 * fault_x
             fault_z = terrain_height(fault_x, fault_y) + 0.45
             fig_erz.add_trace(go.Scatter3d(
@@ -1912,8 +1912,8 @@ with education_tab:
             fig_erz.add_trace(go.Scatter3d(x=r_rx, y=r_ry, z=r_rz, mode="lines", line=dict(color="#F44336", width=12), name="Rayleigh Dalgası (Yüzey)"))
 
             frames = []
-            max_t = int(dist_to_erz / vr) + 15  # Animasyon Rayleigh Erzincan'ı geçtikten biraz sonra bitsin
-            if max_t > 80: max_t = 80
+            max_t = int(max(dist_to_erz, 220) / vr) + 15
+            if max_t > 150: max_t = 150
             if max_t < 40: max_t = 40
 
             for t in range(0, max_t + 2, 2):
@@ -1967,8 +1967,8 @@ with education_tab:
                 margin=dict(t=30, b=8, l=0, r=0),
                 scene=dict(
                     bgcolor=BG2,
-                    xaxis=dict(title="Doğu-Batı (km)", range=[-125, 185], color=TEXT, gridcolor=GRID),
-                    yaxis=dict(title="Kuzey-Güney (km)", range=[-85, 85], color=TEXT, gridcolor=GRID),
+                    xaxis=dict(title="Doğu-Batı (km)", range=[-225, 225], color=TEXT, gridcolor=GRID),
+                    yaxis=dict(title="Kuzey-Güney (km)", range=[-225, 225], color=TEXT, gridcolor=GRID),
                     zaxis=dict(title="Yükselti / sarsıntı", range=[-8, 12], color=TEXT, gridcolor=GRID, showticklabels=False),
                     aspectmode="manual",
                     aspectratio=dict(x=1.9, y=1.05, z=0.45),
