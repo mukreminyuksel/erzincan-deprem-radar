@@ -1775,64 +1775,74 @@ with education_tab:
 
         else:
             scenarios = {
-                "Büyük Erzincan Depremi (1939 Benzeri)": {"mag": 7.8, "depth": 15, "lat": ERZ_LAT + 0.05, "lon": ERZ_LON - 0.2, "mechanism": "Sağ yanal yıkıcı sarsıntı"},
-                "Yedisu Segmenti Olası Kırılması": {"mag": 7.2, "depth": 12, "lat": ERZ_LAT + 0.1, "lon": ERZ_LON + 0.35, "mechanism": "Sağ yanal / Yüksek tehlike"},
-                "Kuzey Anadolu Fayı sağ yanal senaryo": {"mag": 6.2, "depth": 10, "lat": ERZ_LAT + 0.08, "lon": ERZ_LON - 0.18, "mechanism": "Sağ yanal doğrultu atımlı"},
-                "Sığ M4.5 yerel deprem": {"mag": 4.5, "depth": 7, "lat": ERZ_LAT + 0.03, "lon": ERZ_LON + 0.08, "mechanism": "Sığ yerel deprem"},
-                "Daha derin orta büyüklük olay": {"mag": 5.3, "depth": 28, "lat": ERZ_LAT - 0.16, "lon": ERZ_LON + 0.22, "mechanism": "Orta derinlikli olay"},
+                "Yedisu Segmenti (Doğu)": {"mag": 7.2, "depth": 12, "lat": ERZ_LAT + 0.1, "lon": ERZ_LON + 1.0, "mechanism": "Sağ yanal / Yüksek tehlike"},
+                "Karlıova Kesimi (Uzak Doğu)": {"mag": 7.4, "depth": 15, "lat": ERZ_LAT - 0.2, "lon": ERZ_LON + 1.6, "mechanism": "Kesişim bölgesi"},
+                "Refahiye Segmenti (Batı)": {"mag": 6.8, "depth": 10, "lat": ERZ_LAT + 0.15, "lon": ERZ_LON - 0.8, "mechanism": "Sağ yanal doğrultu atımlı"},
+                "Erzincan Merkez": {"mag": 7.8, "depth": 15, "lat": ERZ_LAT + 0.05, "lon": ERZ_LON - 0.1, "mechanism": "Sağ yanal yıkıcı sarsıntı"},
             }
-            selected_scenario = st.selectbox("Erzincan senaryosu", list(scenarios.keys()), key="erz_scenario")
+            selected_scenario = st.selectbox("Merkez Üssü (Episantr) Seçimi", list(scenarios.keys()), key="erz_scenario")
             scenario = scenarios[selected_scenario]
+
             sc1, sc2 = st.columns(2)
             with sc1:
-                scenario_mag = st.slider("Moment büyüklüğü Mw", 3.5, 7.0, float(scenario["mag"]), 0.1, key="scenario_mag")
+                scenario_mag = st.slider("Moment büyüklüğü Mw", 3.5, 8.0, float(scenario["mag"]), 0.1, key="scenario_mag")
             with sc2:
                 scenario_depth = st.slider("Derinlik (km)", 3, 40, int(scenario["depth"]), 1, key="scenario_depth")
-
-            def terrain_height(x, y):
-                x_arr = np.asarray(x, dtype=float)
-                y_arr = np.asarray(y, dtype=float)
-                basin = -0.45 * np.exp(-((y_arr / 18) ** 2 + (x_arr / 70) ** 2))
-                north_south_mountains = 2.15 * (np.abs(y_arr) / 58) ** 1.65
-                east_west_ridges = 0.5 * (np.abs(x_arr) / 90) ** 1.35
-                texture = 0.12 * np.sin(x_arr / 9.5) * np.cos(y_arr / 7.5)
-                return basin + north_south_mountains + east_west_ridges + texture
 
             def lonlat_to_xy(lat, lon):
                 x = (lon - ERZ_LON) * 111.0 * math.cos(math.radians(ERZ_LAT))
                 y = (lat - ERZ_LAT) * 111.0
                 return x, y
 
-            def ring_on_terrain(cx, cy, radius_km, lift=0.32, points=220):
+            event_x, event_y = lonlat_to_xy(scenario["lat"], scenario["lon"])
+
+            # Dalga hızları (km/s)
+            vp = 6.0
+            vs = 3.5
+            vr = 3.0
+
+            # Erzincan'a olan uzaklık (x=0, y=0 Erzincan)
+            dist_to_erz = math.sqrt(event_x**2 + event_y**2)
+            p_arrival = dist_to_erz / vp
+            s_arrival = dist_to_erz / vs
+            r_arrival = dist_to_erz / vr
+
+            st.info(f"📍 **Merkez Üssü - Erzincan Mesafesi:** {dist_to_erz:.0f} km | ⏱️ **Dalga Varış Süreleri:** P Dalgası: **{p_arrival:.1f} sn** | S Dalgası: **{s_arrival:.1f} sn** | Yüzey Dalgası: **{r_arrival:.1f} sn**")
+
+            def terrain_height(x, y):
+                x_arr = np.asarray(x, dtype=float)
+                y_arr = np.asarray(y, dtype=float)
+                basin = -0.45 * np.exp(-((y_arr / 30) ** 2 + (x_arr / 100) ** 2))
+                north_south_mountains = 2.15 * (np.abs(y_arr) / 60) ** 1.65
+                east_west_ridges = 0.5 * (np.abs(x_arr) / 110) ** 1.35
+                texture = 0.12 * np.sin(x_arr / 10) * np.cos(y_arr / 10)
+                return basin + north_south_mountains + east_west_ridges + texture
+
+            def ring_on_terrain(cx, cy, radius_km, lift=0.32, points=180):
+                if radius_km == 0:
+                    return [cx], [cy], [terrain_height(cx, cy) + lift]
                 angles = np.linspace(0, 2 * math.pi, points)
                 x = cx + radius_km * np.cos(angles)
                 y = cy + radius_km * np.sin(angles)
                 z = terrain_height(x, y) + lift
                 return x, y, z
 
-            event_x, event_y = lonlat_to_xy(scenario["lat"], scenario["lon"])
-            erz_surface_z = float(terrain_height(0, 0))
-            event_surface_z = float(terrain_height(event_x, event_y))
-            impact_radius = min(115, 15 * scenario_mag + max(0, 18 - scenario_depth) * 1.25)
-            intensity_index = min(10, max(1, scenario_mag * 1.45 - math.log10(scenario_depth + 5) * 2.1 + 1.2))
-
-            x_grid = np.linspace(-92, 92, 48)
-            y_grid = np.linspace(-58, 58, 36)
+            x_grid = np.linspace(-120, 180, 50)
+            y_grid = np.linspace(-80, 80, 40)
             xx_grid, yy_grid = np.meshgrid(x_grid, y_grid)
             base_terrain = terrain_height(xx_grid, yy_grid)
             distance_grid = np.sqrt((xx_grid - event_x) ** 2 + (yy_grid - event_y) ** 2)
-            amplitude = min(1.35, 0.12 * scenario_mag + max(0, 16 - scenario_depth) * 0.025)
 
-            def deformed_terrain(time_value):
-                current_radius = min(impact_radius, 3.5 * time_value)
-                active = distance_grid <= max(2, current_radius)
-                attenuation = np.exp(-distance_grid / max(12, impact_radius * 0.52))
-                ripple = amplitude * attenuation * np.sin(distance_grid / 5.2 - time_value * 0.42)
-                return base_terrain + np.where(active, ripple, 0)
+            impact_radius = min(150, 20 * scenario_mag)
+            amplitude = min(1.5, 0.15 * scenario_mag)
+
+
+            event_surface_z = float(terrain_height(event_x, event_y))
 
             fig_erz = go.Figure()
-            fault_x = np.linspace(-92, 92, 80)
-            fault_y = -4 + 0.08 * fault_x
+
+            fault_x = np.linspace(-120, 180, 100)
+            fault_y = -5 + 0.09 * fault_x
             fault_z = terrain_height(fault_x, fault_y) + 0.45
             fig_erz.add_trace(go.Scatter3d(
                 x=fault_x, y=fault_y, z=fault_z,
@@ -1840,142 +1850,110 @@ with education_tab:
                 line=dict(color="#D50000", width=7),
                 name="KAF doğrultusu / sağ yanal zon",
             ))
+
+            cities = [
+                {"name": "Erzincan Merkez", "x": 0, "y": 0, "color": "#00E5FF"},
+                {"name": "Bingöl Karlıova", "x": lonlat_to_xy(ERZ_LAT - 0.2, ERZ_LON + 1.6)[0], "y": lonlat_to_xy(ERZ_LAT - 0.2, ERZ_LON + 1.6)[1], "color": "#FFFFFF"},
+                {"name": "Yedisu", "x": lonlat_to_xy(ERZ_LAT + 0.1, ERZ_LON + 1.0)[0], "y": lonlat_to_xy(ERZ_LAT + 0.1, ERZ_LON + 1.0)[1], "color": "#FFFFFF"},
+                {"name": "Refahiye", "x": lonlat_to_xy(ERZ_LAT + 0.15, ERZ_LON - 0.8)[0], "y": lonlat_to_xy(ERZ_LAT + 0.15, ERZ_LON - 0.8)[1], "color": "#FFFFFF"},
+                {"name": "Tercan", "x": lonlat_to_xy(ERZ_LAT, ERZ_LON + 0.8)[0], "y": lonlat_to_xy(ERZ_LAT, ERZ_LON + 0.8)[1], "color": "#FFFFFF"},
+            ]
+            cx, cy, cz, ctext, ccolors = [], [], [], [], []
+            for city in cities:
+                cx.append(city["x"])
+                cy.append(city["y"])
+                cz.append(terrain_height(city["x"], city["y"]) + 1.5)
+                ctext.append(city["name"])
+                ccolors.append(city["color"])
+
             fig_erz.add_trace(go.Scatter3d(
-                x=[0, 0],
-                y=[0, 0],
-                z=[erz_surface_z, erz_surface_z + 6.0],
-                mode="lines+markers+text",
-                text=["", "ERZİNCAN / gözlemci"],
-                textposition="top center",
-                line=dict(color="#00E5FF", width=8),
-                marker=dict(size=[9, 13], color=["#00E5FF", "#FFFFFF"], line=dict(color="#00131A", width=2)),
-                name="Erzincan gözlemci noktası",
+                x=cx, y=cy, z=cz,
+                mode="markers+text",
+                marker=dict(size=9, color=ccolors, line=dict(width=2, color="#000000")),
+                text=ctext, textposition="top center",
+                textfont=dict(color="#FFFFFF", size=13, family="Arial Black"),
+                name="Yerleşim Yerleri"
             ))
+
             fig_erz.add_trace(go.Scatter3d(
                 x=[event_x, event_x],
                 y=[event_y, event_y],
-                z=[event_surface_z, event_surface_z - scenario_depth / 5],
+                z=[event_surface_z + 2, event_surface_z - scenario_depth / 5],
                 mode="lines+markers+text",
-                text=["Sanal episantr", "Hiposantr"],
+                text=[f"⭐ Merkez Üssü M{scenario_mag}", "Hiposantr"],
                 textposition=["top center", "bottom center"],
-                line=dict(color="#E53935", width=6),
-                marker=dict(size=[13, 8], color=["#E53935", "#FFCDD2"], symbol="diamond"),
+                line=dict(color="#E53935", width=4),
+                marker=dict(size=[20, 8], color=["#FFD54F", "#FFCDD2"], symbol=["star", "diamond"], line=dict(color="#E53935", width=2)),
                 name="Sanal deprem kaynağı",
             ))
-            scene_events = df.head(90).copy()
-            scene_events["x_km"] = (scene_events["lon"] - ERZ_LON) * 111.0 * math.cos(math.radians(ERZ_LAT))
-            scene_events["y_km"] = (scene_events["lat"] - ERZ_LAT) * 111.0
-            scene_events = scene_events[
-                scene_events["x_km"].between(-92, 92)
-                & scene_events["y_km"].between(-58, 58)
-            ].copy()
-            if not scene_events.empty:
-                scene_events["z_scene"] = terrain_height(scene_events["x_km"], scene_events["y_km"]) + 0.8
-            fig_erz.add_trace(go.Scatter3d(
-                x=scene_events["x_km"] if not scene_events.empty else [],
-                y=scene_events["y_km"] if not scene_events.empty else [],
-                z=scene_events["z_scene"] if not scene_events.empty else [],
-                mode="markers",
-                marker=dict(
-                    size=scene_events["buyukluk"].apply(lambda m: max(4, float(m) * 3.2)) if not scene_events.empty else [],
-                    color=scene_events["buyukluk"].apply(mag_color) if not scene_events.empty else [],
-                    opacity=0.72,
-                    line=dict(color="#0B1220", width=1),
-                ),
-                text=scene_events.apply(lambda r: f"M{r['buyukluk']:.1f} · {r['zaman_str']} · {r['konum']}", axis=1) if not scene_events.empty else [],
-                hovertemplate="%{text}<extra></extra>",
-                name="Seçili penceredeki gerçek olaylar",
-            ))
-            ring_specs = [
-                ("Kuvvetli sarsıntı alanı", impact_radius * 0.33, "#E53935", 6),
-                ("Orta sarsıntı alanı", impact_radius * 0.66, "#FB8C00", 5),
-                ("Hissedilebilir alan", impact_radius, "#FDD835", 4),
-            ]
-            for ring_name, ring_radius, ring_color, ring_width in ring_specs:
-                rx, ry, rz = ring_on_terrain(event_x, event_y, ring_radius)
-                fig_erz.add_trace(go.Scatter3d(
-                    x=rx, y=ry, z=rz,
-                    mode="lines",
-                    line=dict(color=ring_color, width=ring_width),
-                    opacity=0.62,
-                    name=ring_name,
-                ))
-            # Initial Default traces for Surface and Wavefront
+
             fig_erz.add_trace(go.Surface(
                 x=xx_grid, y=yy_grid, z=base_terrain,
                 surfacecolor=np.zeros_like(base_terrain)-0.2,
                 cmin=-0.2, cmax=1.0,
                 colorscale=[
-                    [0, "#335c2d"],     # Terrain low
-                    [0.16, "#d6c7a8"],  # Terrain high (0.0 offset roughly)
-                    [0.17, "#FDD835"],  # Hissedilebilir (Sarı)
-                    [0.5, "#FB8C00"],   # Orta hasar (Turuncu)
-                    [1.0, "#E53935"],   # Ağır hasar (Kırmızı)
+                    [0, "#335c2d"],
+                    [0.16, "#d6c7a8"],
+                    [0.17, "#FDD835"],
+                    [0.5, "#FB8C00"],
+                    [1.0, "#E53935"],
                 ],
                 opacity=0.96,
                 showscale=False,
-                name="Erzincan Ovası Etki Alanı",
-            ))
-            frx, fry, frz = ring_on_terrain(event_x, event_y, 0, lift=0.7)
-            fig_erz.add_trace(go.Scatter3d(
-                x=frx, y=fry, z=frz,
-                mode="lines",
-                line=dict(color="#FF1744", width=8),
-                name="Şu anki dalga cephesi",
+                name="Arazi",
             ))
 
-            # Yerleşim yerleri etiketleri
-            cities = [
-                {"name": "Merkez", "x": 0, "y": 0},
-                {"name": "Tercan", "x": 80, "y": -5},
-                {"name": "İliç", "x": -90, "y": -35},
-                {"name": "Kemah", "x": -45, "y": -15},
-            ]
-            cx, cy, cz, ctext = [], [], [], []
-            for city in cities:
-                cx.append(city["x"])
-                cy.append(city["y"])
-                cz.append(terrain_height(city["x"], city["y"]) + 1.2)
-                ctext.append(city["name"])
+            p_rx, p_ry, p_rz = ring_on_terrain(event_x, event_y, 0, lift=0.5)
+            s_rx, s_ry, s_rz = ring_on_terrain(event_x, event_y, 0, lift=0.6)
+            r_rx, r_ry, r_rz = ring_on_terrain(event_x, event_y, 0, lift=0.7)
 
-            fig_erz.add_trace(go.Scatter3d(
-                x=cx, y=cy, z=cz,
-                mode="markers+text",
-                marker=dict(size=8, color="#FFFFFF", line=dict(width=2, color="#000000")),
-                text=ctext, textposition="top center",
-                textfont=dict(color="#FFFFFF", size=14, family="Arial Black"),
-                name="Yerleşim Yerleri"
-            ))
+            fig_erz.add_trace(go.Scatter3d(x=p_rx, y=p_ry, z=p_rz, mode="lines", line=dict(color="#29B6F6", width=4), name="P-Dalgası (Hızlı)"))
+            fig_erz.add_trace(go.Scatter3d(x=s_rx, y=s_ry, z=s_rz, mode="lines", line=dict(color="#FFA726", width=7), name="S-Dalgası (Yıkıcı)"))
+            fig_erz.add_trace(go.Scatter3d(x=r_rx, y=r_ry, z=r_rz, mode="lines", line=dict(color="#F44336", width=12), name="Rayleigh Dalgası (Yüzey)"))
 
-            # Frames için hesaplama
             frames = []
-            for t in range(0, 82, 4):
-                f_radius = min(impact_radius, 3.5 * t)
+            max_t = int(dist_to_erz / vr) + 15  # Animasyon Rayleigh Erzincan'ı geçtikten biraz sonra bitsin
+            if max_t > 80: max_t = 80
+            if max_t < 40: max_t = 40
+
+            for t in range(0, max_t + 2, 2):
+                p_rad = vp * t
+                s_rad = vs * t
+                r_rad = vr * t
+
                 f_heat = np.zeros_like(base_terrain)
                 f_dyn = np.zeros_like(base_terrain)
 
-                for r in range(base_terrain.shape[0]):
-                    for c in range(base_terrain.shape[1]):
-                        d = np.sqrt((xx_grid[r,c] - event_x)**2 + (yy_grid[r,c] - event_y)**2)
-                        if d <= f_radius:
-                            f_heat[r,c] = max(0, 1 - (d / impact_radius))
+                for row in range(base_terrain.shape[0]):
+                    for col in range(base_terrain.shape[1]):
+                        d = distance_grid[row, col]
+                        if d <= r_rad and d <= impact_radius:
+                            f_heat[row, col] = max(0, 1 - (d / impact_radius))
                         else:
-                            f_heat[r,c] = -0.2
+                            f_heat[row, col] = -0.2
 
-                        amp = 3.0 * np.exp(-d / (impact_radius * 0.4))
-                        env = np.exp(-((d - f_radius) / 8.0)**2)
-                        rip = amp * env * np.cos((d - f_radius) * 1.5)
-                        f_dyn[r,c] = base_terrain[r,c] + rip
+                        if d <= r_rad and d >= r_rad - 30:
+                            amp = amplitude * np.exp(-d / (impact_radius * 0.5))
+                            env = np.exp(-((d - r_rad) / 8.0)**2)
+                            rip = amp * env * np.cos((d - r_rad) * 1.5)
+                            f_dyn[row, col] = base_terrain[row, col] + rip
+                        else:
+                            f_dyn[row, col] = base_terrain[row, col]
 
-                f_rx, f_ry, f_rz = ring_on_terrain(event_x, event_y, f_radius, lift=0.7)
+                f_prx, f_pry, f_prz = ring_on_terrain(event_x, event_y, p_rad, lift=0.5)
+                f_srx, f_sry, f_srz = ring_on_terrain(event_x, event_y, s_rad, lift=0.6)
+                f_rrx, f_rry, f_rrz = ring_on_terrain(event_x, event_y, r_rad, lift=0.7)
 
                 frames.append(go.Frame(
                     data=[
                         go.Surface(z=f_dyn, surfacecolor=f_heat),
-                        go.Scatter3d(x=f_rx, y=f_ry, z=f_rz)
+                        go.Scatter3d(x=f_prx, y=f_pry, z=f_prz),
+                        go.Scatter3d(x=f_srx, y=f_sry, z=f_srz),
+                        go.Scatter3d(x=f_rrx, y=f_rry, z=f_rrz)
                     ],
-                    traces=[7, 8],
-                    name=str(t)
+                    traces=[3, 4, 5, 6],
+                    name=str(t),
+                    layout=go.Layout(title_text=f"Simülasyon Süresi: t = {t} sn")
                 ))
 
             fig_erz.frames = frames
@@ -1985,31 +1963,31 @@ with education_tab:
                 paper_bgcolor=BG,
                 plot_bgcolor=BG2,
                 font=dict(color=TEXT),
-                height=600,
-                margin=dict(t=8, b=8, l=0, r=0),
+                height=650,
+                margin=dict(t=30, b=8, l=0, r=0),
                 scene=dict(
                     bgcolor=BG2,
-                    xaxis=dict(title="Doğu-Batı (km)", range=[-95, 95], color=TEXT, gridcolor=GRID),
-                    yaxis=dict(title="Kuzey-Güney (km)", range=[-62, 62], color=TEXT, gridcolor=GRID),
-                    zaxis=dict(title="Yükselti / sarsıntı", range=[-8, 10], color=TEXT, gridcolor=GRID, showticklabels=False),
+                    xaxis=dict(title="Doğu-Batı (km)", range=[-125, 185], color=TEXT, gridcolor=GRID),
+                    yaxis=dict(title="Kuzey-Güney (km)", range=[-85, 85], color=TEXT, gridcolor=GRID),
+                    zaxis=dict(title="Yükselti / sarsıntı", range=[-8, 12], color=TEXT, gridcolor=GRID, showticklabels=False),
                     aspectmode="manual",
-                    aspectratio=dict(x=1.7, y=1.05, z=0.45),
+                    aspectratio=dict(x=1.9, y=1.05, z=0.45),
                     camera=dict(
-                        eye=dict(x=0, y=-1.85, z=1.35),
+                        eye=dict(x=0, y=-1.95, z=1.45),
                         up=dict(x=0, y=0, z=1),
                         center=dict(x=0, y=0, z=0)
                     ),
                 ),
-                legend=dict(font=dict(color=TEXT), bgcolor="rgba(0,0,0,0)", orientation="h"),
+                legend=dict(font=dict(color=TEXT), bgcolor="rgba(0,0,0,0)", orientation="h", x=0, y=1.1),
                 updatemenus=[dict(
                     type="buttons",
                     showactive=False,
                     x=0.02,
                     y=0.02,
                     buttons=[dict(
-                        label="▶ Animasyonu Oynat",
+                        label="▶ Animasyonu Oynat (Gerçek Zamanlı)",
                         method="animate",
-                        args=[None, {"frame": {"duration": 100, "redraw": True}, "fromcurrent": True}],
+                        args=[None, {"frame": {"duration": 500, "redraw": True}, "fromcurrent": True}],
                     )],
                 )],
             )
@@ -2017,11 +1995,12 @@ with education_tab:
 
             c1, c2, c3 = st.columns(3)
             c1.metric("Mekanizma", scenario["mechanism"])
+            intensity_index = min(10, max(1, scenario_mag * 1.45 - math.log10(scenario_depth + 5) * 2.1 + 1.2))
             c2.metric("Eğitim etki göstergesi", f"{intensity_index:.1f} / 10")
-            c3.metric("Yaklaşık etki yarıçapı", f"{impact_radius:.0f} km")
+            c3.metric("Yıkıcı etki yarıçapı", f"{impact_radius:.0f} km")
             st.markdown("---")
-            st.markdown("**3B sahne bilgisi:** Turkuaz işaret Erzincan merkezini, kırmızı hat Kuzey Anadolu Fayı'nı, renkli halkalar sarsıntı alanlarını gösterir.")
-            st.markdown("**Dalgalanma:** Yüzeydeki sarsıntı enerjisini kavramsal olarak yansıtır. Daha detaylı veriler için ShakeMap kullanılır.")
+            st.markdown("**3B sahne bilgisi:** Harita Karlıova'dan Refahiye'ye kadar genişletilmiştir. Mavi halka P-Dalgasını (Hızlı, uyarıcı), Turuncu halka S-Dalgasını (Kesme) ve Kırmızı halka Rayleigh Yüzey Dalgasını (En yıkıcı) temsil eder.")
+            st.markdown(f"**Gerçek Zamanlı Fizik:** Animasyondaki saniyeler gerçek hıza ayarlıdır (P: ~{vp} km/s, S: ~{vs} km/s, Rayleigh: ~{vr} km/s). Yıldız merkez üssünden Erzincan'a varış sürelerini yukarıdaki panelden kontrol edebilirsiniz.")
             st.warning("Bu çıktı resmi deprem senaryosu, yapı tasarım girdisi veya afet tahmini değildir; yalnızca eğitim amaçlı nitel bir görselleştirmedir.")
 
     _render_edu()
