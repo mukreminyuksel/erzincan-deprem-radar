@@ -65,13 +65,15 @@ ANNOT    = "rgba(200,215,230,0.55)" if DARK else "rgba(15,40,65,0.75)"  # zon et
 def mag_color(m):
     try: m = float(m)
     except: return "#999"
-    if m < 2:  return "#43A047"
-    if m < 3:  return "#F9A825"
-    if m < 4:  return "#FB8C00"
-    if m < 5:  return "#E53935"
-    if m < 6:  return "#7B1FA2"
-    if m < 7:  return "#4A148C"
-    return "#B71C1C"
+    if m < 1.0: return "#B3E5FC"  # Soluk Mavi (Göze batmasın)
+    if m < 2.0: return "#C5E1A5"  # Soluk Yeşil
+    if m < 3.0: return "#76FF03"  # Parlak Neon Çimen Yeşil
+    if m < 4.0: return "#FFEA00"  # Parlak Neon Sarı
+    if m < 5.0: return "#FF6D00"  # Neon Turuncu
+    if m < 6.0: return "#FF1744"  # Parlak Kırmızı
+    if m < 7.0: return "#D500F9"  # Parlak Mor
+    if m < 8.0: return "#000000"  # Siyah
+    return "#263238"  # Koyu Gri/Siyah (Mapbox sembol kısıtlaması nedeniyle sınır rengi vs UI'da halledilebilir)
 
 def mag_emoji(m):
     try: m = float(m)
