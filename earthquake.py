@@ -2024,6 +2024,8 @@ with education_tab:
             st.markdown("**Dalgalanma:** Yüzeydeki sarsıntı enerjisini kavramsal olarak yansıtır. Daha detaylı veriler için ShakeMap kullanılır.")
             st.warning("Bu çıktı resmi deprem senaryosu, yapı tasarım girdisi veya afet tahmini değildir; yalnızca eğitim amaçlı nitel bir görselleştirmedir.")
 
+    _render_edu()
+
 with stats_tab:
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown('<div class="chart-title">🔬 Bilimsel Analizler (Derinlik, G-R & B-Value)</div>', unsafe_allow_html=True)
@@ -3050,15 +3052,14 @@ with system_tab:
                            file_name=f"erzincan_deprem_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
                            mime="text/csv")
 
-    # ─── Footer ─────────────────────────────────────────────────────────────────
-    st.markdown(f"""
-    <div style="text-align:center;color:{SUBTEXT};font-size:0.7rem;
-                margin-top:0.8rem;padding:0.5rem;background:{BG3};
-                border-radius:8px;border:1px solid {BORDER}">
-      USGS · EMSC · AFAD · Kandilli · GFZ Potsdam · IRIS/SAGE &nbsp;|&nbsp;
-      Her {refresh_s} saniyede otomatik yenileme &nbsp;|&nbsp;
-      Uydu haritasi: ESRI World Imagery &nbsp;|&nbsp;
-      v {APP_VERSION} &nbsp;|&nbsp; {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}
-    </div>
-    """, unsafe_allow_html=True)
-    _render_edu()
+# ─── Footer ─────────────────────────────────────────────────────────────────
+st.markdown(f"""
+<div style="text-align:center;color:{SUBTEXT};font-size:0.7rem;
+            margin-top:0.8rem;padding:0.5rem;background:{BG3};
+            border-radius:8px;border:1px solid {BORDER}">
+  USGS · EMSC · AFAD · Kandilli · GFZ Potsdam · IRIS/SAGE &nbsp;|&nbsp;
+  Her {refresh_s} saniyede otomatik yenileme &nbsp;|&nbsp;
+  Uydu haritasi: ESRI World Imagery &nbsp;|&nbsp;
+  v {APP_VERSION} &nbsp;|&nbsp; {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}
+</div>
+""", unsafe_allow_html=True)
