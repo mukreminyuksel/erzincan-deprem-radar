@@ -1018,13 +1018,14 @@ with radar_tab:
 
         fig_map = go.Figure()
         bands = [
-            ("M < 2",  df[df["buyukluk"] < 2],                                        "#43A047"),
-            ("M 2-3",  df[(df["buyukluk"] >= 2) & (df["buyukluk"] < 3)],              "#F9A825"),
-            ("M 3-4",  df[(df["buyukluk"] >= 3) & (df["buyukluk"] < 4)],              "#FB8C00"),
-            ("M 4-5",  df[(df["buyukluk"] >= 4) & (df["buyukluk"] < 5)],              "#E53935"),
-            ("M 5-6",  df[(df["buyukluk"] >= 5) & (df["buyukluk"] < 6)],              "#7B1FA2"),
-            ("M 6-7",  df[(df["buyukluk"] >= 6) & (df["buyukluk"] < 7)],              "#4A148C"),
-            ("M 7+",   df[df["buyukluk"] >= 7],                                        "#B71C1C"),
+            ("M < 1",  df[df["buyukluk"] < 1],                                        "#B3E5FC"),
+            ("M 1-2",  df[(df["buyukluk"] >= 1) & (df["buyukluk"] < 2)],              "#C5E1A5"),
+            ("M 2-3",  df[(df["buyukluk"] >= 2) & (df["buyukluk"] < 3)],              "#76FF03"),
+            ("M 3-4",  df[(df["buyukluk"] >= 3) & (df["buyukluk"] < 4)],              "#FFEA00"),
+            ("M 4-5",  df[(df["buyukluk"] >= 4) & (df["buyukluk"] < 5)],              "#FF6D00"),
+            ("M 5-6",  df[(df["buyukluk"] >= 5) & (df["buyukluk"] < 6)],              "#FF1744"),
+            ("M 6-7",  df[(df["buyukluk"] >= 6) & (df["buyukluk"] < 7)],              "#D500F9"),
+            ("M 7+",   df[df["buyukluk"] >= 7],                                        "#000000"),
         ]
         for label, sub, color in bands:
             if sub.empty: continue
@@ -1217,13 +1218,14 @@ with radar_tab:
     depth_max = min(df_plot["derinlik"].quantile(0.98), 200)
 
     sinif_bands = [
-        ("M < 2",  df_plot[df_plot["buyukluk"] < 2],                                        "#43A047"),
-        ("M 2-3",  df_plot[(df_plot["buyukluk"] >= 2) & (df_plot["buyukluk"] < 3)],         "#F9A825"),
-        ("M 3-4",  df_plot[(df_plot["buyukluk"] >= 3) & (df_plot["buyukluk"] < 4)],         "#FB8C00"),
-        ("M 4-5",  df_plot[(df_plot["buyukluk"] >= 4) & (df_plot["buyukluk"] < 5)],         "#E53935"),
-        ("M 5-6",  df_plot[(df_plot["buyukluk"] >= 5) & (df_plot["buyukluk"] < 6)],         "#7B1FA2"),
-        ("M 6-7",  df_plot[(df_plot["buyukluk"] >= 6) & (df_plot["buyukluk"] < 7)],         "#4A148C"),
-        ("M 7+",   df_plot[df_plot["buyukluk"] >= 7],                                        "#B71C1C"),
+        ("M < 1",  df_plot[df_plot["buyukluk"] < 1],                                        "#B3E5FC"),
+        ("M 1-2",  df_plot[(df_plot["buyukluk"] >= 1) & (df_plot["buyukluk"] < 2)],         "#C5E1A5"),
+        ("M 2-3",  df_plot[(df_plot["buyukluk"] >= 2) & (df_plot["buyukluk"] < 3)],         "#76FF03"),
+        ("M 3-4",  df_plot[(df_plot["buyukluk"] >= 3) & (df_plot["buyukluk"] < 4)],         "#FFEA00"),
+        ("M 4-5",  df_plot[(df_plot["buyukluk"] >= 4) & (df_plot["buyukluk"] < 5)],         "#FF6D00"),
+        ("M 5-6",  df_plot[(df_plot["buyukluk"] >= 5) & (df_plot["buyukluk"] < 6)],         "#FF1744"),
+        ("M 6-7",  df_plot[(df_plot["buyukluk"] >= 6) & (df_plot["buyukluk"] < 7)],         "#D500F9"),
+        ("M 7+",   df_plot[df_plot["buyukluk"] >= 7],                                        "#000000"),
     ]
 
     fig_depth = go.Figure()
