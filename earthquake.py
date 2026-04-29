@@ -1992,6 +1992,7 @@ with stats_tab:
             yaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT, size=9), title="Joule"),
         )
         st.plotly_chart(fig_energy, use_container_width=True, config={"displayModeBar": False, "displaylogo": False})
+        st.info("💡 **Basitçe:** Bu grafik, zaman içinde olan tüm depremlerin enerjisini üst üste toplayarak gösterir. Çizgi aniden yukarı fırlıyorsa büyük bir enerji boşalmış, düz gidiyorsa fay hattı kilitlenmiş (enerji biriktiriyor) olabilir.")
 
     # ════════════════════════════════════════════════════════════════
     # KORELASYON MATRİSİ — En büyük deprem öncesi öncü örüntüler
