@@ -37,7 +37,7 @@ from earthquake_core import (
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.7"
+APP_VERSION = "1.8"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -731,8 +731,8 @@ with st.sidebar:
         st.stop()
         
     st.markdown("---")
-    st.markdown("<div style='font-size:0.85rem;font-weight:600;margin-bottom:0.3rem'>🚀 v1.7 Yenilikleri</div>", unsafe_allow_html=True)
-    st.markdown("<div style='font-size:0.75rem;opacity:0.8;line-height:1.3'>• NASA ephem kütüphanesi ile Ay, Güneş ve Gezegen (Jüpiter/Venüs) kütleçekim kuvvetleri eklendi.<br>• İklimsel sıcaklık ile sismik aktivite yoğunluğu ilişkilendirildi.<br>• Performans ve API zaman aşımları iyileştirildi.</div>", unsafe_allow_html=True)
+    st.markdown("<div style='font-size:0.85rem;font-weight:600;margin-bottom:0.3rem'>🚀 v1.8 Yenilikleri</div>", unsafe_allow_html=True)
+    st.markdown("<div style='font-size:0.75rem;opacity:0.8;line-height:1.3'>• Analizler <b>'Çalıştır'</b> butonu ile manuel tetiklenerek CPU kilitlenmeleri önlendi.<br>• API zaman aşımları agresif şekilde 4 saniyeye düşürülerek donmalar giderildi.<br>• Performans optimizasyonları yapıldı.</div>", unsafe_allow_html=True)
 
 # ─── Otomatik yenileme ──────────────────────────────────────────────────────
 st_autorefresh(interval=refresh_s * 1000, key="eq_ref")
