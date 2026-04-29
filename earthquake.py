@@ -1804,7 +1804,7 @@ with education_tab:
 
             def create_circle_coords(clat, clon, radius_km, points=100):
                 if radius_km <= 0:
-                    return [clon], [clat]
+                    return [clon] * points, [clat] * points
                 R = 6371.0
                 clat_rad = math.radians(clat)
                 clon_rad = math.radians(clon)
@@ -1896,9 +1896,9 @@ with education_tab:
 
                 frames.append(go.Frame(
                     data=[
-                        go.Scattermapbox(lat=f_plat, lon=f_plon),
-                        go.Scattermapbox(lat=f_slat, lon=f_slon),
-                        go.Scattermapbox(lat=f_rlat, lon=f_rlon)
+                        go.Scattermapbox(lat=f_plat, lon=f_plon, mode="lines"),
+                        go.Scattermapbox(lat=f_slat, lon=f_slon, mode="lines"),
+                        go.Scattermapbox(lat=f_rlat, lon=f_rlon, mode="lines")
                     ],
                     traces=[1, 2, 3], # 0: Merkez, 1: P, 2: S, 3: Rayleigh
                     name=str(t),
@@ -1929,7 +1929,7 @@ with education_tab:
                     buttons=[dict(
                         label="▶ Animasyonu Oynat (Gerçek Zamanlı)",
                         method="animate",
-                        args=[None, {"frame": {"duration": 500, "redraw": True}, "fromcurrent": True}],
+                        args=[None, {"frame": {"duration": 500, "redraw": True}, "transition": {"duration": 0}, "fromcurrent": True}],
                     )],
                 )],
             )
