@@ -1789,20 +1789,13 @@ with education_tab:
             with sc2:
                 scenario_depth = st.slider("Derinlik (km)", 3, 40, int(scenario["depth"]), 1, key="scenario_depth")
 
-            def lonlat_to_xy(lat, lon):
-                x = (lon - ERZ_LON) * 111.0 * math.cos(math.radians(ERZ_LAT))
-                y = (lat - ERZ_LAT) * 111.0
-                return x, y
-
-            event_x, event_y = lonlat_to_xy(scenario["lat"], scenario["lon"])
-
             # Dalga hızları (km/s)
             vp = 6.0
             vs = 3.5
             vr = 3.0
 
-            # Erzincan'a olan uzaklık (x=0, y=0 Erzincan)
-            dist_to_erz = math.sqrt(event_x**2 + event_y**2)
+            # Erzincan'a olan gerçek uzaklık (Haversine formülü)
+            dist_to_erz = haversine(ERZ_LAT, ERZ_LON, scenario["lat"], scenario["lon"])
             p_arrival = dist_to_erz / vp
             s_arrival = dist_to_erz / vs
             r_arrival = dist_to_erz / vr
@@ -1812,12 +1805,18 @@ with education_tab:
             def create_circle_coords(clat, clon, radius_km, points=100):
                 if radius_km <= 0:
                     return [clon], [clat]
-                angles = np.linspace(0, 2 * math.pi, points)
-                dlat = radius_km / 111.0
-                dlon = radius_km / (111.0 * math.cos(math.radians(clat)))
-                lats = clat + dlat * np.sin(angles)
-                lons = clon + dlon * np.cos(angles)
-                return lons.tolist(), lats.tolist()
+                R = 6371.0
+                clat_rad = math.radians(clat)
+                clon_rad = math.radians(clon)
+                lats, lons = [], []
+                for bearing in np.linspace(0, 2 * math.pi, points):
+                    lat2_rad = math.asin(math.sin(clat_rad) * math.cos(radius_km / R) +
+                                         math.cos(clat_rad) * math.sin(radius_km / R) * math.cos(bearing))
+                    lon2_rad = clon_rad + math.atan2(math.sin(bearing) * math.sin(radius_km / R) * math.cos(clat_rad),
+                                                     math.cos(radius_km / R) - math.sin(clat_rad) * math.sin(lat2_rad))
+                    lats.append(math.degrees(lat2_rad))
+                    lons.append(math.degrees(lon2_rad))
+                return lons, lats
 
             fig_erz = go.Figure()
 
