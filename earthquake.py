@@ -50,7 +50,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.22"
+APP_VERSION = "1.23"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -862,6 +862,7 @@ _MENU_LABELS = [
     "🔴 Sismik Açık",
     "🌊 ShakeMap",
     "🗺️ Sismik Tehlike",
+    "🥎 Odak Mekanizması",
     "🏛️ Erzincan Arşivi",
     "🎓 Bilgi Havuzu",
     "⚙️ Sistem & Veri",
@@ -870,7 +871,7 @@ _MENU_LABELS = [
 _MENU_ICONS = [
     "globe", "bar-chart-line", "compass", "globe-americas", "moon-stars",
     "exclamation-triangle", "graph-up-arrow", "exclamation-octagon-fill",
-    "broadcast-pin", "map-fill", "archive", "mortarboard", "gear", "file-text",
+    "broadcast-pin", "map-fill", "circle-half", "archive", "mortarboard", "gear", "file-text",
 ]
 with st.container(key="sticky_nav"):
     active_menu = option_menu(
@@ -6161,6 +6162,276 @@ def _render_sismik_tehlike():
 
 if active_menu == "🗺️ Sismik Tehlike":
     _render_sismik_tehlike()
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# 🥎 ODAK MEKANİZMASI — F-45 / v1.23 — GCMT Beach Ball Kataloğu
+# ────────────────────────────────────────────────────────────────────────────
+# Bilimsel temel:
+#   • Dziewonski, A.M., Chou, T.-A. & Woodhouse, J.H. (1981). JGR 86(B4),
+#       2825-2852. DOI:10.1029/JB086iB04p02825
+#   • Ekström, G., Nettles, M. & Dziewonski, A.M. (2012). The global CMT
+#       project 2004-2010. Phys. Earth Planet. Int. 200-201, 1-9.
+#       DOI:10.1016/j.pepi.2012.04.002
+#   • Aki & Richards (2002) Quantitative Seismology, 2nd ed.
+#   • GCMT katalog: globalcmt.org
+# ════════════════════════════════════════════════════════════════════════════
+
+# GCMT katalog özeti — Türkiye yakını M5+ büyük olaylar (statik veri)
+# Kaynak: globalcmt.org GCMT NDK katalog (Ekström et al. 2012 referansı)
+# strike/dip/rake (Aki & Richards 1980 konvansiyonu, ° cinsinden)
+_GCMT_EVENTS = [
+    {"id": "1939-erzincan", "yer": "Erzincan 1939", "tarih": "1939-12-26", "lat": 39.80, "lon": 39.51,
+     "mw": 7.8, "depth": 20, "strike": 105, "dip": 80, "rake": -10, "tip": "ss-r",
+     "kaynak": "Ketin 1948; Barka 1988 — rekonstrüksiyon (NDK öncesi)"},
+    {"id": "1992-erzincan", "yer": "Erzincan 1992", "tarih": "1992-03-13", "lat": 39.71, "lon": 39.60,
+     "mw": 6.8, "depth": 27, "strike": 121, "dip": 71, "rake": -2, "tip": "ss-r",
+     "kaynak": "Grosser et al. 1998, PAGEOPH"},
+    {"id": "1999-izmit", "yer": "İzmit 1999", "tarih": "1999-08-17", "lat": 40.75, "lon": 29.86,
+     "mw": 7.6, "depth": 17, "strike": 91, "dip": 87, "rake": -179, "tip": "ss-r",
+     "kaynak": "Tibi et al. 2001; GCMT M081799A"},
+    {"id": "1999-duzce", "yer": "Düzce 1999", "tarih": "1999-11-12", "lat": 40.79, "lon": 31.21,
+     "mw": 7.2, "depth": 14, "strike": 264, "dip": 64, "rake": -172, "tip": "ss-r",
+     "kaynak": "GCMT M111299A"},
+    {"id": "2002-sultandagi", "yer": "Sultandağı 2002", "tarih": "2002-02-03", "lat": 38.57, "lon": 31.27,
+     "mw": 6.5, "depth": 15, "strike": 145, "dip": 50, "rake": -98, "tip": "normal",
+     "kaynak": "GCMT M020302A"},
+    {"id": "2003-bingol", "yer": "Bingöl 2003", "tarih": "2003-05-01", "lat": 39.01, "lon": 40.46,
+     "mw": 6.4, "depth": 6, "strike": 173, "dip": 89, "rake": -2, "tip": "ss-l",
+     "kaynak": "GCMT M050103A"},
+    {"id": "2010-elazig", "yer": "Elazığ 2010", "tarih": "2010-03-08", "lat": 38.87, "lon": 39.98,
+     "mw": 6.1, "depth": 12, "strike": 257, "dip": 75, "rake": 9, "tip": "ss-l",
+     "kaynak": "GCMT M030810A"},
+    {"id": "2011-van", "yer": "Van 2011", "tarih": "2011-10-23", "lat": 38.72, "lon": 43.51,
+     "mw": 7.1, "depth": 18, "strike": 252, "dip": 50, "rake": 60, "tip": "ters",
+     "kaynak": "GCMT M102311A; Doğan & Karakas 2013"},
+    {"id": "2017-bodrum", "yer": "Bodrum-Kos 2017", "tarih": "2017-07-20", "lat": 36.96, "lon": 27.43,
+     "mw": 6.6, "depth": 7, "strike": 275, "dip": 39, "rake": -89, "tip": "normal",
+     "kaynak": "GCMT M072017A"},
+    {"id": "2020-elazig", "yer": "Sivrice/Elazığ 2020", "tarih": "2020-01-24", "lat": 38.39, "lon": 39.06,
+     "mw": 6.8, "depth": 10, "strike": 247, "dip": 76, "rake": 4, "tip": "ss-l",
+     "kaynak": "GCMT M012420A"},
+    {"id": "2020-izmir", "yer": "İzmir/Samos 2020", "tarih": "2020-10-30", "lat": 37.90, "lon": 26.79,
+     "mw": 6.9, "depth": 10, "strike": 277, "dip": 38, "rake": -94, "tip": "normal",
+     "kaynak": "GCMT M103020A"},
+    {"id": "2023-pazarcik", "yer": "Pazarcık 2023", "tarih": "2023-02-06", "lat": 37.17, "lon": 37.04,
+     "mw": 7.8, "depth": 10, "strike": 228, "dip": 89, "rake": 1, "tip": "ss-l",
+     "kaynak": "GCMT M020623A; Melgar et al. 2023"},
+    {"id": "2023-elbistan", "yer": "Elbistan 2023", "tarih": "2023-02-06", "lat": 38.02, "lon": 37.20,
+     "mw": 7.7, "depth": 10, "strike": 261, "dip": 56, "rake": 14, "tip": "ss-l",
+     "kaynak": "GCMT M020623B (Sürgü fayı)"},
+]
+
+_GCMT_TIP_RENK = {
+    "ss-r":   "#E24B4A",   # doğrultu atımlı sağ-yanal (KAF tipi) — kırmızı
+    "ss-l":   "#EF9F27",   # doğrultu atımlı sol-yanal (DAF tipi) — turuncu
+    "normal": "#FAC775",   # normal fay (Ege grabenleri) — sarı
+    "ters":   "#1976D2",   # ters fay (Van, Doğu Anadolu sıkışma) — mavi
+}
+_GCMT_TIP_ETIKET = {
+    "ss-r":   "Doğrultu Atımlı (Sağ-Yanal)",
+    "ss-l":   "Doğrultu Atımlı (Sol-Yanal)",
+    "normal": "Normal (Açılma)",
+    "ters":   "Ters (Sıkışma)",
+}
+
+
+def _beachball_classify(rake: float) -> str:
+    """Rake açısından (Aki & Richards) fay tipini sınıflandır."""
+    r = ((rake + 180) % 360) - 180
+    if -135 <= r <= -45:
+        return "normal"
+    if 45 <= r <= 135:
+        return "ters"
+    if (r > 135 or r < -135):
+        return "ss-l"
+    return "ss-r"
+
+
+def _beachball_radial_pattern(strike: float, dip: float, rake: float, n: int = 36):
+    """
+    Beach ball çevresel basitleştirilmiş işaret deseni — sıkışma/genişleme yön farkı.
+    Tam moment tensor değil; eğitim amaçlı strike + rake bazlı azimut renklendirmesi.
+    Kaynak: Cronin (2010) Geol. Soc. Am. 'A Primer on Focal Mechanisms' (eğitim).
+    """
+    azs = np.linspace(0, 360, n + 1)
+    signs = []
+    s_rad = math.radians(strike)
+    for az_deg in azs:
+        az = math.radians(az_deg)
+        # Azimut farkı (strike-fay normal yönüne göre)
+        d_az = az - s_rad
+        # P ekseni yönü ~ rake'e bağlı; basitleştirilmiş işaret deseni:
+        val = math.cos(2 * d_az) * math.cos(math.radians(rake)) \
+            + math.sin(2 * d_az) * math.sin(math.radians(rake)) * math.cos(math.radians(dip))
+        signs.append(1 if val > 0 else -1)
+    return azs, signs
+
+
+@st.fragment
+def _render_odak_mekanizma():
+    st.markdown(
+        '<div class="chart-title">🥎 Odak Mekanizması — GCMT Beach Ball Kataloğu (F-45 / v1.23)</div>',
+        unsafe_allow_html=True,
+    )
+    st.info(
+        "🥎 **Odak Mekanizması (Focal Mechanism):** Bir depremin fay düzlemi çözümü; "
+        "siyah-beyaz beach ball diyagramı normal/ters/doğrultu atımlı fay tipini tek "
+        "bakışta gösterir. Teorik temel: **Dziewonski, Chou & Woodhouse (1981), JGR 86**; "
+        "**Ekström et al. (2012), GCMT katalog**."
+    )
+
+    # ── Harita ─────────────────────────────────────────────────────────────
+    fig_map = go.Figure()
+    for ev in _GCMT_EVENTS:
+        renk = _GCMT_TIP_RENK[ev["tip"]]
+        size = 12 + (ev["mw"] - 5.5) * 5
+        hover = (
+            f"<b>{ev['yer']}</b> ({ev['tarih']})<br>"
+            f"Mw {ev['mw']:.1f}, derinlik {ev['depth']} km<br>"
+            f"Strike: {ev['strike']}°, Dip: {ev['dip']}°, Rake: {ev['rake']}°<br>"
+            f"Tip: {_GCMT_TIP_ETIKET[ev['tip']]}<br>"
+            f"Kaynak: {ev['kaynak']}"
+            "<extra></extra>"
+        )
+        fig_map.add_trace(go.Scattermapbox(
+            lat=[ev["lat"]], lon=[ev["lon"]],
+            mode="markers",
+            marker=dict(size=size, color=renk, opacity=0.85),
+            text=ev["yer"],
+            hovertemplate=hover,
+            showlegend=False,
+        ))
+
+    # Legend için 4 dummy trace
+    for tip_key in ("ss-r", "ss-l", "normal", "ters"):
+        fig_map.add_trace(go.Scattermapbox(
+            lat=[None], lon=[None],
+            mode="markers",
+            marker=dict(size=12, color=_GCMT_TIP_RENK[tip_key]),
+            name=_GCMT_TIP_ETIKET[tip_key],
+        ))
+
+    fig_map.update_layout(
+        mapbox=dict(style="open-street-map", center=dict(lat=39.0, lon=35.0), zoom=5),
+        height=500,
+        margin=dict(l=0, r=0, t=10, b=0),
+        paper_bgcolor=BG2,
+        legend=dict(
+            orientation="h", yanchor="bottom", y=1.0, xanchor="left", x=0.0,
+            bgcolor="rgba(0,0,0,0)", font=dict(color=TEXT, size=11),
+        ),
+    )
+    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": False})
+
+    # ── Beach ball seçici ──────────────────────────────────────────────────
+    st.markdown('<div class="chart-title">🎯 Olay Detayı — Beach Ball Diyagramı</div>', unsafe_allow_html=True)
+    opt_labels = [f"M{e['mw']:.1f} — {e['yer']}" for e in _GCMT_EVENTS]
+    sec_idx = st.selectbox(
+        "Olay seç",
+        options=list(range(len(_GCMT_EVENTS))),
+        format_func=lambda i: opt_labels[i],
+        index=11,  # default: 2023 Pazarcık
+        key="gcmt_event_select",
+    )
+    ev = _GCMT_EVENTS[sec_idx]
+
+    # Beach ball Plotly polar
+    azs, signs = _beachball_radial_pattern(ev["strike"], ev["dip"], ev["rake"])
+    azs_deg = list(azs)
+    # Sıkışma (siyah) sektörler: sign=+1
+    r_outer = [1.0] * len(azs)
+    colors_per_az = ["#1a1a1a" if s > 0 else "#f4f4f4" for s in signs]
+
+    col_bb, col_info = st.columns([1, 1])
+    with col_bb:
+        fig_bb = go.Figure()
+        # Renkli sektörler bar polar olarak
+        fig_bb.add_trace(go.Barpolar(
+            r=r_outer,
+            theta=azs_deg,
+            width=[360 / len(azs)] * len(azs),
+            marker=dict(color=colors_per_az, line=dict(color="#444", width=0.5)),
+            hoverinfo="skip",
+            opacity=0.95,
+        ))
+        # Strike çizgisi
+        s_az = ev["strike"]
+        fig_bb.add_trace(go.Scatterpolar(
+            r=[0, 1], theta=[s_az, s_az],
+            mode="lines",
+            line=dict(color="#FFD700", width=3),
+            name=f"Strike {s_az}°",
+            hoverinfo="name",
+        ))
+        fig_bb.add_trace(go.Scatterpolar(
+            r=[0, 1], theta=[(s_az + 180) % 360, (s_az + 180) % 360],
+            mode="lines",
+            line=dict(color="#FFD700", width=3, dash="dash"),
+            showlegend=False,
+            hoverinfo="skip",
+        ))
+        fig_bb.update_layout(
+            polar=dict(
+                radialaxis=dict(visible=False, range=[0, 1.05]),
+                angularaxis=dict(
+                    direction="clockwise", rotation=90,
+                    tickfont=dict(color=TEXT, size=9),
+                ),
+                bgcolor=BG2,
+            ),
+            paper_bgcolor=BG2,
+            height=380,
+            margin=dict(l=20, r=20, t=30, b=20),
+            showlegend=True,
+            legend=dict(font=dict(color=TEXT, size=10)),
+            title=dict(text=f"Beach Ball — {ev['yer']}", font=dict(color=TEXT, size=13)),
+        )
+        st.plotly_chart(fig_bb, use_container_width=True, config={"displayModeBar": False})
+        st.caption("Siyah = sıkışma kadranı (P ekseni), beyaz = genişleme kadranı (T ekseni). Altın çizgi = fay strike yönü.")
+
+    with col_info:
+        st.markdown(f"""
+**📍 {ev['yer']}** ({ev['tarih']})
+
+| Parametre | Değer |
+|---|---|
+| **Mw** | {ev['mw']:.1f} |
+| **Derinlik** | {ev['depth']} km |
+| **Strike (φ)** | {ev['strike']}° |
+| **Dip (δ)** | {ev['dip']}° |
+| **Rake (λ)** | {ev['rake']}° |
+| **Fay tipi** | {_GCMT_TIP_ETIKET[ev['tip']]} |
+| **Konum** | ({ev['lat']:.3f}, {ev['lon']:.3f}) |
+
+**🔬 Bilimsel kaynak:**
+{ev['kaynak']}
+        """)
+
+    # ── Tablo: Tüm olaylar ────────────────────────────────────────────────
+    st.markdown('<div class="chart-title">📋 GCMT Katalog Özeti</div>', unsafe_allow_html=True)
+    df_gcmt = pd.DataFrame([
+        {"Olay": ev["yer"], "Tarih": ev["tarih"], "Mw": ev["mw"], "Derinlik (km)": ev["depth"],
+         "Strike°": ev["strike"], "Dip°": ev["dip"], "Rake°": ev["rake"],
+         "Fay Tipi": _GCMT_TIP_ETIKET[ev["tip"]]}
+        for ev in _GCMT_EVENTS
+    ])
+    st.dataframe(df_gcmt, use_container_width=True, hide_index=True)
+
+    # ── Kaynak ────────────────────────────────────────────────────────────
+    st.caption(
+        "📚 **GCMT Projesi:** Dziewonski et al. (1981) *JGR* 86(B4); "
+        "Ekström et al. (2012) *Phys. Earth Planet. Int.* 200-201, 1-9 — "
+        "DOI:10.1016/j.pepi.2012.04.002 | "
+        "**Beach ball konvansiyonu:** Aki & Richards (2002) *Quantitative Seismology* | "
+        "**Veri:** globalcmt.org NDK kataloğu (Türkiye odaklı 13 büyük olay seçimi). "
+        "⚠️ Görsel beach ball — basitleştirilmiş çift-çift kuple deseni; "
+        "tam moment tensor inversiyonu için ObsPy/PyROCKO referansı önerilir."
+    )
+
+
+if active_menu == "🥎 Odak Mekanizması":
+    _render_odak_mekanizma()
 
 # ─── Footer ─────────────────────────────────────────────────────────────────
 st.markdown(f"""
