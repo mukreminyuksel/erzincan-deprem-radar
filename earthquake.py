@@ -37,7 +37,7 @@ from earthquake_core import (
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.11"
+APP_VERSION = "1.12"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -403,7 +403,7 @@ ALL_FETCHERS = {
     "INGV":      fetch_ingv,
 }
 
-@st.cache_data(ttl=120, show_spinner=False)
+@st.cache_data(ttl=600, show_spinner=False)
 def fetch_all(lat, lon, radius_km, min_mag, start_dt, end_dt, active_sources):
     # Cache buster for mag_color change
     statuses = {}
@@ -828,7 +828,7 @@ def fault_color(kayma):
     if "SOD" in k:          return "#ffaa44"
     return "#cccccc"
 
-@st.cache_data(show_spinner=False)
+@st.cache_resource(show_spinner=False)
 def load_fault_lines():
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "turkey_faults.geojson")
     if not os.path.exists(path):
@@ -870,7 +870,7 @@ def load_fault_lines():
 
 FAULT_LINES = load_fault_lines()
 
-@st.cache_data(show_spinner=False)
+@st.cache_resource(show_spinner=False)
 def load_tectonic_plates():
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tectonic_plates.geojson")
     if not os.path.exists(path):
@@ -1068,7 +1068,8 @@ def calc_b_grid_cache(df_mc_dict, bg_n, bg_sr, bg_min, radius_km, ERZ_LAT, ERZ_L
             n_grid[i, j] = len(sub_g)
     return b_grid, lats_g, lons_g
 
-if active_menu == "🌍 Canlı Radar":
+@st.fragment
+def _render_canli_radar():
     # ─── Harita + Kayan Liste ───────────────────────────────────────────────────
     col_map, col_list = st.columns([2.8, 1])
 
@@ -1558,6 +1559,9 @@ if active_menu == "🌍 Canlı Radar":
         st.plotly_chart(fig_h2, use_container_width=True,
                         config={"displayModeBar": False, "displaylogo": False})
 
+if active_menu == "🌍 Canlı Radar":
+    _render_canli_radar()
+
 if active_menu == "⚙️ Sistem & Veri":
     st.markdown('<div class="chart-title">⚙️ 1. Kaynak Sağlığı</div>', unsafe_allow_html=True)
     status_rows = []
@@ -1656,7 +1660,8 @@ if active_menu == "🧭 Fay Sistemleri":
         st.plotly_chart(fig_top_faults, use_container_width=True, config={"displayModeBar": False, "displaylogo": False})
     st.dataframe(fault_df.head(100), use_container_width=True, hide_index=True)
 
-if active_menu == "📊 İstatistik & Analiz":
+@st.fragment
+def _render_istatistik_top():
     st.markdown('<div class="chart-title">🤖 Sistem Yorumu (Uzman İçgörüsü)</div>', unsafe_allow_html=True)
     total_eq = len(df)
     mag_max = df["buyukluk"].max() if not df.empty else 0
@@ -1699,6 +1704,9 @@ if active_menu == "📊 İstatistik & Analiz":
     )
     st.plotly_chart(fig_score, use_container_width=True, config={"displayModeBar": False, "displaylogo": False})
     st.info("Bu skor deprem tahmini değildir; sadece seçilen veri penceresindeki aktiviteyi özetleyen karar destek göstergesidir.")
+
+if active_menu == "📊 İstatistik & Analiz":
+    _render_istatistik_top()
 
 if active_menu == "📝 Raporlar":
     st.markdown('<div class="chart-title">🧾 Radar Raporu</div>', unsafe_allow_html=True)
@@ -2215,7 +2223,8 @@ def compute_environmental_features(row, full_df):
         "haftalik_aktivite": haftalik_aktivite
     })
 
-if active_menu == "📊 İstatistik & Analiz":
+@st.fragment
+def _render_istatistik_bottom():
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown('<div class="chart-title">🔬 Bilimsel Analizler (Derinlik, G-R & B-Value)</div>', unsafe_allow_html=True)
 
@@ -3209,6 +3218,9 @@ if active_menu == "📊 İstatistik & Analiz":
             else:
                 st.info("Uzamsal b-haritası için en az 25 deprem gerekli.")
 
+if active_menu == "📊 İstatistik & Analiz":
+    _render_istatistik_bottom()
+
 if active_menu == "⚙️ Sistem & Veri":
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown('<div class="chart-title">📋 3. Ham Veri Tablosu</div>', unsafe_allow_html=True)
@@ -3227,7 +3239,8 @@ if active_menu == "⚙️ Sistem & Veri":
 # ════════════════════════════════════════════════════════════════════════════
 # 🔭 ASTRONOMİK ANALİZ PANELİ (Gökbilimci) — Gök Mekaniği ve Deprem Korelasyonu
 # ════════════════════════════════════════════════════════════════════════════
-if active_menu == "🔭 Astronomik Analiz":
+@st.fragment
+def _render_astronomik():
     st.markdown('<div class="chart-title">🔭 Astronomik Analiz — Gök Mekaniği ve Deprem Korelasyonu</div>', unsafe_allow_html=True)
     st.caption(
         "Ay, Güneş ve gezegenlerin yer kabuğuna uyguladığı gel-git çekim etkilerinin "
@@ -3511,6 +3524,9 @@ if active_menu == "🔭 Astronomik Analiz":
                     "(3) farklı tektonik rejimlerde tekrarlanabilirlik gerekir. Bu panel bilimsel namus gereği "
                     "yalnızca **hipotez üretici** bir keşif aracıdır, kesin bilimsel kanıt değildir."
                 )
+
+if active_menu == "🔭 Astronomik Analiz":
+    _render_astronomik()
 
 # ════════════════════════════════════════════════════════════════════════════
 # 🚨 ERKEN UYARI SİMÜLATÖRÜ — P/S Dalga Geri Sayım ve Şiddet Tahmini
