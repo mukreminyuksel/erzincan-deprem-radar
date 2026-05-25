@@ -296,7 +296,9 @@ Adım 9 — Tasarım Master: feature backlog + spec dokümanları
 
 ## ❓ Onay Gerekli Sorular
 
-1. **Bu 6 ajan rosterı uygun mu?** Daha az / fazla / farklı rol?
-2. **Sıralama:** Önce Profil Dedektifi mi (bilgiyle hareket), yoksa direkt Fragment Mimarı'na mı saldıralım (zaten en büyük şüpheli)?
-3. **Veri eklenmesi:** Yeni dosyalar repo'ya commit edilsin mi (boyut artar) yoksa runtime'da download edilsin mi?
-4. **Sürüm stratejisi:** Her ajan bir commit + sürüm (v1.12, v1.13, ...) mi, yoksa "Performans Misyonu v2" tek büyük versiyon olarak mı?
+1. **9 ajan rosterı uygun mu?** UI Uzmanı + Bilim Profesörü + Tasarım Master eklenmiş hali ile.
+2. **UI Uzmanı'nın ANA MENÜ konum kararı (C+E hibrit):** Onaylanıyor mu? `streamlit-option-menu` bağımlılığı kabul mü?
+3. **Sidebar reorganizasyonu** (3 expander + üst sabit live filter): Aynı commit'te mi (v1.15) yoksa ayrı v1.15a/v1.15b commit'lere mi bölünsün?
+4. **Veri eklenmesi:** Yeni dosyalar repo'ya commit edilsin mi (boyut artar) yoksa runtime'da download edilsin mi?
+5. **Bilim Profesörü ilk görev:** `SCIENCE_AUDIT.md` denetimi v1.15'ten önce mi (UI'dan önce denetim) yoksa sonra mı?
+6. **Sürüm stratejisi:** Her ajan bir commit + sürüm (v1.12, v1.13, ...) mi, yoksa "Performans Misyonu v2" tek büyük versiyon olarak mı?

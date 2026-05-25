@@ -15,6 +15,7 @@ import streamlit as st
 from bs4 import BeautifulSoup
 from plotly.subplots import make_subplots
 from streamlit_autorefresh import st_autorefresh
+from streamlit_option_menu import option_menu
 
 import earthquake_core as _earthquake_core
 
@@ -37,7 +38,7 @@ from earthquake_core import (
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.14"
+APP_VERSION = "1.15a"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -791,6 +792,43 @@ last1h  = df[df["zaman"] >= now_utc - timedelta(hours=1)]
 last24h = df[df["zaman"] >= now_utc - timedelta(hours=24)]
 big4    = df[df["buyukluk"] >= 4.0]
 
+# ─── ANA MENÜ — üst horizontal pill (UI Uzmanı kararı v1.15a) ──────────────
+_MENU_LABELS = [
+    "🌍 Canlı Radar",
+    "📊 İstatistik & Analiz",
+    "🧭 Fay Sistemleri",
+    "🔭 Astronomik Analiz",
+    "🚨 Erken Uyarı",
+    "🎓 Bilgi Havuzu",
+    "⚙️ Sistem & Veri",
+    "📝 Raporlar",
+]
+_MENU_ICONS = [
+    "globe", "bar-chart-line", "compass", "moon-stars",
+    "exclamation-triangle", "mortarboard", "gear", "file-text",
+]
+active_menu = option_menu(
+    menu_title=None,
+    options=_MENU_LABELS,
+    icons=_MENU_ICONS,
+    orientation="horizontal",
+    default_index=0,
+    key="main_nav",
+    styles={
+        "container": {"padding": "0!important", "background-color": "transparent", "margin-top": "4px"},
+        "icon": {"font-size": "0.95rem"},
+        "nav-link": {
+            "font-size": "0.82rem",
+            "text-align": "center",
+            "margin": "0 2px",
+            "padding": "6px 10px",
+            "border-radius": "8px",
+            "white-space": "nowrap",
+        },
+        "nav-link-selected": {"background-color": "#1976d2", "font-weight": "600"},
+    },
+)
+
 # ─── Metrikler ──────────────────────────────────────────────────────────────
 c1, c2, c3, c4, c5, c6 = st.columns(6)
 boxes = [
@@ -808,24 +846,6 @@ for col, val, color, label in boxes:
             f'<div style="font-size:1.35rem;font-weight:800;color:{color}">{val}</div>'
             f'<div style="font-size:0.7rem;opacity:0.55;margin-top:2px">{label}</div>'
             f'</div>', unsafe_allow_html=True)
-
-# Main navigation on the sidebar (Arayüz Mimarı & Hız Uzmanı)
-st.sidebar.markdown("---")
-st.sidebar.markdown('<div style="font-weight:700;font-size:0.85rem;color:#90caf9;margin-bottom:8px;letter-spacing:1px">🧭 ANA MENÜ</div>', unsafe_allow_html=True)
-active_menu = st.sidebar.radio(
-    "Menü Seçin",
-    [
-        "🌍 Canlı Radar",
-        "📊 İstatistik & Analiz",
-        "🧭 Fay Sistemleri",
-        "🔭 Astronomik Analiz",
-        "🚨 Erken Uyarı",
-        "🎓 Bilgi Havuzu",
-        "⚙️ Sistem & Veri",
-        "📝 Raporlar",
-    ],
-    label_visibility="collapsed"
-)
 
 # ─── Harita stili ───────────────────────────────────────────────────────────
 ESRI_SAT    = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"

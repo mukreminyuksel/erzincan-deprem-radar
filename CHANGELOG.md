@@ -1,5 +1,32 @@
 # Changelog
 
+## v1.15a - 2026-05-25 — UI Uzmanı: ANA MENÜ üst horizontal pill
+- 🎨 UI Uzmanı kararı (PLAN_v2.md): ANA MENÜ sidebar altından **ana içerik üstündeki horizontal pill bar**'a taşındı.
+- `streamlit-option-menu>=0.3.13` bağımlılığı eklendi (`requirements.txt`).
+- 8 panel (Canlı Radar / İstatistik & Analiz / Fay / Astronomi / Erken Uyarı / Bilgi / Sistem / Rapor) Bootstrap ikonları ile pill bar olarak metrik kartlarının üstünde.
+- Gerekçe: F-shaped reading + Fitts's Law — sidebar-alt konumu kullanıcıyı 800-1200 px scroll'a zorluyordu; üst pill bar mesafesi ~60 px sabit.
+- Sismolog gözüyle: panel geçişlerinde göz "yo-yo" hareketi ortadan kalktı; bilişsel yük filtre kararlarına ayrılabilir hale geldi.
+- v1.15b (sıradaki): sidebar 720-751 bölgesi 3 `st.expander` (Görünüm / Veri Kaynakları / Sistem) altına toplanacak.
+- features/BACKLOG.md eklendi (Tasarım Master / Ajan 9): 42 feature'lık detaylı yol haritası, peer-reviewed sismolojik atıflarla.
+
+## v1.14 - 2026-05-25 — Tektonik Veri Uzmanı (Ajan 4 — Adım A)
+- PB2002 plaka sınırı tipi sınıflandırma sistemi eklendi (convergent / divergent / transform / unknown).
+- 8 Türkiye + 12 dünya sınırı manuel etiketlendi: NAFZ, EAFZ, Helenik Yay, Ölüdeniz, Bitlis-Zagros, Mid-Atlantic, San Andreas, Himalaya, Andlar vb.
+- Render artık tip bazında 4 ayrı trace + legend: kırmızı (subduction/collision), mavi (rift), sarı (strike-slip), gri (sınıflandırılmamış).
+- Plaka sınırları varsayılan AÇIK (önceden kapalıydı, kullanıcı keşfetmiyordu).
+- Hover tooltip'te plaka çifti + Türkçe sınır adı + tip açıklaması.
+
+## v1.13 - 2026-05-25 — Vektörleştirme Uzmanı (Ajan 3)
+- `fetch_all` içinde `df.apply(haversine, axis=1)` → NumPy vektörleştirilmiş radyan-matematik (~28× hızlanma, 1000 satır 8.4ms → 0.3ms).
+- Dedup loop O(n²) → O(n × k) sliding-window (descending-sorted zaman array'i üzerinde 120s pencereli, doğruluk testinde 200 satır eski/yeni birebir aynı 150 unique).
+- Vektörleştirme + dedup birlikte: cache-miss anında yaşanan saniye-seviyesi takılma kalkar.
+
+## v1.12 - 2026-05-25 — Fragment Mimarı (Ajan 2)
+- 3 ağır panel @st.fragment ile sarıldı: Canlı Radar, İstatistik & Analiz (üst + alt iki blok), Astronomik Analiz.
+- Panel-içi widget etkileşimleri ("Çalıştır" butonu, sub-tab selectbox) sadece o fragment'i re-run eder; üst script ve diğer panel state'leri korunur.
+- `load_fault_lines` ve `load_tectonic_plates` `@st.cache_data` → `@st.cache_resource` (her menü geçişindeki ~40-60ms hash overhead ortadan kalktı).
+- `fetch_all` TTL 120s → 600s (cache-miss frekansı 5× azaldı).
+
 ## v1.11 - 2026-05-25
 - Added `🚨 Erken Uyarı` sidebar menu with P/S wave countdown simulator.
 - 15 major Turkish cities dropdown + manual coordinate input as observer location.
