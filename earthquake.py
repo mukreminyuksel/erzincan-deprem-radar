@@ -50,7 +50,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.35.1"
+APP_VERSION = "1.36"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -875,6 +875,7 @@ _MENU_LABELS = [
     "🌀 SKS Splitting",
     "🌊 Tsunami Kataloğu",
     "⏱️ Tsunami Varış",
+    "🎬 Ambraseys Animasyon",
     "🏛️ Erzincan Arşivi",
     "🎓 Bilgi Havuzu",
     "⚙️ Sistem & Veri",
@@ -883,7 +884,7 @@ _MENU_LABELS = [
 _MENU_ICONS = [
     "globe", "bar-chart-line", "compass", "globe-americas", "moon-stars",
     "exclamation-triangle", "graph-up-arrow", "exclamation-octagon-fill",
-    "broadcast-pin", "map-fill", "circle-half", "graph-down", "lightning-charge", "satellite", "journal-text", "arrow-repeat", "globe2", "broadcast", "lock-fill", "layers-half", "compass-fill", "water", "stopwatch", "archive", "mortarboard", "gear", "file-text",
+    "broadcast-pin", "map-fill", "circle-half", "graph-down", "lightning-charge", "satellite", "journal-text", "arrow-repeat", "globe2", "broadcast", "lock-fill", "layers-half", "compass-fill", "water", "stopwatch", "film", "archive", "mortarboard", "gear", "file-text",
 ]
 with st.container(key="sticky_nav"):
     active_menu = option_menu(
@@ -9176,6 +9177,198 @@ def _render_tsunami_varis():
 
 if active_menu == "⏱️ Tsunami Varış":
     _render_tsunami_varis()
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# 🎬 AMBRASEYS ANİMASYON — F-59 / v1.36 — KAF Batıya Göç Animasyonu
+# ────────────────────────────────────────────────────────────────────────────
+# Bilimsel temel:
+#   • Ambraseys, N.N. (2009). Earthquakes in the Mediterranean and Middle
+#       East. Cambridge University Press. ISBN:9780521872928
+#   • Barka, A. (1996). Slip distribution along the NAF associated with
+#       large earthquakes 1939-1967. BSSA 86(5), 1238-1254.
+#   • Stein, R.S., Barka, A.A. & Dieterich, J.H. (1997). Progressive failure
+#       on the NAF since 1939 by earthquake stress triggering.
+#       Geophys. J. Int. 128, 594-604.
+#   • Toksöz, M.N. et al. (1979). Bull. Earthq. Res. Inst. (Tokyo).
+# ════════════════════════════════════════════════════════════════════════════
+
+# Plotly frames animasyonu için ana KAF batıya göç dizisi (1668-1999)
+# + tarihi öncesi (Ambraseys) + 2023 doğu kuşak (DAF) zenginleştirildi
+_AMBRASEYS_DIZISI = [
+    # KAF doğu kesim (tarihsel)
+    {"yil": 1668, "yer": "Amasya-Niksar",       "lat": 40.65, "lon": 35.80, "mw": 8.0, "fay": "KAF doğu"},
+    {"yil": 1719, "yer": "İzmit (İlk Marmara)", "lat": 40.75, "lon": 30.00, "mw": 7.4, "fay": "KAF batı"},
+    {"yil": 1766, "yer": "Marmara büyük",       "lat": 40.80, "lon": 29.00, "mw": 7.1, "fay": "KAF batı (Marmara)"},
+    {"yil": 1784, "yer": "Erzincan",            "lat": 39.80, "lon": 39.30, "mw": 7.6, "fay": "KAF doğu"},
+    {"yil": 1894, "yer": "İstanbul",            "lat": 40.70, "lon": 28.65, "mw": 7.0, "fay": "KAF batı"},
+
+    # KAF batıya göç dizisi (Stein 1997 klasik)
+    {"yil": 1939, "yer": "Erzincan",            "lat": 39.80, "lon": 39.51, "mw": 7.8, "fay": "KAF doğu"},
+    {"yil": 1942, "yer": "Niksar-Erbaa",        "lat": 40.65, "lon": 36.95, "mw": 7.0, "fay": "KAF"},
+    {"yil": 1943, "yer": "Tosya-Ladik",         "lat": 41.00, "lon": 34.00, "mw": 7.6, "fay": "KAF"},
+    {"yil": 1944, "yer": "Bolu-Gerede",         "lat": 40.85, "lon": 32.30, "mw": 7.4, "fay": "KAF"},
+    {"yil": 1957, "yer": "Abant",               "lat": 40.65, "lon": 31.00, "mw": 7.1, "fay": "KAF batı"},
+    {"yil": 1967, "yer": "Mudurnu",             "lat": 40.65, "lon": 30.70, "mw": 7.1, "fay": "KAF batı"},
+    {"yil": 1999, "yer": "İzmit",               "lat": 40.75, "lon": 29.86, "mw": 7.6, "fay": "KAF batı (İzmit)"},
+    {"yil": 1999, "yer": "Düzce",               "lat": 40.79, "lon": 31.21, "mw": 7.2, "fay": "KAF batı (Düzce)"},
+
+    # Doğu Anadolu + Ege ek
+    {"yil": 1976, "yer": "Çaldıran",            "lat": 39.05, "lon": 44.04, "mw": 7.3, "fay": "Doğu Anadolu"},
+    {"yil": 2011, "yer": "Van",                 "lat": 38.72, "lon": 43.51, "mw": 7.1, "fay": "Doğu Anadolu"},
+    {"yil": 2020, "yer": "İzmir-Samos",         "lat": 37.90, "lon": 26.79, "mw": 6.9, "fay": "Ege"},
+    {"yil": 2023, "yer": "Pazarcık",            "lat": 37.17, "lon": 37.04, "mw": 7.8, "fay": "DAF"},
+    {"yil": 2023, "yer": "Elbistan",            "lat": 38.02, "lon": 37.20, "mw": 7.7, "fay": "DAF / Sürgü"},
+]
+
+
+@st.fragment
+def _render_ambraseys_animasyon():
+    st.markdown(
+        '<div class="chart-title">🎬 Ambraseys Katalog Animasyonu — KAF Batıya Göç (F-59 / v1.36)</div>',
+        unsafe_allow_html=True,
+    )
+    st.info(
+        "🎬 **KAF Batıya Göç (Stein 1997):** 1939 Erzincan'dan başlayarak NAFZ üzerinde "
+        "büyük depremler batıya doğru bir 'tren güzergahı' gibi ilerledi. Bu animasyon "
+        "1668 Amasya'dan 2023 Pazarcık'a kadar olayları zamanda ileri sarar. "
+        "**Ambraseys (2009) Cambridge UP** + **Barka (1996) BSSA 86** + "
+        "**Stein, Barka & Dieterich (1997) GJI 128** birleşik veri."
+    )
+
+    df_a = pd.DataFrame(_AMBRASEYS_DIZISI).sort_values("yil").reset_index(drop=True)
+
+    # ── Animasyonlu scatter — her frame = bir yıl, kümülatif gösterim ──────
+    yillar = sorted(df_a["yil"].unique())
+
+    frames = []
+    for y in yillar:
+        df_y = df_a[df_a["yil"] <= y]
+        renkler = []
+        boyutlar = []
+        for _, ev in df_y.iterrows():
+            # Yeni olan parlak kırmızı, eski olanlar soluk
+            yas = y - ev["yil"]
+            if yas == 0:
+                renkler.append("#FF3333")
+                boyutlar.append(20 + (ev["mw"] - 6.5) * 6)
+            else:
+                # soluk
+                renkler.append(f"rgba(150,80,80,{max(0.2, 1.0 - yas/200):.2f})")
+                boyutlar.append(8 + (ev["mw"] - 6.5) * 4)
+
+        frame_data = [go.Scattermapbox(
+            lat=df_y["lat"],
+            lon=df_y["lon"],
+            mode="markers+text",
+            marker=dict(size=boyutlar, color=renkler, opacity=0.9),
+            text=df_y.apply(lambda r: f"{int(r['yil'])}", axis=1),
+            textfont=dict(size=10, color="#fff"),
+            textposition="top right",
+            hovertemplate=df_y.apply(
+                lambda r: (f"<b>{r['yer']}</b> ({int(r['yil'])})<br>"
+                           f"Mw {r['mw']:.1f}<br>"
+                           f"Fay: {r['fay']}"
+                           "<extra></extra>"),
+                axis=1,
+            ),
+        )]
+        frames.append(go.Frame(data=frame_data, name=str(y)))
+
+    # ── İlk frame veri ─────────────────────────────────────────────────────
+    df_first = df_a[df_a["yil"] == yillar[0]]
+    fig = go.Figure(
+        data=[go.Scattermapbox(
+            lat=df_first["lat"],
+            lon=df_first["lon"],
+            mode="markers+text",
+            marker=dict(size=22, color="#FF3333", opacity=0.95),
+            text=df_first.apply(lambda r: f"{int(r['yil'])}", axis=1),
+            textfont=dict(size=11, color="#fff"),
+            textposition="top right",
+            hovertemplate="<b>%{text}</b><extra></extra>",
+        )],
+        frames=frames,
+    )
+
+    # ── Slider + play butonu ───────────────────────────────────────────────
+    sliders = [{
+        "active": 0,
+        "yanchor": "top", "xanchor": "left",
+        "currentvalue": {"prefix": "Yıl: ", "font": {"color": TEXT, "size": 13}},
+        "transition": {"duration": 200, "easing": "cubic-in-out"},
+        "pad": {"b": 10, "t": 30},
+        "len": 0.85, "x": 0.10, "y": 0,
+        "steps": [{
+            "args": [[str(y)], {"frame": {"duration": 500, "redraw": True}, "mode": "immediate"}],
+            "label": str(y), "method": "animate"
+        } for y in yillar],
+    }]
+
+    updatemenus = [{
+        "type": "buttons", "showactive": False,
+        "y": 0, "x": 0.05, "xanchor": "right", "yanchor": "top",
+        "pad": {"t": 0, "r": 10},
+        "buttons": [
+            {"label": "▶ Oynat",
+             "method": "animate",
+             "args": [None, {"frame": {"duration": 800, "redraw": True},
+                             "fromcurrent": True, "transition": {"duration": 200}}]},
+            {"label": "⏸ Duraklat",
+             "method": "animate",
+             "args": [[None], {"frame": {"duration": 0, "redraw": False},
+                               "mode": "immediate", "transition": {"duration": 0}}]},
+        ],
+    }]
+
+    fig.update_layout(
+        mapbox=dict(style="open-street-map", center=dict(lat=39.5, lon=33.0), zoom=5),
+        height=560,
+        margin=dict(l=0, r=0, t=10, b=60),
+        paper_bgcolor=BG2,
+        sliders=sliders,
+        updatemenus=updatemenus,
+    )
+    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+
+    st.markdown("💡 **Slider'ı sürükleyin veya ▶ Oynat butonuna basın** — KAF olayları yıllar içinde batıya kayar.")
+
+    # ── İstatistikler ──────────────────────────────────────────────────────
+    c1, c2, c3, c4 = st.columns(4)
+    span_yil = int(df_a["yil"].max() - df_a["yil"].min())
+    kartlar = [
+        (c1, f"{len(df_a)}",                       "#FFD700", "Toplam olay"),
+        (c2, f"{int(df_a['yil'].min())}–{int(df_a['yil'].max())}", "#EF9F27", "Zaman aralığı"),
+        (c3, f"{span_yil} yıl",                     "#1976D2", "Kapsanan süre"),
+        (c4, f"M{df_a['mw'].max():.1f}",            "#A32D2D", "En büyük olay"),
+    ]
+    for col, val, color, label in kartlar:
+        with col:
+            st.markdown(
+                f'<div class="stat-box">'
+                f'<div style="font-size:1.35rem;font-weight:800;color:{color}">{val}</div>'
+                f'<div style="font-size:0.7rem;opacity:0.55;margin-top:2px">{label}</div>'
+                f'</div>', unsafe_allow_html=True)
+
+    # ── Tablo + batı göç vurgusu ───────────────────────────────────────────
+    st.markdown('<div class="chart-title">📋 Olay Dizisi (kronolojik)</div>', unsafe_allow_html=True)
+    df_show = df_a[["yil", "yer", "mw", "fay"]].copy()
+    df_show.columns = ["Yıl", "Yer", "Mw", "Fay Sistemi"]
+    st.dataframe(df_show, use_container_width=True, hide_index=True)
+
+    st.caption(
+        "📚 **Ambraseys (2009)** Cambridge UP, ISBN 9780521872928 (tarihsel katalog) | "
+        "**Barka (1996)** *BSSA* 86(5), 1238-1254 (KAF göç) | "
+        "**Stein, Barka & Dieterich (1997)** *GJI* 128, 594-604 (kademeli kırılma) | "
+        "**Toksöz et al. (1979)** *Bull. Earthq. Res. Inst.* | "
+        "**NOAA NCEI:** ngdc.noaa.gov. "
+        "🎯 Klasik gözlem: KAF üzerinde 1939→1999 arası batıya 700+ km göç. "
+        "Sıra dışı: 2023 olayları DAF üzerinde, KAF dizisinden bağımsız."
+    )
+
+
+if active_menu == "🎬 Ambraseys Animasyon":
+    _render_ambraseys_animasyon()
 
 # ─── Footer ─────────────────────────────────────────────────────────────────
 st.markdown(f"""
