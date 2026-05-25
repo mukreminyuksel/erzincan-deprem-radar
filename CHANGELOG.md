@@ -1,11 +1,23 @@
 # Changelog
 
-## v1.15b - 2026-05-25 — UI Uzmanı: Sticky pill bar + Sidebar 3 expander reorganizasyonu
+## v1.15c - 2026-05-25 — UI Uzmanı + Render Uzmanı: Sticky pill + Sidebar reorg + Plaka glyph (F-32)
+
+**🎨 UI iyileştirmeleri (UI Uzmanı):**
 - 📌 **ANA MENÜ pill bar artık yapışkan (sticky)** — sayfa scroll edildiğinde üstte sabit kalır.
   Teknik: `st.container(key="sticky_nav")` + CSS `.st-key-sticky_nav { position: sticky; top: 0; z-index: 999; }`.
   Tema-aware arka plan (`#0e1117` koyu / `#ffffff` aydınlık) + alt ayraç çizgisi (1px solid).
   Gerekçe: v1.15a'da pill bar üste taşındı ama scroll edildiğinde kaybolup panel değiştirmek için scroll-to-top gerektiriyordu.
   Sismolojik ergonomi: 1000+ deprem listesinde gezinirken panel geçişi tek tıkla — bilişsel kesinti yok.
+
+**🗺️ Plaka sınırı tip glyph stilizasyonu (Render Uzmanı / Ajan 5 — F-32):**
+- Çizgi vertex'leri boyunca eşit aralıklı Unicode glyph dekoratörleri Plotly Scattermapbox'a eklendi.
+- **▲ convergent** (her ~80 km) — kırmızı subduction üçgenleri (Helenik Yay, Kıbrıs Yayı, Bitlis-Zagros vb.)
+- **◇ divergent** (her ~100 km) — mavi rift baklavaları (Batı Anadolu açılma, Mid-Atlantic Ridge vb.)
+- **↔ transform** (her ~120 km) — sarı yanal kayma okları (NAFZ, EAFZ, Ölüdeniz, San Andreas vb.)
+- Mapbox tile'larda native marker symbol desteği sınırlı olduğundan text glyph yöntemi tercih edildi.
+- Yardımcı `_sample_along_plates()` haversine ile çizgi boyunca km bazlı sampling yapıyor.
+
+**🧭 Sidebar reorganizasyonu (UI Uzmanı):**
 - 🧭 Sidebar yeniden yapılandırıldı — Filtreler açıkta + 3 expander (Görünüm / Veri Kaynakları / Sistem).
 - **Filtreler (her zaman görünür):** Yarıçap (km), Min. Büyüklük, Zaman Aralığı, Otomatik Yenileme.
   Bunlar kullanıcının en sık değiştirdiği parametreler — açıkta kalır.
