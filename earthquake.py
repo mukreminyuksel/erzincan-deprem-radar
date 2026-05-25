@@ -3934,11 +3934,95 @@ def _plaka_displacement_deg(plate_code: str, lat: float, lon: float, years: int)
     return (vel["delta_lat_per_year"] * years,
             vel["delta_lon_per_year"] * years)
 
+# ─── Plaka kuplaj (etkileşim) okları — Ajan 8 onayı beklenirken sezgisel görsel
+# Bilimsel arka plan:
+# • Arabistan kuzeye baskı yapar → Anadolu blokunu batıya iter (Bitlis-Zagros
+#   sütur, ~37.5°N 41.5°E).
+# • Hellenik trench geri çekilir (slab rollback) → Ege/Anadolu batı kanadını
+#   güneybatıya yayar (~35.5°N 25°E, Girit güneyi).
+# Oklar her frame'de "anchor → anchor + (velocity × years × vis_scale)" olarak
+# büyür; year=0'da görünmez ama anchor label sabit kalır.
+_COUPLING_AR_AN_ANCHOR    = (37.5, 41.5)
+_COUPLING_HELLENIC_ANCHOR = (35.5, 25.0)
+# Hellenik geri çekilme yön+magnitude (AE plakası MORVEL'de ayrı çözülmüyor;
+# Reilinger 2006 GPS bantı ~30 mm/yr GB). Sabit deg/yr vektör:
+_HELLENIC_RETREAT_DLAT_YR = -1.91e-7   # ~21 mm/yr güney
+_HELLENIC_RETREAT_DLON_YR = -2.34e-7   # ~21 mm/yr batı (35.5°N enleminde)
+
+def _build_coupling_traces(years: int, vis_scale: float):
+    """AR→AN baskı oku (kırmızı) + Hellenik geri çekilme oku (mavi)."""
+    traces = []
+
+    # ── AR baskı oku (Bitlis-Zagros) ─────────────────────────────────────
+    a_lat, a_lon = _COUPLING_AR_AN_ANCHOR
+    d_lat, d_lon = _plaka_displacement_deg("AR", a_lat, a_lon, years)
+    e_lat = a_lat + d_lat * vis_scale
+    e_lon = a_lon + d_lon * vis_scale
+    traces.append(go.Scattermapbox(   # glow
+        lat=[a_lat, e_lat], lon=[a_lon, e_lon],
+        mode="lines", line=dict(color="rgba(255,23,68,0.35)", width=12),
+        hoverinfo="skip", showlegend=False, name="",
+    ))
+    traces.append(go.Scattermapbox(   # gövde
+        lat=[a_lat, e_lat], lon=[a_lon, e_lon],
+        mode="lines", line=dict(color="#ff1744", width=4),
+        name="🔴 Arabistan baskısı (AR→AN)",
+        hovertemplate=("<b>🔴 AR → AN konvergans baskısı</b><br>"
+                       "Arabistan'ın kuzey baskısı Anadolu'yu batıya iter — "
+                       "KAF ve DAF bu kuvvetle aktif kalır.<extra></extra>"),
+    ))
+    traces.append(go.Scattermapbox(   # arrowhead surrogate (uç daire)
+        lat=[e_lat], lon=[e_lon],
+        mode="markers", marker=dict(size=18, color="#ff1744", opacity=0.95),
+        hoverinfo="skip", showlegend=False, name="",
+    ))
+    traces.append(go.Scattermapbox(   # sabit anchor label (yıl=0'da bile görünür)
+        lat=[a_lat], lon=[a_lon],
+        mode="markers+text",
+        marker=dict(size=8, color="#ff1744", opacity=0.85),
+        text=["AR baskısı"], textposition="bottom right",
+        textfont=dict(color="#ff8a80", size=11, family="Inter, system-ui"),
+        hoverinfo="skip", showlegend=False, name="",
+    ))
+
+    # ── Hellenik geri çekilme oku (Girit güneyi) ────────────────────────
+    a_lat, a_lon = _COUPLING_HELLENIC_ANCHOR
+    e_lat = a_lat + _HELLENIC_RETREAT_DLAT_YR * years * vis_scale
+    e_lon = a_lon + _HELLENIC_RETREAT_DLON_YR * years * vis_scale
+    traces.append(go.Scattermapbox(
+        lat=[a_lat, e_lat], lon=[a_lon, e_lon],
+        mode="lines", line=dict(color="rgba(33,150,243,0.35)", width=12),
+        hoverinfo="skip", showlegend=False, name="",
+    ))
+    traces.append(go.Scattermapbox(
+        lat=[a_lat, e_lat], lon=[a_lon, e_lon],
+        mode="lines", line=dict(color="#2196f3", width=4),
+        name="🔵 Hellenik geri çekilme",
+        hovertemplate=("<b>🔵 Hellenik subduction geri çekilme</b><br>"
+                       "Afrika dalan plaka geri çekilir; Ege/Anadolu "
+                       "batıya yayılır (slab rollback).<extra></extra>"),
+    ))
+    traces.append(go.Scattermapbox(
+        lat=[e_lat], lon=[e_lon],
+        mode="markers", marker=dict(size=18, color="#2196f3", opacity=0.95),
+        hoverinfo="skip", showlegend=False, name="",
+    ))
+    traces.append(go.Scattermapbox(
+        lat=[a_lat], lon=[a_lon],
+        mode="markers+text",
+        marker=dict(size=8, color="#2196f3", opacity=0.85),
+        text=["Hellenik geri çekilme"], textposition="top left",
+        textfont=dict(color="#90caf9", size=11, family="Inter, system-ui"),
+        hoverinfo="skip", showlegend=False, name="",
+    ))
+    return traces
+
 @st.cache_data(show_spinner=False)
 def _plaka_build_figure(mode_key: str, focus_lat: float, focus_lon: float,
                         city: str, plate_code: str = "AN",
-                        active_idx: int = 0, visual_scale_override: float | None = None):
-    """20 frame Plotly animasyonu — uydu zemin, log-spaced zaman, AN trail."""
+                        active_idx: int = 0, show_coupling: bool = False,
+                        visual_scale_override: float | None = None):
+    """20 frame Plotly animasyonu — uydu zemin, log-spaced zaman, trail, kuplaj."""
     mode      = _PLAKA_MODES[mode_key]
     stops     = mode["stops"]
     vis_scale = visual_scale_override if visual_scale_override is not None \
@@ -4062,8 +4146,12 @@ def _plaka_build_figure(mode_key: str, focus_lat: float, focus_lon: float,
                            f"Gerçek kayma: {disp_str}<extra></extra>"),
         )
 
-        # Frame içeriği: glow taban + statik taban + kayan plakalar + trail + pinler
-        frame_data = [base_glow, base_line, *shifted_traces, trail_glow, trail_line, ref_pin, pin_halo, pin]
+        # Kuplaj okları (AR baskı + Hellenik geri çekilme)
+        coupling_traces = _build_coupling_traces(cur_year, vis_scale) if show_coupling else []
+
+        # Frame içeriği: glow taban + statik taban + kayan plakalar + trail + pinler + kuplaj
+        frame_data = [base_glow, base_line, *shifted_traces, trail_glow, trail_line,
+                      ref_pin, pin_halo, pin, *coupling_traces]
 
         # Frame layout: büyük zaman etiketi annotation + uyarı bandı
         emoji, severity_label, severity_color, _ = _plaka_warning(abs(cur_year))
@@ -4086,6 +4174,18 @@ def _plaka_build_figure(mode_key: str, focus_lat: float, focus_lon: float,
                  bgcolor=severity_color, bordercolor="#000",
                  borderwidth=1, borderpad=6, opacity=0.92),
         ]
+        # 10K+ yıl + kuplaj açık → "basitleştirilmiş model" şerit uyarısı
+        if show_coupling and abs(cur_year) > 10_000:
+            annotations.append(dict(
+                text=("⚠️ <b>Bu ölçekte plaka-plaka etkileşimi değişebilir</b> — "
+                      "basitleştirilmiş kuplaj modeli"),
+                xref="paper", yref="paper", x=0.5, y=0.04,
+                xanchor="center", yanchor="bottom",
+                showarrow=False, align="center",
+                font=dict(size=12, color="#ffeb3b", family="Inter, system-ui"),
+                bgcolor="rgba(33,33,33,0.88)",
+                bordercolor="#ffeb3b", borderwidth=1, borderpad=6,
+            ))
         frames.append(go.Frame(
             data=frame_data, name=str(i),
             layout=go.Layout(
@@ -4217,6 +4317,16 @@ def _render_plaka_simulasyon():
             key="plaka_sim_plate",
         )
 
+    show_coupling = st.checkbox(
+        "🔗 Kuplaj Göster — plakalar arası etkileşim okları",
+        value=False,
+        help=("Arabistan'ın kuzey baskısı Anadolu'yu batıya iter — KAF ve DAF "
+              "bu kuvvetle aktif kalır. Hellenik subduction backarcı (slab "
+              "rollback) Ege'yi güneybatıya çeker. Oklar her frame'de kümülatif "
+              "yer değiştirme ile orantılı büyür."),
+        key="plaka_sim_coupling",
+    )
+
     focus_lat, focus_lon = _PLAKA_CITIES[city]
     active_idx = stops.index(years_total)
 
@@ -4235,9 +4345,9 @@ def _render_plaka_simulasyon():
     )
 
     fig = _plaka_build_figure(mode_key, focus_lat, focus_lon, city, plate_code,
-                              active_idx=active_idx)
+                              active_idx=active_idx, show_coupling=show_coupling)
     st.plotly_chart(fig, use_container_width=True,
-                    key=f"plaka_sim_{mode_key}_{city}_{years_total}_{plate_code}")
+                    key=f"plaka_sim_{mode_key}_{city}_{years_total}_{plate_code}_{int(show_coupling)}")
 
     # Gerçek (görsel ölçekten bağımsız) kümülatif yer değiştirme
     dlat_real, dlon_real = _plaka_displacement_deg(plate_code, focus_lat, focus_lon, years_total)
@@ -4272,6 +4382,17 @@ def _render_plaka_simulasyon():
         st.caption(f"ℹ️ Harita görseli **×{int(mode['visual_scale_factor'])}** ölçekle "
                    f"büyütülmüştür — gerçek kayma değeri yukarıdaki metrik kartında. "
                    f"Paleografik moda geçerek gerçek ölçekli görsel için 1.000.000+ yıl seçin.")
+
+    if show_coupling:
+        st.info(
+            "🔗 **Kuplaj okları aktif** — plakalar bağımsız değil, kuplajlı hareket eder:\n\n"
+            "• 🔴 **AR → AN baskı oku** (Bitlis-Zagros sütur): Arabistan kuzeye iter, "
+            "Anadolu blokunu batıya kaçırır. KAF ve DAF bu kuvvetin sismik salınımıdır.\n\n"
+            "• 🔵 **Hellenik geri çekilme oku** (Girit güneyi): Afrika dalan plakası "
+            "geri çekilir (slab rollback); Ege/Anadolu batı kanadı güneybatıya yayılır.\n\n"
+            "_Bu görsel, McClusky 2000 GPS bantı + Reilinger 2006 modelinin sezgisel "
+            "özetidir. Ajan 8 bilimsel onayı beklenirken sağlanan ilk yaklaşımdır._"
+        )
 
     with st.expander("📚 Bilimsel Not & Kaynaklar"):
         st.markdown(
