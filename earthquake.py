@@ -50,7 +50,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.23"
+APP_VERSION = "1.24"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -863,6 +863,7 @@ _MENU_LABELS = [
     "🌊 ShakeMap",
     "🗺️ Sismik Tehlike",
     "🥎 Odak Mekanizması",
+    "📉 b-Değeri Zaman Serisi",
     "🏛️ Erzincan Arşivi",
     "🎓 Bilgi Havuzu",
     "⚙️ Sistem & Veri",
@@ -871,7 +872,7 @@ _MENU_LABELS = [
 _MENU_ICONS = [
     "globe", "bar-chart-line", "compass", "globe-americas", "moon-stars",
     "exclamation-triangle", "graph-up-arrow", "exclamation-octagon-fill",
-    "broadcast-pin", "map-fill", "circle-half", "archive", "mortarboard", "gear", "file-text",
+    "broadcast-pin", "map-fill", "circle-half", "graph-down", "archive", "mortarboard", "gear", "file-text",
 ]
 with st.container(key="sticky_nav"):
     active_menu = option_menu(
@@ -6432,6 +6433,235 @@ def _render_odak_mekanizma():
 
 if active_menu == "🥎 Odak Mekanizması":
     _render_odak_mekanizma()
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# 📉 b-DEĞERİ ZAMAN SERİSİ — F-46 / v1.24 — Gutenberg-Richter Sliding Window
+# ────────────────────────────────────────────────────────────────────────────
+# Bilimsel temel:
+#   • Gutenberg, B. & Richter, C.F. (1944). BSSA 34(4), 185-188.
+#       Frequency of earthquakes in California.
+#   • Aki, K. (1965). MLE for b-value. Bull. Earthq. Res. Inst. 43, 237-239.
+#   • Wiemer, S. & Wyss, M. (2000). Minimum magnitude of completeness Mc.
+#       BSSA 90(4), 859-869. DOI:10.1785/0119990114
+#   • Mignan, A. & Woessner, J. (2012). CORSSA. Estimating Mc.
+#       DOI:10.5078/corssa-00180805
+#   • van der Elst (2021). b-positive. JGR 126.
+# ════════════════════════════════════════════════════════════════════════════
+
+
+def _bvalue_aki_mle(magnitudes: np.ndarray, mc: float) -> tuple:
+    """
+    Aki 1965 MLE b-değeri tahmini ve standart hata (Shi & Bolt 1982).
+    b = log10(e) / (Mmean - Mc + ΔM/2)
+    σ_b = b² × √( Σ(Mi - Mmean)² / [N(N-1)] ) × ln(10)
+    """
+    mags = magnitudes[magnitudes >= mc]
+    n = len(mags)
+    if n < 25:
+        return None, None, n
+    bin_size = 0.1
+    mean_m = float(np.mean(mags))
+    b = math.log10(math.e) / (mean_m - mc + bin_size / 2.0)
+    var = float(np.var(mags, ddof=1)) if n > 1 else 0.0
+    sigma_b = 2.30 * b * b * math.sqrt(var / (n * (n - 1))) if n > 1 else None
+    return b, sigma_b, n
+
+
+def _bvalue_maxc_completeness(magnitudes: np.ndarray) -> float:
+    """
+    MAXC yöntemi (Wiemer & Wyss 2000) — frekans-büyüklük histogramının max'ı.
+    """
+    if len(magnitudes) < 10:
+        return float(np.min(magnitudes)) if len(magnitudes) > 0 else 0.0
+    bins = np.arange(np.floor(magnitudes.min() * 10) / 10,
+                     np.ceil(magnitudes.max() * 10) / 10 + 0.1, 0.1)
+    counts, edges = np.histogram(magnitudes, bins=bins)
+    if len(counts) == 0:
+        return float(np.min(magnitudes))
+    return float(edges[int(np.argmax(counts))])
+
+
+@st.fragment
+def _render_b_value_time_series():
+    st.markdown(
+        '<div class="chart-title">📉 b-Değeri Zaman Serisi — Gutenberg-Richter Evolution (F-46 / v1.24)</div>',
+        unsafe_allow_html=True,
+    )
+    st.info(
+        "📉 **Gutenberg-Richter b-değeri:** log10 N = a − b·M. b ≈ 1.0 normaldir; "
+        "b < 1.0 büyük olay baskınlığı (stres birikmesi), b > 1.0 küçük olay baskınlığı. "
+        "Kayan pencere ile zaman serisi büyük olayların öncesinde b düşüşü gösterebilir "
+        "(**Smith 1981; Schorlemmer 2005, Nature 437**). "
+        "Hesap: **Aki (1965) MLE** + **Wiemer & Wyss (2000) MAXC Mc**."
+    )
+
+    if df.empty:
+        st.warning("Veri yok — b-değeri hesaplanamaz.")
+        return
+
+    # ── Kontroller ─────────────────────────────────────────────────────────
+    col_w, col_step, col_mc = st.columns(3)
+    with col_w:
+        window_n = st.slider("Pencere boyutu (olay)",
+                             min_value=50, max_value=400, value=150, step=25,
+                             key="bval_window_n",
+                             help="Her pencere ≥25 olay içermeli (Wiemer)")
+    with col_step:
+        step_n = st.slider("Adım (olay)",
+                           min_value=5, max_value=100, value=25, step=5,
+                           key="bval_step_n")
+    with col_mc:
+        mc_mode = st.radio(
+            "Mc yöntemi",
+            options=["MAXC (otomatik)", "Sabit Mc = 3.0", "Sabit Mc = 3.5"],
+            index=0, horizontal=False, key="bval_mc_mode",
+        )
+
+    # ── Veri hazırla (zamana göre sırala) ──────────────────────────────────
+    df_sorted = df.sort_values("zaman").reset_index(drop=True)
+    df_sorted = df_sorted.dropna(subset=["buyukluk", "zaman"])
+
+    if len(df_sorted) < window_n:
+        st.warning(f"Yetersiz veri ({len(df_sorted)} olay) — pencere için ≥{window_n} gerekli.")
+        return
+
+    # ── Sliding window b-value hesapla ─────────────────────────────────────
+    times, b_vals, sigma_vals, mc_vals, n_vals = [], [], [], [], []
+    for start in range(0, len(df_sorted) - window_n + 1, step_n):
+        chunk = df_sorted.iloc[start:start + window_n]
+        mags = chunk["buyukluk"].to_numpy(dtype=float)
+        if mc_mode == "MAXC (otomatik)":
+            mc = _bvalue_maxc_completeness(mags)
+        elif mc_mode == "Sabit Mc = 3.0":
+            mc = 3.0
+        else:
+            mc = 3.5
+
+        b, sigma, n_complete = _bvalue_aki_mle(mags, mc)
+        if b is None or sigma is None:
+            continue
+        if 0.3 < b < 2.5:  # mantıklı aralık dışını filtrele
+            times.append(chunk["zaman"].iloc[len(chunk) // 2])  # pencere ortası
+            b_vals.append(b)
+            sigma_vals.append(sigma)
+            mc_vals.append(mc)
+            n_vals.append(n_complete)
+
+    if len(times) < 3:
+        st.warning("Yeterli güvenilir pencere oluşmadı — filtreler veya veri aralığı genişletin.")
+        return
+
+    # ── Grafik 1: b-değeri zaman serisi ───────────────────────────────────
+    fig_b = go.Figure()
+    b_arr = np.array(b_vals)
+    sigma_arr = np.array(sigma_vals)
+    fig_b.add_trace(go.Scatter(
+        x=times + times[::-1],
+        y=list(b_arr + sigma_arr) + list((b_arr - sigma_arr)[::-1]),
+        fill="toself",
+        fillcolor="rgba(25,118,210,0.18)",
+        line=dict(color="rgba(0,0,0,0)"),
+        hoverinfo="skip",
+        showlegend=True,
+        name="±1σ güven aralığı",
+    ))
+    fig_b.add_trace(go.Scatter(
+        x=times, y=b_vals,
+        mode="lines+markers",
+        line=dict(color="#1976d2", width=2),
+        marker=dict(size=6, color="#1976d2"),
+        name="b (Aki 1965 MLE)",
+        hovertemplate="%{x|%Y-%m-%d}<br>b = %{y:.2f}<extra></extra>",
+    ))
+    # Referans çizgileri
+    fig_b.add_hline(y=1.0, line=dict(color="#888", width=1, dash="dot"),
+                    annotation_text="b = 1.0 (kanonik)", annotation_font_color="#888",
+                    annotation_position="top right")
+    fig_b.add_hline(y=0.7, line=dict(color="#E24B4A", width=1, dash="dash"),
+                    annotation_text="b ≤ 0.7 (büyük olay riski)", annotation_font_color="#E24B4A",
+                    annotation_position="bottom right")
+
+    fig_b.update_layout(
+        title=dict(text="b-Değeri Zaman Serisi (Kayan Pencere MLE)", font=dict(color=TEXT, size=13)),
+        xaxis=dict(title="Zaman", color=TEXT, gridcolor=BORDER),
+        yaxis=dict(title="b-değeri", color=TEXT, gridcolor=BORDER, range=[0.4, 1.8]),
+        height=380,
+        margin=dict(l=10, r=10, t=40, b=40),
+        paper_bgcolor=BG2, plot_bgcolor=BG2,
+        legend=dict(font=dict(color=TEXT, size=10), bgcolor="rgba(0,0,0,0.3)"),
+    )
+    st.plotly_chart(fig_b, use_container_width=True, config={"displayModeBar": False})
+
+    # ── Grafik 2: Mc evolution ─────────────────────────────────────────────
+    fig_mc = go.Figure()
+    fig_mc.add_trace(go.Scatter(
+        x=times, y=mc_vals,
+        mode="lines+markers",
+        line=dict(color="#EF9F27", width=2),
+        marker=dict(size=5, color="#EF9F27"),
+        name="Mc (tamlık eşiği)",
+        hovertemplate="%{x|%Y-%m-%d}<br>Mc = %{y:.2f}<extra></extra>",
+    ))
+    fig_mc.update_layout(
+        title=dict(text="Mc (Magnitude of Completeness) Evolution — Wiemer & Wyss 2000 MAXC",
+                   font=dict(color=TEXT, size=12)),
+        xaxis=dict(title="Zaman", color=TEXT, gridcolor=BORDER),
+        yaxis=dict(title="Mc", color=TEXT, gridcolor=BORDER),
+        height=260,
+        margin=dict(l=10, r=10, t=40, b=40),
+        paper_bgcolor=BG2, plot_bgcolor=BG2,
+        showlegend=False,
+    )
+    st.plotly_chart(fig_mc, use_container_width=True, config={"displayModeBar": False})
+
+    # ── Bilgi kartları ─────────────────────────────────────────────────────
+    b_current = b_vals[-1] if b_vals else None
+    b_mean = float(np.mean(b_vals)) if b_vals else None
+    b_min = float(np.min(b_vals)) if b_vals else None
+    mc_mean = float(np.mean(mc_vals)) if mc_vals else None
+
+    c1, c2, c3, c4 = st.columns(4)
+    kartlar = [
+        (c1, f"{b_current:.2f}" if b_current else "—",
+         "#E24B4A" if b_current and b_current < 0.7 else ("#EF9F27" if b_current and b_current < 1.0 else "#1D9E75"),
+         "Son b-değeri"),
+        (c2, f"{b_mean:.2f}" if b_mean else "—", "#1976D2", "Ortalama b"),
+        (c3, f"{b_min:.2f}" if b_min else "—", "#E24B4A", "Min b (risk)"),
+        (c4, f"{mc_mean:.2f}" if mc_mean else "—", "#EF9F27", "Ortalama Mc"),
+    ]
+    for col, val, color, label in kartlar:
+        with col:
+            st.markdown(
+                f'<div class="stat-box">'
+                f'<div style="font-size:1.35rem;font-weight:800;color:{color}">{val}</div>'
+                f'<div style="font-size:0.7rem;opacity:0.55;margin-top:2px">{label}</div>'
+                f'</div>', unsafe_allow_html=True)
+
+    # ── Yorumlama tablosu ──────────────────────────────────────────────────
+    st.markdown('<div class="chart-title">📋 b-Değeri Yorumlama</div>', unsafe_allow_html=True)
+    df_interp = pd.DataFrame([
+        {"b aralığı": "b < 0.7", "Yorum": "Büyük olay baskın",           "Tektonik bağlam": "Yüksek stres birikimi — kırılma yaklaşıyor olabilir"},
+        {"b aralığı": "0.7 ≤ b < 0.9", "Yorum": "Düşük b — dikkat",      "Tektonik bağlam": "Tektonik sıkışma bölgeleri (subdüksiyon, ters fay)"},
+        {"b aralığı": "0.9 ≤ b ≤ 1.1", "Yorum": "Kanonik (normal)",     "Tektonik bağlam": "Tipik intraplaka veya doğrultu atımlı fay"},
+        {"b aralığı": "1.1 < b ≤ 1.5", "Yorum": "Yüksek b — küçükler baskın", "Tektonik bağlam": "Volkanik bölgeler, jeotermal alanlar, ısı akısı yüksek"},
+        {"b aralığı": "b > 1.5",       "Yorum": "Çok yüksek — anomali",  "Tektonik bağlam": "Ölçüm yanlısı (Mc hatası) veya nadir tektonik rejim"},
+    ])
+    st.dataframe(df_interp, use_container_width=True, hide_index=True)
+
+    st.caption(
+        "📚 **Gutenberg & Richter (1944)** *BSSA* 34 (klasik bağıntı) | "
+        "**Aki (1965)** MLE *Bull. Earthq. Res. Inst.* 43 (b tahmini) | "
+        "**Shi & Bolt (1982)** *BSSA* 72 (σ_b standart hata) | "
+        "**Wiemer & Wyss (2000)** *BSSA* 90(4) — DOI:10.1785/0119990114 (MAXC Mc) | "
+        "**Schorlemmer et al. (2005)** *Nature* 437 (b-tip ilişkisi) | "
+        "**van der Elst (2021)** *JGR* 126 (b-positive yöntemi). "
+        "⚠️ Düşük b değerleri öncü sinyali olarak deterministtir DEĞİL — istatistiksel eğilim."
+    )
+
+
+if active_menu == "📉 b-Değeri Zaman Serisi":
+    _render_b_value_time_series()
 
 # ─── Footer ─────────────────────────────────────────────────────────────────
 st.markdown(f"""
