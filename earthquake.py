@@ -8302,6 +8302,231 @@ def _render_fay_kilitlenme():
 if active_menu == "🔒 Fay Kilitlenme":
     _render_fay_kilitlenme()
 
+
+# ════════════════════════════════════════════════════════════════════════════
+# 🌋 MOHO DERİNLİĞİ — F-55 / v1.32 — Kabuk Kalınlığı (Receiver Function)
+# ────────────────────────────────────────────────────────────────────────────
+# Bilimsel temel:
+#   • Mohorovičić, A. (1910). Potres od 8.X.1909. Godišnje izvješće
+#       Zagrebačkog meteorološkog opservatorija 9, 1-56. (Moho ilk tanım)
+#   • Zhu, L. & Kanamori, H. (2000). Moho depth from RFs. JGR 105(B2),
+#       2981-2993. DOI:10.1029/1999JB900322
+#   • Zor, E. et al. (2003). Crustal structure of E. Anatolian plateau.
+#       GRL 30(24), 8044. DOI:10.1029/2003GL018192
+#   • Laske, G. et al. (2013). CRUST1.0. EGU Abstract EGU2013-2658.
+#   • Vanacore, E.A. et al. (2013). Moho structure of Anatolia.
+#       Geophys. J. Int. 193(1), 329-337.
+# ════════════════════════════════════════════════════════════════════════════
+
+# Türkiye kabuk kalınlığı veri noktaları (CRUST1.0 + Zor 2003 + Vanacore 2013)
+# Her nokta: kabuk kalınlığı (km) = Moho derinliği yüzeyden
+_MOHO_NOKTALAR = [
+    # Doğu Anadolu (kalın kabuk — sıkışma rejimi)
+    {"city": "Erzincan",     "lat": 39.75, "lon": 39.49, "moho_km": 44, "ref": "Zor et al. 2003 GRL 30"},
+    {"city": "Erzurum",      "lat": 39.91, "lon": 41.27, "moho_km": 48, "ref": "Zor 2003"},
+    {"city": "Van",          "lat": 38.49, "lon": 43.41, "moho_km": 50, "ref": "Zor 2003; Türkelli 2003 GRL"},
+    {"city": "Kars",         "lat": 40.60, "lon": 43.10, "moho_km": 47, "ref": "Vanacore et al. 2013 GJI 193"},
+    {"city": "Tunceli",      "lat": 39.10, "lon": 39.55, "moho_km": 43, "ref": "Zor 2003"},
+    {"city": "Elazığ",       "lat": 38.68, "lon": 39.22, "moho_km": 42, "ref": "Vanacore 2013"},
+    {"city": "Bingöl",       "lat": 38.88, "lon": 40.50, "moho_km": 46, "ref": "Türkelli 2003"},
+    {"city": "Diyarbakır",   "lat": 37.91, "lon": 40.24, "moho_km": 40, "ref": "Mutlu & Karabulut 2011 GJI"},
+    {"city": "Şanlıurfa",    "lat": 37.17, "lon": 38.80, "moho_km": 38, "ref": "Vanacore 2013 (Arap plakası kenarı)"},
+    {"city": "Kahramanmaraş","lat": 37.58, "lon": 36.93, "moho_km": 36, "ref": "Vanacore 2013"},
+
+    # İç Anadolu (orta kalın — 35-40 km)
+    {"city": "Sivas",        "lat": 39.75, "lon": 37.02, "moho_km": 40, "ref": "Vanacore 2013"},
+    {"city": "Tokat",        "lat": 40.32, "lon": 36.55, "moho_km": 38, "ref": "Vanacore 2013"},
+    {"city": "Ankara",       "lat": 39.93, "lon": 32.86, "moho_km": 35, "ref": "Vanacore 2013; Tezel 2010"},
+    {"city": "Kayseri",      "lat": 38.73, "lon": 35.48, "moho_km": 38, "ref": "Vanacore 2013"},
+    {"city": "Konya",        "lat": 37.87, "lon": 32.48, "moho_km": 36, "ref": "Vanacore 2013"},
+    {"city": "Kırşehir",     "lat": 39.15, "lon": 34.16, "moho_km": 35, "ref": "Vanacore 2013"},
+    {"city": "Eskişehir",    "lat": 39.78, "lon": 30.52, "moho_km": 33, "ref": "Tezel et al. 2010 GJI"},
+
+    # KAF / Karadeniz kuzey kıyısı
+    {"city": "Samsun",       "lat": 41.29, "lon": 36.34, "moho_km": 34, "ref": "Tezel 2010"},
+    {"city": "Trabzon",      "lat": 41.00, "lon": 39.73, "moho_km": 36, "ref": "Tezel 2010"},
+    {"city": "Zonguldak",    "lat": 41.46, "lon": 31.79, "moho_km": 32, "ref": "Karahan 2001 GJI"},
+    {"city": "İstanbul",     "lat": 41.01, "lon": 28.98, "moho_km": 30, "ref": "Karahan 2001; Becel 2009"},
+
+    # Batı Anadolu (ince kabuk — ekstansiyon rejimi)
+    {"city": "İzmir",        "lat": 38.42, "lon": 27.14, "moho_km": 28, "ref": "Tezel 2010; Karabulut 2013"},
+    {"city": "Manisa",       "lat": 38.62, "lon": 27.43, "moho_km": 28, "ref": "Tezel 2010"},
+    {"city": "Denizli",      "lat": 37.78, "lon": 29.09, "moho_km": 30, "ref": "Tezel 2010"},
+    {"city": "Aydın",        "lat": 37.85, "lon": 27.85, "moho_km": 27, "ref": "Tezel 2010"},
+    {"city": "Muğla",        "lat": 37.21, "lon": 28.36, "moho_km": 26, "ref": "Karabulut 2013 (Ege ekstansiyon)"},
+    {"city": "Antalya",      "lat": 36.89, "lon": 30.71, "moho_km": 32, "ref": "Karabulut 2013"},
+    {"city": "Bursa",        "lat": 40.18, "lon": 29.07, "moho_km": 30, "ref": "Tezel 2010"},
+    {"city": "Çanakkale",    "lat": 40.15, "lon": 26.41, "moho_km": 28, "ref": "Tezel 2010"},
+
+    # Akdeniz kıyısı (Kıbrıs yayı)
+    {"city": "Mersin",       "lat": 36.81, "lon": 34.64, "moho_km": 33, "ref": "Vanacore 2013"},
+    {"city": "Adana",        "lat": 37.00, "lon": 35.32, "moho_km": 35, "ref": "Vanacore 2013"},
+    {"city": "Hatay",        "lat": 36.20, "lon": 36.16, "moho_km": 32, "ref": "Vanacore 2013 (Ölü Deniz fayı yakını)"},
+]
+
+
+def _moho_renk(km: float) -> str:
+    if km >= 46: return "#3F0080"   # çok kalın (mor)
+    if km >= 42: return "#7A1F8B"
+    if km >= 38: return "#A52A85"
+    if km >= 35: return "#D43F71"
+    if km >= 32: return "#EB6453"
+    if km >= 29: return "#F89441"
+    if km >= 26: return "#FAC775"   # ince (sarı)
+    return "#FDE725"
+
+
+@st.fragment
+def _render_moho_derinligi():
+    st.markdown(
+        '<div class="chart-title">🌋 Moho Derinliği — Türkiye Kabuk Kalınlığı (F-55 / v1.32)</div>',
+        unsafe_allow_html=True,
+    )
+    st.info(
+        "🌋 **Moho (Mohorovičić Süreksizliği):** Kabuk-manto sınırı, ilk kez "
+        "**Mohorovičić (1910)** tarafından tanımlandı. Receiver Function (RF) yöntemiyle "
+        "(**Zhu & Kanamori 2000, JGR 105**) kabuk kalınlığı ölçülür. Türkiye'de Doğu "
+        "Anadolu altında **44-50 km**, Batı Anadolu (Ege) altında **26-30 km** "
+        "(**Zor et al. 2003 GRL 30; Vanacore et al. 2013 GJI 193**)."
+    )
+
+    df_m = pd.DataFrame(_MOHO_NOKTALAR)
+    df_m["renk"] = df_m["moho_km"].apply(_moho_renk)
+
+    # ── Harita: Moho kontur (densitymapbox) ────────────────────────────────
+    fig_map = go.Figure()
+    fig_map.add_trace(go.Densitymapbox(
+        lat=df_m["lat"], lon=df_m["lon"], z=df_m["moho_km"],
+        radius=70,
+        colorscale=[
+            [0.00, "#FDE725"],
+            [0.20, "#FAC775"],
+            [0.40, "#F89441"],
+            [0.55, "#EB6453"],
+            [0.70, "#D43F71"],
+            [0.85, "#A52A85"],
+            [1.00, "#3F0080"],
+        ],
+        zmin=25, zmax=52,
+        colorbar=dict(
+            title=dict(text="Moho (km)", font=dict(color=TEXT, size=11)),
+            tickfont=dict(color=TEXT, size=10),
+            bgcolor="rgba(0,0,0,0.4)",
+            thickness=14, len=0.7,
+        ),
+        opacity=0.55,
+        hovertemplate="Moho: %{z:.0f} km<br>(%{lat:.2f}, %{lon:.2f})<extra></extra>",
+    ))
+
+    # Şehir noktaları
+    fig_map.add_trace(go.Scattermapbox(
+        lat=df_m["lat"], lon=df_m["lon"],
+        mode="markers+text",
+        marker=dict(size=10, color=df_m["renk"], opacity=0.95,
+                    ),
+        text=df_m["city"],
+        textfont=dict(size=9, color="#fff"),
+        textposition="top right",
+        hovertemplate=df_m.apply(
+            lambda r: f"<b>{r['city']}</b><br>Moho: {r['moho_km']} km<br>Kaynak: {r['ref']}<extra></extra>",
+            axis=1,
+        ),
+        showlegend=False,
+    ))
+
+    fig_map.update_layout(
+        mapbox=dict(style="open-street-map", center=dict(lat=39.0, lon=35.0), zoom=5),
+        height=540,
+        margin=dict(l=0, r=0, t=10, b=0),
+        paper_bgcolor=BG2,
+    )
+    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": False})
+
+    # ── W-E kesit profili ─────────────────────────────────────────────────
+    st.markdown('<div class="chart-title">📈 W-E Kesit Profili — Boylama Göre Moho</div>',
+                unsafe_allow_html=True)
+    df_we = df_m.sort_values("lon").reset_index(drop=True)
+    fig_we = go.Figure()
+    fig_we.add_trace(go.Scatter(
+        x=df_we["lon"], y=df_we["moho_km"],
+        mode="lines+markers",
+        marker=dict(size=8, color=df_we["renk"], line=dict(color="#222", width=0.5)),
+        line=dict(color="rgba(150,150,150,0.4)", width=1.5),
+        text=df_we["city"],
+        hovertemplate="<b>%{text}</b><br>Lon: %{x:.2f}°<br>Moho: %{y} km<extra></extra>",
+        name="Moho derinliği",
+    ))
+    # Bölgesel ortalama çizgisi
+    fig_we.add_hline(y=df_m["moho_km"].mean(), line=dict(color="#888", dash="dot"),
+                     annotation_text=f"Türkiye ortalama: {df_m['moho_km'].mean():.1f} km",
+                     annotation_font_color="#888", annotation_position="top right")
+
+    fig_we.update_layout(
+        xaxis=dict(title="Boylam (°E) — Batı (Ege) ← → Doğu (Anadolu)",
+                   color=TEXT, gridcolor=BORDER),
+        yaxis=dict(title="Moho derinliği (km, ters eksen)", autorange="reversed",
+                   color=TEXT, gridcolor=BORDER),
+        height=340,
+        margin=dict(l=10, r=10, t=10, b=40),
+        paper_bgcolor=BG2, plot_bgcolor=BG2,
+        showlegend=False,
+    )
+    st.plotly_chart(fig_we, use_container_width=True, config={"displayModeBar": False})
+
+    # ── Bilgi kartları ─────────────────────────────────────────────────────
+    en_kalin = df_m.loc[df_m["moho_km"].idxmax()]
+    en_ince = df_m.loc[df_m["moho_km"].idxmin()]
+    c1, c2, c3, c4 = st.columns(4)
+    kartlar = [
+        (c1, f"{en_kalin['moho_km']} km",        "#3F0080", f"En kalın ({en_kalin['city']})"),
+        (c2, f"{en_ince['moho_km']} km",          "#FDE725", f"En ince ({en_ince['city']})"),
+        (c3, f"{df_m['moho_km'].mean():.1f} km",  "#A52A85", "Türkiye ortalama"),
+        (c4, f"{en_kalin['moho_km'] - en_ince['moho_km']} km", "#EF9F27", "Doğu-Batı farkı"),
+    ]
+    for col, val, color, label in kartlar:
+        with col:
+            st.markdown(
+                f'<div class="stat-box">'
+                f'<div style="font-size:1.35rem;font-weight:800;color:{color}">{val}</div>'
+                f'<div style="font-size:0.7rem;opacity:0.55;margin-top:2px">{label}</div>'
+                f'</div>', unsafe_allow_html=True)
+
+    # ── Tektonik yorumlama tablosu ────────────────────────────────────────
+    st.markdown('<div class="chart-title">📋 Bölge × Moho × Tektonik Yorum</div>',
+                unsafe_allow_html=True)
+    df_interp = pd.DataFrame([
+        {"Bölge": "Doğu Anadolu Platosu", "Moho (km)": "44-50",
+         "Tektonik Rejim": "Arap-Avrasya çarpışması (sıkışma)",
+         "Yorum": "Kabuk kalınlaşmış; Bouguer anomalisi negatif"},
+        {"Bölge": "İç Anadolu",           "Moho (km)": "35-40",
+         "Tektonik Rejim": "Stabil masif (Kırşehir bloğu)",
+         "Yorum": "Tipik kıtasal kabuk"},
+        {"Bölge": "Karadeniz kıyısı (KAF)","Moho (km)": "30-36",
+         "Tektonik Rejim": "Doğrultu atımlı (KAF)",
+         "Yorum": "Pontid yığışım kuşağı; az kalınlaşma"},
+        {"Bölge": "Batı Anadolu (Ege)",    "Moho (km)": "26-30",
+         "Tektonik Rejim": "Ekstansiyon (graben sistemi)",
+         "Yorum": "İncelmiş kabuk; yüksek ısı akısı"},
+        {"Bölge": "Akdeniz kıyısı",        "Moho (km)": "32-35",
+         "Tektonik Rejim": "Kıbrıs yayı (subdüksiyon ön ülkesi)",
+         "Yorum": "Geçişsel kabuk"},
+    ])
+    st.dataframe(df_interp, use_container_width=True, hide_index=True)
+
+    st.caption(
+        "📚 **Mohorovičić (1910)** *Godišnje izvješće* 9 (Moho ilk tanım) | "
+        "**Zhu & Kanamori (2000)** *JGR* 105(B2) — DOI:10.1029/1999JB900322 (RF yöntem) | "
+        "**Zor et al. (2003)** *GRL* 30(24) — DOI:10.1029/2003GL018192 (Doğu Anadolu) | "
+        "**Vanacore et al. (2013)** *GJI* 193(1), 329-337 (Anadolu Moho) | "
+        "**Tezel et al. (2010)** *GJI* (Batı Anadolu) | "
+        "**CRUST1.0:** Laske et al. (2013) EGU. "
+        "⚠️ Moho derinlikleri RF + sismik tomografi sentezidir; ±2-3 km belirsizlik tipiktir."
+    )
+
+
+if active_menu == "🌋 Moho Derinliği":
+    _render_moho_derinligi()
+
 # ─── Footer ─────────────────────────────────────────────────────────────────
 st.markdown(f"""
 <div style="text-align:center;color:{SUBTEXT};font-size:0.7rem;
