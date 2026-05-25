@@ -50,7 +50,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.20"
+APP_VERSION = "1.21"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -860,6 +860,7 @@ _MENU_LABELS = [
     "🚨 Erken Uyarı",
     "📈 Artçı Tahmin",
     "🔴 Sismik Açık",
+    "🌊 ShakeMap",
     "🏛️ Erzincan Arşivi",
     "🎓 Bilgi Havuzu",
     "⚙️ Sistem & Veri",
@@ -868,7 +869,7 @@ _MENU_LABELS = [
 _MENU_ICONS = [
     "globe", "bar-chart-line", "compass", "globe-americas", "moon-stars",
     "exclamation-triangle", "graph-up-arrow", "exclamation-octagon-fill",
-    "archive", "mortarboard", "gear", "file-text",
+    "broadcast-pin", "archive", "mortarboard", "gear", "file-text",
 ]
 with st.container(key="sticky_nav"):
     active_menu = option_menu(
@@ -5577,6 +5578,314 @@ def _render_sismik_acik():
 
 if active_menu == "🔴 Sismik Açık":
     _render_sismik_acik()
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# 🌊 SHAKEMAP — F-61 / v1.21 — MMI İzoseist Haritası + USGS API
+# ────────────────────────────────────────────────────────────────────────────
+# Bilimsel temel:
+#   • Worden, C.B. & Wald, D.J. (2016) — ShakeMap Manual Online, USGS
+#       https://usgs.github.io/shakemap/
+#   • Wald, D.J. et al. (1999) — PGA-PGV-MMI ilişkisi, Earthquake Spectra
+#       15(3), 557-564. DOI:10.1193/1.1586058
+#   • Bakun, W.H. & Wentworth, C.M. (1997) — İzoseist yarıçap,
+#       BSSA 87(6), 1502-1521
+#   • USGS FDSN Event API: https://earthquake.usgs.gov/fdsnws/event/1/
+# ════════════════════════════════════════════════════════════════════════════
+
+_SHAKEMAP_FALLBACK_EVENTS = [
+    {"id": "kahramanmaras-2023", "yer": "Kahramanmaraş (Pazarcık)",
+     "mag": 7.8, "lat": 37.17, "lon": 36.94, "tarih": "2023-02-06"},
+    {"id": "duzce-1999", "yer": "Düzce",
+     "mag": 7.2, "lat": 40.75, "lon": 31.21, "tarih": "1999-11-12"},
+    {"id": "erzincan-1992", "yer": "Erzincan",
+     "mag": 6.8, "lat": 39.71, "lon": 39.60, "tarih": "1992-03-13"},
+]
+
+_SHAKEMAP_MMI_RENK = {
+    9: "#A32D2D",  # IX+ Yıkıcı
+    8: "#E24B4A",  # VII-VIII Çok Güçlü
+    7: "#E24B4A",
+    6: "#EF9F27",  # V-VI Güçlü
+    5: "#EF9F27",
+    4: "#FAC775",  # IV Orta
+    3: "#C0DD97",  # II-III Hafif
+    2: "#C0DD97",
+    1: "#1D9E75",  # I Hissedilmez
+}
+
+_SHAKEMAP_MMI_ETIKET = {
+    9: "MMI IX+ (Yıkıcı)",
+    8: "MMI VII–VIII (Çok Güçlü)",
+    7: "MMI VII–VIII (Çok Güçlü)",
+    6: "MMI V–VI (Güçlü)",
+    5: "MMI V–VI (Güçlü)",
+    4: "MMI IV (Orta)",
+    3: "MMI II–III (Hafif)",
+    2: "MMI II–III (Hafif)",
+    1: "MMI I (Hissedilmez)",
+}
+
+
+def _shakemap_mmi_from_pga(pga_gal: float) -> str:
+    """PGA (cm/s²) → MMI sınıfı. Kaynak: Wald et al. 1999, Earthquake Spectra 15(3)."""
+    if pga_gal < 0.17:
+        return "I (Hissedilmez)"
+    elif pga_gal < 1.4:
+        return "II-III (Hafif)"
+    elif pga_gal < 9.2:
+        return "IV (Orta)"
+    elif pga_gal < 92:
+        return "V-VI (Güçlü)"
+    elif pga_gal < 400:
+        return "VII-VIII (Çok Güçlü)"
+    else:
+        return "IX+ (Yıkıcı)"
+
+
+def _shakemap_mmi_radius_km(mw: float, mmi_level: int) -> float:
+    """
+    Mw ve MMI seviyesi için izoseist yarıçap (km).
+    Basitleştirilmiş Bakun & Wentworth (1997) bağıntısı.
+    Kaynak: Bakun, W.H. & Wentworth, C.M. (1997). BSSA 87(6), 1502-1521.
+    """
+    base = {9: 5, 8: 15, 7: 40, 6: 90, 5: 180, 4: 300}
+    scale = 10 ** (0.5 * (mw - 6.0))
+    return base.get(mmi_level, 400) * scale / 10
+
+
+def _shakemap_circle_coords(lat: float, lon: float, radius_km: float, n: int = 48):
+    """Bir noktadan radius_km yarıçaplı daire koordinatları."""
+    coords_lat, coords_lon = [], []
+    cos_lat = math.cos(math.radians(lat))
+    if abs(cos_lat) < 1e-6:
+        cos_lat = 1e-6
+    for i in range(n + 1):
+        angle = math.radians(i * 360 / n)
+        dlat = (radius_km / 111.0) * math.cos(angle)
+        dlon = (radius_km / (111.0 * cos_lat)) * math.sin(angle)
+        coords_lat.append(lat + dlat)
+        coords_lon.append(lon + dlon)
+    return coords_lat, coords_lon
+
+
+@st.cache_data(ttl=600, show_spinner=False)
+def _shakemap_fetch_usgs_events(min_magnitude: float = 5.0, limit: int = 15):
+    """
+    USGS FDSN Event API'den Türkiye bölgesindeki son depremleri çek.
+    Kaynak: USGS Earthquake Hazards Program, earthquake.usgs.gov/fdsnws/event/1/
+    """
+    try:
+        r = requests.get(
+            "https://earthquake.usgs.gov/fdsnws/event/1/query",
+            params={
+                "format": "geojson",
+                "minmagnitude": min_magnitude,
+                "minlatitude": 35, "maxlatitude": 43,
+                "minlongitude": 25, "maxlongitude": 45,
+                "orderby": "time",
+                "limit": limit,
+            },
+            timeout=8,
+        )
+        if r.status_code != 200:
+            return None
+        gj = r.json()
+        events = []
+        for feat in gj.get("features", []):
+            props = feat.get("properties", {}) or {}
+            geom = feat.get("geometry", {}) or {}
+            coords = geom.get("coordinates") or [None, None, None]
+            mag = props.get("mag")
+            if mag is None or coords[0] is None or coords[1] is None:
+                continue
+            ts = props.get("time")
+            try:
+                tarih = datetime.utcfromtimestamp(ts / 1000).strftime("%Y-%m-%d %H:%M")
+            except Exception:
+                tarih = "—"
+            events.append({
+                "id": feat.get("id", "?"),
+                "yer": props.get("place") or "Bilinmeyen yer",
+                "mag": float(mag),
+                "lat": float(coords[1]),
+                "lon": float(coords[0]),
+                "tarih": tarih,
+            })
+        return events or None
+    except Exception:
+        return None
+
+
+@st.fragment
+def _render_shakemap():
+    st.markdown(
+        '<div class="chart-title">🌊 ShakeMap — MMI İzoseist Haritası (F-61 / v1.21)</div>',
+        unsafe_allow_html=True,
+    )
+    st.info(
+        "🌊 **ShakeMap:** Bir depremin merkez üssünden yayılan sarsıntı şiddetini "
+        "(MMI — Modified Mercalli Intensity) eşşiddet (izoseist) daireleriyle gösterir. "
+        "Teorik temel: **Worden & Wald (2016), USGS ShakeMap Manual**; "
+        "PGA→MMI dönüşümü: **Wald et al. (1999), Earthquake Spectra 15(3)**."
+    )
+
+    # ── Bölüm A: Deprem seçici ─────────────────────────────────────────────
+    col_sec, col_mag = st.columns([3, 1])
+    with col_mag:
+        min_mw_filter = st.slider(
+            "Min. Mw", min_value=4.5, max_value=7.0, value=5.0, step=0.1,
+            key="shakemap_min_mw",
+        )
+
+    events = _shakemap_fetch_usgs_events(min_magnitude=min_mw_filter, limit=15)
+    if events:
+        kaynak_etiket = "USGS FDSN API (canlı)"
+    else:
+        events = _SHAKEMAP_FALLBACK_EVENTS
+        kaynak_etiket = "Fallback (USGS API erişilemedi)"
+
+    options = [
+        f"M{e['mag']:.1f} — {e['yer']}  ·  {e['tarih']}"
+        for e in events
+    ]
+    with col_sec:
+        sec_idx = st.selectbox(
+            f"Deprem seç ({kaynak_etiket})",
+            options=list(range(len(events))),
+            format_func=lambda i: options[i],
+            key="shakemap_event_select",
+        )
+    secilen = events[sec_idx]
+    mw = float(secilen["mag"])
+    eq_lat = float(secilen["lat"])
+    eq_lon = float(secilen["lon"])
+
+    # ── Bölüm B: MMI izoseist haritası ─────────────────────────────────────
+    fig_map = go.Figure()
+
+    # Dıştan içe çiz (büyük yarıçaplardan küçüklere) → küçük zonlar üstte kalsın
+    mmi_seviye_sirali = [4, 5, 6, 7, 8, 9]
+    for mmi_lvl in mmi_seviye_sirali:
+        rad = _shakemap_mmi_radius_km(mw, mmi_lvl)
+        if rad < 0.5:
+            continue
+        clat, clon = _shakemap_circle_coords(eq_lat, eq_lon, rad)
+        renk = _SHAKEMAP_MMI_RENK[mmi_lvl]
+        etiket = _SHAKEMAP_MMI_ETIKET[mmi_lvl]
+        fig_map.add_trace(go.Scattermapbox(
+            lat=clat, lon=clon,
+            mode="lines",
+            fill="toself",
+            line=dict(width=1.5, color=renk),
+            fillcolor=renk,
+            opacity=0.28,
+            name=f"{etiket} (~{rad:.0f} km)",
+            hovertemplate=(
+                f"<b>{etiket}</b><br>"
+                f"Yarıçap: ~{rad:.0f} km<br>"
+                f"Mw {mw:.1f} merkezi"
+                "<extra></extra>"
+            ),
+        ))
+
+    # Merkez üssü yıldızı
+    fig_map.add_trace(go.Scattermapbox(
+        lat=[eq_lat], lon=[eq_lon],
+        mode="markers+text",
+        marker=dict(size=18, color="#FFD700", symbol="star"),
+        text=[f"★ M{mw:.1f}"],
+        textposition="top right",
+        textfont=dict(size=13, color="#FFD700"),
+        name="Merkez üssü",
+        hovertemplate=(
+            f"<b>{secilen['yer']}</b><br>"
+            f"Mw {mw:.1f}<br>"
+            f"{secilen['tarih']}<br>"
+            f"({eq_lat:.3f}, {eq_lon:.3f})"
+            "<extra></extra>"
+        ),
+    ))
+
+    # Harita zoom seviyesi: en büyük (MMI IV) yarıçapına göre
+    max_rad = _shakemap_mmi_radius_km(mw, 4)
+    if max_rad > 400:
+        zoom = 5
+    elif max_rad > 200:
+        zoom = 6
+    elif max_rad > 100:
+        zoom = 7
+    else:
+        zoom = 8
+
+    fig_map.update_layout(
+        mapbox=dict(
+            style="open-street-map",
+            center=dict(lat=eq_lat, lon=eq_lon),
+            zoom=zoom,
+        ),
+        height=540,
+        margin=dict(l=0, r=0, t=10, b=0),
+        paper_bgcolor=BG2,
+        legend=dict(
+            orientation="v",
+            yanchor="top", y=0.98, xanchor="left", x=0.01,
+            bgcolor="rgba(0,0,0,0.55)",
+            font=dict(color="#ffffff", size=11),
+            bordercolor=BORDER, borderwidth=1,
+        ),
+    )
+    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": False})
+
+    # ── Bölüm C: Bilgi kartları (4 kolon) ──────────────────────────────────
+    mmi_merkez = _shakemap_mmi_from_pga(400 if mw >= 7 else (92 if mw >= 6 else 9.2))
+    rad_iv = _shakemap_mmi_radius_km(mw, 4)
+    c1, c2, c3, c4 = st.columns(4)
+    kartlar = [
+        (c1, f"M{mw:.1f}",           "#FFD700",  "Büyüklük (Mw)"),
+        (c2, mmi_merkez.split(" ")[0], "#E24B4A", "Merkez MMI (tahm.)"),
+        (c3, f"{rad_iv:.0f} km",     "#FAC775",  "MMI IV+ etki yarıçapı"),
+        (c4, "USGS",                 "#1D9E75",  "ShakeMap kaynağı"),
+    ]
+    for col, val, color, label in kartlar:
+        with col:
+            st.markdown(
+                f'<div class="stat-box">'
+                f'<div style="font-size:1.35rem;font-weight:800;color:{color}">{val}</div>'
+                f'<div style="font-size:0.7rem;opacity:0.55;margin-top:2px">{label}</div>'
+                f'</div>', unsafe_allow_html=True)
+
+    # ── Bölüm D: MMI → hasar ilişkisi tablosu ──────────────────────────────
+    st.markdown(
+        '<div class="chart-title">📋 MMI Şiddet — Beklenen Hasar İlişkisi</div>',
+        unsafe_allow_html=True,
+    )
+    df_mmi = pd.DataFrame([
+        {"MMI": "I–III",  "Sarsıntı": "Hissedilmez – Hafif",  "Beklenen Hasar": "Yok",          "PGA (g)": "< 0.001"},
+        {"MMI": "IV–V",   "Sarsıntı": "Orta – Güçlü",         "Beklenen Hasar": "Çok az",       "PGA (g)": "0.001 – 0.01"},
+        {"MMI": "VI–VII", "Sarsıntı": "Çok güçlü",            "Beklenen Hasar": "Az – Orta",    "PGA (g)": "0.01 – 0.1"},
+        {"MMI": "VIII",   "Sarsıntı": "Şiddetli",             "Beklenen Hasar": "Orta – Ağır", "PGA (g)": "0.1 – 0.3"},
+        {"MMI": "IX+",    "Sarsıntı": "Yıkıcı",               "Beklenen Hasar": "Ağır – Çok ağır", "PGA (g)": "> 0.3"},
+    ])
+    st.dataframe(df_mmi, use_container_width=True, hide_index=True)
+    st.caption("Kaynak: Wald et al. (1999), Earthquake Spectra 15(3), 557-564")
+
+    # ── Bölüm E: Kaynaklar ve uyarı ────────────────────────────────────────
+    st.info(
+        "📚 **ShakeMap Algoritması:** Worden & Wald (2016), USGS ShakeMap Manual | "
+        "**MMI–PGA İlişkisi:** Wald et al. (1999), *Earthquake Spectra* 15(3) | "
+        "**İzoseist Yarıçap Tahmini:** Bakun & Wentworth (1997), *BSSA* 87(6) | "
+        "**Veri:** USGS FDSN Event API"
+    )
+    st.warning(
+        "⚠️ Bu tahminî bir modeldir. Gerçek sarsıntı değerleri yerel zemin koşullarına, "
+        "fay geometrisine ve yönelimli (directivity) etkilere göre değişir. "
+        "Resmi ShakeMap için: earthquake.usgs.gov"
+    )
+
+
+if active_menu == "🌊 ShakeMap":
+    _render_shakemap()
 
 # ─── Footer ─────────────────────────────────────────────────────────────────
 st.markdown(f"""
