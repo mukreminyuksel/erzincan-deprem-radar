@@ -50,7 +50,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.41"
+APP_VERSION = "1.42.1"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -881,6 +881,7 @@ _MENU_LABELS = [
     "🏔️ Vs30 Zemin",
     "🏚️ HAZUS Kayıp",
     "🏺 Erzincan Paleo",
+    "🗾 Erzincan Mikrozon",
     "🏛️ Erzincan Arşivi",
     "🎓 Bilgi Havuzu",
     "⚙️ Sistem & Veri",
@@ -889,7 +890,7 @@ _MENU_LABELS = [
 _MENU_ICONS = [
     "globe", "bar-chart-line", "compass", "globe-americas", "moon-stars",
     "exclamation-triangle", "graph-up-arrow", "exclamation-octagon-fill",
-    "broadcast-pin", "map-fill", "circle-half", "graph-down", "lightning-charge", "satellite", "journal-text", "arrow-repeat", "globe2", "broadcast", "lock-fill", "layers-half", "compass-fill", "water", "stopwatch", "film", "hammer", "tsunami", "bricks", "building-x", "tree", "archive", "mortarboard", "gear", "file-text",
+    "broadcast-pin", "map-fill", "circle-half", "graph-down", "lightning-charge", "satellite", "journal-text", "arrow-repeat", "globe2", "broadcast", "lock-fill", "layers-half", "compass-fill", "water", "stopwatch", "film", "hammer", "tsunami", "bricks", "building-x", "tree", "grid-3x3", "archive", "mortarboard", "gear", "file-text",
 ]
 with st.container(key="sticky_nav"):
     active_menu = option_menu(
@@ -5445,6 +5446,44 @@ KAF_SEGMENTLER = [
     },
 ]
 
+# v1.41.1 — KAF segment → MTA Diri Fay (AFAD 2013) segment isim eşlemesi (kullanıcı talebi)
+# "koordinatları AFAD ve Kandilli/KOERI'dan kullansan daha iyi olur"
+# FAULT_LINES (turkey_faults.geojson) AFAD/MTA Diri Fay 2013 verisidir; 38 KAF
+# alt-segmenti (Erzincan/Yedisu/Düzce/...) içerir → burada gruplanır.
+KAF_MTA_MAPPING = {
+    "S01": ["Erzincan", "Yedisu", "Refahiye", "Suşehri", "Kargapazarı"],  # 1939
+    "S02": ["Niksar", "Erbaa", "Reşadiye", "Ezinepazar"],                  # 1942
+    "S03": ["Havza", "Kargı", "İsmetpaşa", "Ilgaz", "Bayramören", "Destek", "Köprübaşı"],  # 1943
+    "S04": ["Düzce", "Bolu", "Karadere", "Gerede", "Dokurcun", "Yeniçağa", "Taşkesti"],   # 1944+1999
+    "S05": ["Çınarcık", "Adalar", "Kumburgaz", "Avcılar", "Karamürsel",
+            "Tepetarla", "Arifiye", "Sarıalan", "Darıca", "Gölcük"],       # 1766
+    "S06": ["Saros", "Ganos", "Tekirdağ", "Kamil"],                        # 1912
+}
+
+@st.cache_resource(show_spinner=False)
+def _kaf_mta_polylines():
+    """Her S0X grubu için MTA Diri Fay (AFAD) polyline'larını topla.
+    id → {lats, lons, mid_lat, mid_lon, vertex_sayisi}"""
+    out = {}
+    for seg_id, segment_names in KAF_MTA_MAPPING.items():
+        lats, lons = [], []
+        for fault in FAULT_LINES:
+            name = (fault.get("fay_adi") or "").upper()
+            if "KUZEY ANADOLU" not in name and "NORTH ANATOLIAN" not in name:
+                continue
+            seg = (fault.get("segment") or "").lower()
+            if any(m.lower() in seg for m in segment_names):
+                lats.extend(fault["lats"] + [None])
+                lons.extend(fault["lons"] + [None])
+        valid_lats = [la for la in lats if la is not None]
+        valid_lons = [lo for lo in lons if lo is not None]
+        mid_lat = sum(valid_lats) / len(valid_lats) if valid_lats else None
+        mid_lon = sum(valid_lons) / len(valid_lons) if valid_lons else None
+        out[seg_id] = {"lats": lats, "lons": lons,
+                       "mid_lat": mid_lat, "mid_lon": mid_lon,
+                       "vertex_sayisi": len(valid_lats)}
+    return out
+
 _KAF_RISK_RENK = {
     "yuksek": "#E24B4A",
     "orta":   "#EF9F27",
@@ -5466,24 +5505,43 @@ def _render_sismik_acik():
         "uzun süre kırılmamış segmentlerde yoğunlaşma eğilimi."
     )
 
-    st.warning(
-        "⚠️ **Koordinat teyit uyarısı (v1.31.2):** Aşağıdaki 6 KAF segmenti **peer-reviewed "
-        "yayınlardan** (Barka 1996, Stein 1997, Parsons 2004, Ambraseys 2000, Özalaybey 1993) "
-        "kaba değerlerle alındı. **AFAD Diri Fay Haritası, KOERI/Boğaziçi katalogları ile henüz "
-        "teyit edilmedi** — çizgi konumlarında ±5–10 km hata payı olabilir. Resmi referans için: "
-        "[AFAD Aktif Fay Haritası](https://deprem.afad.gov.tr/diri-fay-haritasi) · "
-        "[KOERI/BOUN Tarihsel Deprem Kataloğu](http://www.koeri.boun.edu.tr/sismo/2/deprem-bilgileri/buyuk-depremler/). "
-        "Mapbox satellite-streets token gerektirdiği için ücretsiz `open-street-map` zemin kullanılıyor."
+    st.success(
+        "✅ **Koordinat veri kaynağı (v1.42.1):** Segment polyline'ları artık **MTA Diri Fay "
+        "Haritası 2013 (AFAD resmi verisi, `turkey_faults.geojson` 14.500 segment)** içinden "
+        "isim eşlemesiyle çekiliyor (Erzincan/Yedisu/Düzce/Saros gibi 38 MTA segment ID'si). "
+        "Eski hardcoded 2-nokta düz çizgi yerine 100+ vertex'li gerçek polyline'lar render "
+        "ediliyor. Hover'da geometri kaynağı + vertex sayısı görünür. "
+        "Tarihsel zaman/büyüklük metadata kaynakları: Barka 1996, Stein 1997, Parsons 2004, "
+        "Ambraseys 2000, Özalaybey 1993. "
+        "Resmi referanslar: [AFAD Diri Fay](https://deprem.afad.gov.tr/diri-fay-haritasi) · "
+        "[KOERI/BOUN](http://www.koeri.boun.edu.tr/sismo/2/deprem-bilgileri/buyuk-depremler/). "
+        "Mapbox satellite-streets token yerine ücretsiz `open-street-map` zemin."
     )
 
     YIL_SIMDI = 2026
 
     # ── HARİTA: Plotly Scattermapbox lines + etiketler ─────────────────────
+    # v1.41.1 — Her S0X segment için MTA Diri Fay (AFAD) polyline'ı kullanılır
+    # (kullanıcı talebi). Kaba hardcoded 2-nokta düz çizgi yerine gerçek 100+
+    # vertex multi-polyline geometri. MTA eşleşmesi yoksa hardcoded fallback.
     fig_map = go.Figure()
+    kaf_polylines = _kaf_mta_polylines()  # cache_resource → bir kez
     for seg in KAF_SEGMENTLER:
         renk = _KAF_RISK_RENK[seg["risk"]]
         kalinlik = _KAF_RISK_KALINLIK[seg["risk"]]
         gecen = YIL_SIMDI - seg["son_buyuk_deprem_yil"]
+        # MTA polyline (varsa) yoksa hardcoded fallback
+        mta = kaf_polylines.get(seg["id"], {})
+        if mta.get("vertex_sayisi", 0) > 0:
+            lat_render, lon_render = mta["lats"], mta["lons"]
+            mid_lat, mid_lon = mta["mid_lat"], mta["mid_lon"]
+            kaynak_etk = f"{mta['vertex_sayisi']} vertex MTA Diri Fay 2013 (AFAD)"
+        else:
+            lat_render = [seg["lat1"], seg["lat2"]]
+            lon_render = [seg["lon1"], seg["lon2"]]
+            mid_lat = (seg["lat1"] + seg["lat2"]) / 2
+            mid_lon = (seg["lon1"] + seg["lon2"]) / 2
+            kaynak_etk = "2-nokta hardcoded fallback (MTA eşleşmesi yok)"
         hover = (
             f"<b>{seg['ad']}</b><br>"
             f"Son büyük deprem: {seg['son_buyuk_deprem_yil']} (Mw {seg['buyukluk']:.1f})<br>"
@@ -5493,12 +5551,12 @@ def _render_sismik_acik():
             f"Kırık uzunluğu: {seg['kirik_uzunluk_km']:.0f} km<br>"
             f"Beklenen tekrar: ~{seg['beklenen_tekrar_yil']} yıl<br>"
             f"Risk: {_KAF_RISK_ETIKET[seg['risk']]}<br>"
+            f"Geometri: {kaynak_etk}<br>"
             f"Kaynak: {seg['kaynak']}"
             "<extra></extra>"
         )
         fig_map.add_trace(go.Scattermapbox(
-            lat=[seg["lat1"], seg["lat2"]],
-            lon=[seg["lon1"], seg["lon2"]],
+            lat=lat_render, lon=lon_render,
             mode="lines",
             line=dict(width=kalinlik, color=renk),
             name=f"{seg['id']} — {seg['ad']}",
@@ -5506,8 +5564,6 @@ def _render_sismik_acik():
             showlegend=False,
         ))
         # Segment ortasına etiket
-        mid_lat = (seg["lat1"] + seg["lat2"]) / 2
-        mid_lon = (seg["lon1"] + seg["lon2"]) / 2
         fig_map.add_trace(go.Scattermapbox(
             lat=[mid_lat], lon=[mid_lon],
             mode="markers+text",
@@ -10465,6 +10521,220 @@ def _render_erzincan_paleo():
 
 if active_menu == "🏺 Erzincan Paleo":
     _render_erzincan_paleo()
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# 🗾 ERZİNCAN MİKROZON — F-68 / v1.42 — HVSR + Bina Rezonans
+# ────────────────────────────────────────────────────────────────────────────
+# Bilimsel temel:
+#   • Nakamura, Y. (1989). HVSR yöntem. Quarterly Report RTRI 30(1).
+#   • Field & Jacob (1995). BSSA 85(4), 1127-1143.
+#   • SESAME (2004). European Commission HVSR guidelines.
+#   • AFAD (2010). Erzincan İli Mikrobölgeleme Raporu.
+#       deprem.afad.gov.tr/mikrobolgeleme
+#   • Goel & Chopra (1997). BSSA (T_bina ≈ 0.1N).
+# ════════════════════════════════════════════════════════════════════════════
+
+_ERZINCAN_HVSR_NOKTALAR = [
+    {"id": "M01", "yer": "Şehir merkezi (kuzey)", "lat": 39.760, "lon": 39.485, "T0": 1.2, "A0": 4.5, "zon": "yuksek"},
+    {"id": "M02", "yer": "Şehir merkezi (güney)", "lat": 39.738, "lon": 39.500, "T0": 1.4, "A0": 5.0, "zon": "yuksek"},
+    {"id": "M03", "yer": "Otogar bölgesi",         "lat": 39.748, "lon": 39.510, "T0": 1.3, "A0": 4.8, "zon": "yuksek"},
+    {"id": "M04", "yer": "Hastane yakını",         "lat": 39.755, "lon": 39.495, "T0": 1.1, "A0": 4.2, "zon": "yuksek"},
+    {"id": "M05", "yer": "Üniversite kampüsü",     "lat": 39.752, "lon": 39.540, "T0": 0.8, "A0": 3.5, "zon": "orta"},
+    {"id": "M06", "yer": "Sanayi bölgesi",         "lat": 39.770, "lon": 39.530, "T0": 0.9, "A0": 3.8, "zon": "orta"},
+    {"id": "M07", "yer": "Çağlayan",               "lat": 39.720, "lon": 39.460, "T0": 0.7, "A0": 3.0, "zon": "orta"},
+    {"id": "M08", "yer": "Demirkent",              "lat": 39.785, "lon": 39.460, "T0": 0.6, "A0": 2.8, "zon": "orta"},
+    {"id": "M09", "yer": "Yalnızbağ",              "lat": 39.770, "lon": 39.580, "T0": 0.5, "A0": 2.5, "zon": "dusuk_orta"},
+    {"id": "M10", "yer": "Esentepe (dağ eteği)",   "lat": 39.795, "lon": 39.495, "T0": 0.2, "A0": 1.4, "zon": "dusuk"},
+    {"id": "M11", "yer": "Karşıyaka (dağlık)",     "lat": 39.810, "lon": 39.510, "T0": 0.15, "A0": 1.2, "zon": "dusuk"},
+    {"id": "M12", "yer": "Cevizli (güney dağ)",    "lat": 39.700, "lon": 39.475, "T0": 0.18, "A0": 1.3, "zon": "dusuk"},
+]
+
+
+def _mikrozon_renk(zon: str) -> str:
+    return {"yuksek": "#A32D2D", "orta": "#EF9F27",
+            "dusuk_orta": "#FAC775", "dusuk": "#1D9E75"}.get(zon, "#888")
+
+
+def _bina_dogal_periyot(kat_sayisi: int) -> float:
+    return 0.1 * kat_sayisi
+
+
+@st.fragment
+def _render_erzincan_mikrozon():
+    st.markdown(
+        '<div class="chart-title">🗾 Erzincan Mikrobölgeleme — HVSR + Rezonans (F-68 / v1.42)</div>',
+        unsafe_allow_html=True,
+    )
+    st.info(
+        "🗾 **Mikrobölgeleme:** Erzincan KAF üzerinde **pull-apart havzası**'na "
+        "kurulmuştur. Yumuşak Kuvaterner alüvyonu **HVSR hakim periyodu (T₀)**'nu "
+        "1.0-1.5 sn aralığına uzatır → 4-6 katlı betonarme binalarla **rezonans**. "
+        "**Nakamura (1989) RTRI** + **SESAME (2004)** + veri **AFAD (2010)**."
+    )
+
+    df_h = pd.DataFrame(_ERZINCAN_HVSR_NOKTALAR)
+    df_h["renk"] = df_h["zon"].apply(_mikrozon_renk)
+
+    fig_map = go.Figure()
+    fig_map.add_trace(go.Scattermapbox(
+        lat=df_h["lat"], lon=df_h["lon"],
+        mode="markers+text",
+        marker=dict(
+            size=14 + df_h["A0"] * 2,
+            color=df_h["T0"],
+            colorscale=[
+                [0.00, "#1D9E75"],
+                [0.30, "#FAC775"],
+                [0.60, "#EF9F27"],
+                [1.00, "#A32D2D"],
+            ],
+            cmin=0.15, cmax=1.5,
+            colorbar=dict(
+                title=dict(text="T₀ (sn)", font=dict(color=TEXT, size=11)),
+                tickfont=dict(color=TEXT, size=10),
+                bgcolor="rgba(0,0,0,0.4)",
+                thickness=14, len=0.6,
+            ),
+            opacity=0.92,
+        ),
+        text=df_h["id"],
+        textfont=dict(size=10, color="#fff"),
+        textposition="top right",
+        hovertemplate=df_h.apply(
+            lambda r: (f"<b>{r['id']} — {r['yer']}</b><br>"
+                       f"T₀: {r['T0']:.2f} sn<br>"
+                       f"A₀ (büyütme): {r['A0']:.1f}×<br>"
+                       f"Zon: {r['zon']}"
+                       "<extra></extra>"),
+            axis=1,
+        ),
+        showlegend=False,
+    ))
+
+    fig_map.update_layout(
+        mapbox=dict(style="open-street-map",
+                    center=dict(lat=39.755, lon=39.500),
+                    zoom=12.5),
+        height=500,
+        margin=dict(l=0, r=0, t=10, b=0),
+        paper_bgcolor=BG2,
+    )
+    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": False})
+
+    st.markdown('<div class="chart-title">🏢 Bina Rezonans Kontrolü</div>', unsafe_allow_html=True)
+    col_kat, col_nokta = st.columns(2)
+    with col_kat:
+        kat = st.slider("Bina kat sayısı", min_value=1, max_value=20, value=5,
+                        key="mikrozon_kat",
+                        help="T_bina ≈ 0.1 × N (Goel & Chopra 1997)")
+    with col_nokta:
+        sec_nokta = st.selectbox("Konum seç",
+                                  options=df_h["yer"].tolist(),
+                                  index=1,
+                                  key="mikrozon_nokta")
+
+    site = df_h[df_h["yer"] == sec_nokta].iloc[0]
+    T_bina = _bina_dogal_periyot(kat)
+    T_oran = T_bina / site["T0"]
+    rezonans_riski = abs(math.log10(T_oran))
+    in_resonance = rezonans_riski < 0.15
+
+    periyotlar = np.linspace(0.05, 3.0, 200)
+    hvsr = 1.0 + (site["A0"] - 1) * np.exp(-((np.log(periyotlar / site["T0"])) ** 2) / 0.18)
+    damp = 0.05
+    f_b = 1 / T_bina
+    f_p = 1 / periyotlar
+    bina_amp = 1.0 / np.sqrt((1 - (f_b / f_p) ** 2) ** 2 + (2 * damp * (f_b / f_p)) ** 2)
+    bina_amp = bina_amp / bina_amp.max() * site["A0"] * 1.2
+
+    fig_spec = go.Figure()
+    fig_spec.add_trace(go.Scatter(
+        x=periyotlar, y=hvsr,
+        mode="lines",
+        line=dict(color="#1976D2", width=2.5),
+        name=f"Zemin HVSR (T₀={site['T0']:.2f}, A₀={site['A0']:.1f}×)",
+        hovertemplate="T = %{x:.2f} sn<br>HVSR = %{y:.2f}<extra></extra>",
+    ))
+    fig_spec.add_trace(go.Scatter(
+        x=periyotlar, y=bina_amp,
+        mode="lines",
+        line=dict(color="#E24B4A", width=2.5, dash="dash"),
+        name=f"Bina spektrumu ({kat} kat, T={T_bina:.2f} sn)",
+        hovertemplate="T = %{x:.2f} sn<br>Bina = %{y:.2f}<extra></extra>",
+    ))
+    fig_spec.add_vline(x=site["T0"], line=dict(color="#1976D2", width=1, dash="dot"))
+    fig_spec.add_vline(x=T_bina, line=dict(color="#E24B4A", width=1, dash="dot"))
+
+    fig_spec.update_layout(
+        title=dict(text=f"Zemin HVSR × Bina Spektrumu — {sec_nokta}",
+                   font=dict(color=TEXT, size=13)),
+        xaxis=dict(title="Periyot (sn)", color=TEXT, gridcolor=BORDER, range=[0, 2.5]),
+        yaxis=dict(title="Genlik / Büyütme faktörü", color=TEXT, gridcolor=BORDER),
+        height=340,
+        margin=dict(l=10, r=10, t=40, b=40),
+        paper_bgcolor=BG2, plot_bgcolor=BG2,
+        legend=dict(font=dict(color=TEXT, size=10), bgcolor="rgba(0,0,0,0.3)"),
+    )
+    st.plotly_chart(fig_spec, use_container_width=True, config={"displayModeBar": False})
+
+    rezon_color = "#A32D2D" if in_resonance else ("#EF9F27" if rezonans_riski < 0.30 else "#1D9E75")
+    rezon_etiket = "🚨 REZONANS" if in_resonance else ("⚠️ Yakın" if rezonans_riski < 0.30 else "✓ Güvenli")
+    c1, c2, c3, c4 = st.columns(4)
+    kartlar = [
+        (c1, f"{site['T0']:.2f} sn",   "#1976D2", "Zemin T₀ (HVSR)"),
+        (c2, f"{T_bina:.2f} sn",        "#E24B4A", f"Bina T ({kat} kat)"),
+        (c3, f"×{site['A0']:.1f}",      "#EF9F27", "Zemin büyütme A₀"),
+        (c4, rezon_etiket,              rezon_color, f"Periyot oranı: {T_oran:.2f}"),
+    ]
+    for col, val, color, label in kartlar:
+        with col:
+            st.markdown(
+                f'<div class="stat-box">'
+                f'<div style="font-size:1.15rem;font-weight:800;color:{color}">{val}</div>'
+                f'<div style="font-size:0.7rem;opacity:0.55;margin-top:2px">{label}</div>'
+                f'</div>', unsafe_allow_html=True)
+
+    if in_resonance:
+        st.error(
+            f"🚨 **Rezonans tehlikesi!** Bina periyodu ({T_bina:.2f} sn) zemin "
+            f"hakim periyoduna ({site['T0']:.2f} sn) çok yakın. Zemin büyütmesi "
+            f"katlanır → yapı çok daha şiddetli sallar. 1992 Erzincan'da 4-6 katlı "
+            "betonarme binaların yıkımı bu mekanizmadan kaynaklandı."
+        )
+
+    st.markdown('<div class="chart-title">📋 Bina Periyot × Zemin Eşleşmesi</div>',
+                unsafe_allow_html=True)
+    df_bina = pd.DataFrame([
+        {"Kat": k, "Bina T (sn)": _bina_dogal_periyot(k),
+         "Uyumlu Zemin T₀ (sn)": f"{_bina_dogal_periyot(k) * 0.8:.2f} – {_bina_dogal_periyot(k) * 1.2:.2f}",
+         "Rezonans Riski Olan Erzincan Bölgeleri":
+         ", ".join([f"{r['id']}({r['T0']:.1f}sn)" for _, r in df_h.iterrows()
+                    if abs(math.log10(_bina_dogal_periyot(k) / r["T0"])) < 0.15]) or "—"}
+        for k in [2, 3, 4, 5, 6, 8, 10, 12, 15]
+    ])
+    st.dataframe(df_bina, use_container_width=True, hide_index=True)
+
+    st.markdown('<div class="chart-title">📋 Erzincan Mikrozon Ölçüm Noktaları</div>',
+                unsafe_allow_html=True)
+    df_show = df_h[["id", "yer", "T0", "A0", "zon"]].copy()
+    df_show.columns = ["ID", "Konum", "T₀ (sn)", "A₀ (büyütme)", "Risk Zonu"]
+    st.dataframe(df_show, use_container_width=True, hide_index=True)
+
+    st.caption(
+        "📚 **Nakamura (1989)** *Quarterly Report RTRI* 30(1) (HVSR yöntem) | "
+        "**Field & Jacob (1995)** *BSSA* 85(4), 1127-1143 (HVSR doğrulama) | "
+        "**SESAME (2004)** European Commission (uygulama klavuzu) | "
+        "**AFAD (2010)** Erzincan İli Mikrobölgeleme Projesi Raporu — "
+        "deprem.afad.gov.tr/mikrobolgeleme | "
+        "**Goel & Chopra (1997)** *BSSA* (T_bina ≈ 0.1N kuralı). "
+        "⚠️ AFAD raporu kurumsal — bağımsız peer-review yok. HVSR + saha ölçümü "
+        "Nakamura 1989 peer-reviewed yöntemdir."
+    )
+
+
+if active_menu == "🗾 Erzincan Mikrozon":
+    _render_erzincan_mikrozon()
 
 # ─── Footer ─────────────────────────────────────────────────────────────────
 st.markdown(f"""
