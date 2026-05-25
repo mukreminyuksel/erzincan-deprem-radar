@@ -50,7 +50,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.34"
+APP_VERSION = "1.35.1"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -874,6 +874,7 @@ _MENU_LABELS = [
     "🌋 Moho Derinliği",
     "🌀 SKS Splitting",
     "🌊 Tsunami Kataloğu",
+    "⏱️ Tsunami Varış",
     "🏛️ Erzincan Arşivi",
     "🎓 Bilgi Havuzu",
     "⚙️ Sistem & Veri",
@@ -882,7 +883,7 @@ _MENU_LABELS = [
 _MENU_ICONS = [
     "globe", "bar-chart-line", "compass", "globe-americas", "moon-stars",
     "exclamation-triangle", "graph-up-arrow", "exclamation-octagon-fill",
-    "broadcast-pin", "map-fill", "circle-half", "graph-down", "lightning-charge", "satellite", "journal-text", "arrow-repeat", "globe2", "broadcast", "lock-fill", "layers-half", "compass-fill", "water", "archive", "mortarboard", "gear", "file-text",
+    "broadcast-pin", "map-fill", "circle-half", "graph-down", "lightning-charge", "satellite", "journal-text", "arrow-repeat", "globe2", "broadcast", "lock-fill", "layers-half", "compass-fill", "water", "stopwatch", "archive", "mortarboard", "gear", "file-text",
 ]
 with st.container(key="sticky_nav"):
     active_menu = option_menu(
@@ -5457,6 +5458,16 @@ def _render_sismik_acik():
         "🔴 **Sismik Açık (Seismic Gap):** Uzun süredir kırılmamış ve stres biriktirmiş fay "
         "segmentleri. Teorik temel: **McCann et al. (1979), PAGEOPH 117** — büyük depremlerin "
         "uzun süre kırılmamış segmentlerde yoğunlaşma eğilimi."
+    )
+
+    st.warning(
+        "⚠️ **Koordinat teyit uyarısı (v1.31.2):** Aşağıdaki 6 KAF segmenti **peer-reviewed "
+        "yayınlardan** (Barka 1996, Stein 1997, Parsons 2004, Ambraseys 2000, Özalaybey 1993) "
+        "kaba değerlerle alındı. **AFAD Diri Fay Haritası, KOERI/Boğaziçi katalogları ile henüz "
+        "teyit edilmedi** — çizgi konumlarında ±5–10 km hata payı olabilir. Resmi referans için: "
+        "[AFAD Aktif Fay Haritası](https://deprem.afad.gov.tr/diri-fay-haritasi) · "
+        "[KOERI/BOUN Tarihsel Deprem Kataloğu](http://www.koeri.boun.edu.tr/sismo/2/deprem-bilgileri/buyuk-depremler/). "
+        "Mapbox satellite-streets token gerektirdiği için ücretsiz `open-street-map` zemin kullanılıyor."
     )
 
     YIL_SIMDI = 2026
