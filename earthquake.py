@@ -50,7 +50,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.29"
+APP_VERSION = "1.30"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -869,6 +869,7 @@ _MENU_LABELS = [
     "📜 Tarihsel Sismisite",
     "🔄 Sismik Döngü",
     "🌐 Dinamik Tetikleme",
+    "📡 InSAR Zaman Serisi",
     "🏛️ Erzincan Arşivi",
     "🎓 Bilgi Havuzu",
     "⚙️ Sistem & Veri",
@@ -877,7 +878,7 @@ _MENU_LABELS = [
 _MENU_ICONS = [
     "globe", "bar-chart-line", "compass", "globe-americas", "moon-stars",
     "exclamation-triangle", "graph-up-arrow", "exclamation-octagon-fill",
-    "broadcast-pin", "map-fill", "circle-half", "graph-down", "lightning-charge", "satellite", "journal-text", "arrow-repeat", "globe2", "archive", "mortarboard", "gear", "file-text",
+    "broadcast-pin", "map-fill", "circle-half", "graph-down", "lightning-charge", "satellite", "journal-text", "arrow-repeat", "globe2", "broadcast", "archive", "mortarboard", "gear", "file-text",
 ]
 with st.container(key="sticky_nav"):
     active_menu = option_menu(
@@ -1131,8 +1132,14 @@ def _euler_to_delta_deg(euler_lat, euler_lon, omega_deg_myr, lat, lon):
     return dlat_deg_yr, dlon_deg_yr
 
 @st.cache_resource(show_spinner=False)
-def load_plate_velocities(ref_lat: float = ERZ_LAT, ref_lon: float = ERZ_LON):
+def load_plate_velocities(ref_lat: float = ERZ_LAT, ref_lon: float = ERZ_LON,
+                          reference_frame: str = "EU"):
     """Tüm plakalar için (ref_lat, ref_lon) noktasında deg/yıl hız vektörü.
+
+    v1.22 — Eurasia-fixed varsayılan (kullanıcı/Bilim Profesörü kararı):
+      Türkiye tektoniği için doğru anlatı V_relative = V_target - V_reference.
+      `reference_frame="EU"` → tüm hızlar Avrasya'ya göre göreceli (Reilinger 2006
+      methodolojisi). `reference_frame="NNR"` → mutlak NNR-MORVEL56 (Argus 2011).
 
     Ajan 4 entegrasyonu (try/except ile):
       - varsa data/plate_velocities.json → format otomatik tespit
@@ -1141,7 +1148,7 @@ def load_plate_velocities(ref_lat: float = ERZ_LAT, ref_lon: float = ERZ_LON):
     Çıkış formatı:
       {plate_code: {"delta_lat_per_year": float, "delta_lon_per_year": float,
                     "name": str, "approx_speed_mm_yr": float|None,
-                    "is_euler_derived": bool}}
+                    "is_euler_derived": bool, "reference_frame": str}}
     """
     out = {}
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -1200,6 +1207,32 @@ def load_plate_velocities(ref_lat: float = ERZ_LAT, ref_lon: float = ERZ_LON):
                     }
     if "AN" not in out:
         out["AN"] = {**_PLAKA_FALLBACK_AN, "is_euler_derived": False}
+
+    # v1.22 — Eurasia-fixed referans çerçevesi (kullanıcı/Bilim Profesörü teknik kararı)
+    # V_relative(target) = V_target_NNR - V_reference_NNR
+    # Türkiye tektoniği için doğru anlatı:
+    #   AN/Eurasia ≈ batı/güneybatı 21 mm/yıl (KAF kaçışı)
+    #   AR/Eurasia ≈ kuzey/KKB     23 mm/yıl (Bitlis-Zagros sıkışma)
+    #   AF/Eurasia ≈ kuzey/KKD     10 mm/yıl (Helenik dalma-batma)
+    ref_code = (reference_frame or "").upper()
+    if ref_code and ref_code not in ("NNR", "ABSOLUTE", ""):
+        ref_vel = out.get(ref_code)
+        if ref_vel:
+            ref_dlat = ref_vel["delta_lat_per_year"]
+            ref_dlon = ref_vel["delta_lon_per_year"]
+            out_rel = {}
+            for code, vel in out.items():
+                out_rel[code] = {
+                    **vel,
+                    "delta_lat_per_year": vel["delta_lat_per_year"] - ref_dlat,
+                    "delta_lon_per_year": vel["delta_lon_per_year"] - ref_dlon,
+                    "reference_frame": ref_code,
+                }
+            return out_rel
+
+    # NNR mutlak veya referans bulunamadı → NNR olarak işaretle
+    for vel in out.values():
+        vel.setdefault("reference_frame", "NNR")
     return out
 
 def make_mapbox_layout(stil):
@@ -3985,15 +4018,23 @@ def _format_years_tr(y: int) -> str:
         return f"{s}{val:g} bin yıl"
     return f"{s}{a} yıl"
 
-def _plaka_displacement_deg(plate_code: str, lat: float, lon: float, years: int):
-    """Δφ, Δλ derece olarak. Önce Ajan 4'ün `plate_velocity_vector()` fonksiyonunu
-    dener; başarısız olursa kendi Euler dönüştürücüsü `load_plate_velocities()` ile."""
-    if _plate_velocity_vector_extern is not None:
+def _plaka_displacement_deg(plate_code: str, lat: float, lon: float, years: int,
+                            reference_frame: str = "EU"):
+    """Δφ, Δλ derece olarak — V_relative = V_target − V_reference (v1.22).
+
+    reference_frame: "EU" (varsayılan, Eurasia-fixed — Türkiye tektoniği için doğru)
+                     veya "NNR" (mutlak NNR-MORVEL56, Argus 2011)
+                     veya başka plaka kodu (AN/AR/AF) — özel kıyaslama için.
+
+    Önce Ajan 4'ün `plate_velocity_vector()` fonksiyonunu dener (NNR çıktı varsayar);
+    başarısız olursa kendi Euler dönüştürücüsü `load_plate_velocities()` ile."""
+    if _plate_velocity_vector_extern is not None and reference_frame.upper() == "NNR":
+        # Extern referans desteklemez → sadece NNR isteğinde dene
         try:
             return _plate_velocity_vector_extern(plate_code, lat, lon, years)
         except Exception:
             pass
-    vels = load_plate_velocities(lat, lon)
+    vels = load_plate_velocities(lat, lon, reference_frame=reference_frame)
     vel  = vels.get(plate_code) or vels.get("AN") or {**_PLAKA_FALLBACK_AN, "is_euler_derived": False}
     return (vel["delta_lat_per_year"] * years,
             vel["delta_lon_per_year"] * years)
@@ -7858,6 +7899,171 @@ def _render_dinamik_tetikleme():
 
 if active_menu == "🌐 Dinamik Tetikleme":
     _render_dinamik_tetikleme()
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# 📡 INSAR ZAMAN SERİSİ — F-53 / v1.30 — Koseismik + Postseismik
+# ────────────────────────────────────────────────────────────────────────────
+# Bilimsel temel:
+#   • Ferretti, A. et al. (2001). PS-InSAR. IEEE TGRS 39(1), 8-20.
+#       DOI:10.1109/36.898661
+#   • Berardino, P. et al. (2002). SBAS. IEEE TGRS 40(11), 2375-2383.
+#       DOI:10.1109/TGRS.2002.803792
+#   • Cetin, E. et al. (2014). Van postseismic. JGR 119, 1129-1145.
+#       DOI:10.1002/2013JB010734
+#   • Bürgmann et al. (2002) GJI 148, 358-378
+# ════════════════════════════════════════════════════════════════════════════
+
+_INSAR_TS_OLAYLAR = [
+    {"id": "izmit-1999", "ad": "İzmit Mw 7.6 (1999)",
+     "tarih": "1999-08-17",
+     "coseismic_los_m": 2.7, "postseismic_total_m": 0.85,
+     "tau_yr": 0.55, "veri_baslangic": -180, "veri_son": 1095,
+     "mekanizma": "Afterslip + viskoelastik (alt kabuk)",
+     "ref": "Bürgmann et al. 2002 GJI 148; Hearn 2002 GRL"},
+    {"id": "van-2011", "ad": "Van Mw 7.1 (2011)",
+     "tarih": "2011-10-23",
+     "coseismic_los_m": 0.85, "postseismic_total_m": 0.18,
+     "tau_yr": 0.40, "veri_baslangic": -120, "veri_son": 730,
+     "mekanizma": "Postseismik afterslip + lokal poroelastik",
+     "ref": "Cetin et al. 2014 JGR 119"},
+    {"id": "elazig-2020", "ad": "Sivrice/Elazığ Mw 6.8 (2020)",
+     "tarih": "2020-01-24",
+     "coseismic_los_m": 0.95, "postseismic_total_m": 0.15,
+     "tau_yr": 0.35, "veri_baslangic": -180, "veri_son": 540,
+     "mekanizma": "Sentinel-1 SBAS afterslip",
+     "ref": "Pousse-Beltran et al. 2020 GRL 47"},
+    {"id": "kahramanmaras-2023", "ad": "Kahramanmaraş Mw 7.8 (2023)",
+     "tarih": "2023-02-06",
+     "coseismic_los_m": 5.5, "postseismic_total_m": 1.3,
+     "tau_yr": 0.45, "veri_baslangic": -120, "veri_son": 700,
+     "mekanizma": "Geniş afterslip + viskoelastik",
+     "ref": "Xu et al. 2023 EPSL 612; Barbot et al. 2023 PNAS"},
+]
+
+
+def _insar_ts_synthetic(coseismic: float, postseismic: float, tau_yr: float,
+                        t_start_day: int, t_end_day: int, n: int = 80):
+    t_days = np.linspace(t_start_day, t_end_day, n)
+    t_yr = t_days / 365.25
+    u = 0.002 * t_yr  # interseismik 2 mm/yıl
+    u += np.where(t_yr >= 0, coseismic, 0.0)
+    t_post = np.where(t_yr >= 0, t_yr, 0)
+    u += postseismic * (1 - np.exp(-t_post / tau_yr))
+    rng = np.random.default_rng(42)
+    u += rng.normal(0, 0.005, n)
+    return t_days, u
+
+
+@st.fragment
+def _render_insar_zaman_serisi():
+    st.markdown(
+        '<div class="chart-title">📡 InSAR Zaman Serisi — Koseismik + Postseismik (F-53 / v1.30)</div>',
+        unsafe_allow_html=True,
+    )
+    st.info(
+        "📡 **PS-InSAR / SBAS Zaman Serisi:** Sentinel-1'in 6-günlük tekrar süresiyle "
+        "aynı pikselin LOS deformasyonu zaman içinde takip edilir. Deprem sonrası "
+        "**logaritmik gevşeme** (afterslip + viskoelastik) **Bürgmann et al. (2002)** "
+        "modeliyle açıklanır."
+    )
+
+    sec = st.selectbox(
+        "Olay seç",
+        options=[o["ad"] for o in _INSAR_TS_OLAYLAR],
+        index=0,
+        key="insar_ts_select",
+    )
+    o = next(x for x in _INSAR_TS_OLAYLAR if x["ad"] == sec)
+
+    t_days, u = _insar_ts_synthetic(
+        o["coseismic_los_m"], o["postseismic_total_m"], o["tau_yr"],
+        o["veri_baslangic"], o["veri_son"]
+    )
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=t_days, y=u,
+        mode="markers+lines",
+        marker=dict(size=6, color="#1976D2"),
+        line=dict(color="rgba(25,118,210,0.3)", width=1),
+        name="Sentinel-1 LOS (PS-InSAR)",
+        hovertemplate="t = %{x:+.0f} gün<br>LOS = %{y:+.3f} m<extra></extra>",
+    ))
+
+    fig.add_vline(x=0, line=dict(color="#E24B4A", width=2.5, dash="dash"),
+                  annotation_text=f"Deprem ({o['tarih']})",
+                  annotation_font_color="#E24B4A",
+                  annotation_position="top")
+    tau_day = o["tau_yr"] * 365.25
+    fig.add_vline(x=tau_day, line=dict(color="#FFD700", width=1.5, dash="dot"),
+                  annotation_text=f"τ = {o['tau_yr']:.2f} yıl",
+                  annotation_font_color="#FFD700",
+                  annotation_position="bottom")
+
+    fig.update_layout(
+        title=dict(text=f"InSAR Zaman Serisi — {sec}", font=dict(color=TEXT, size=13)),
+        xaxis=dict(title="Depremden geçen süre (gün, 0 = ana şok)", color=TEXT, gridcolor=BORDER),
+        yaxis=dict(title="LOS yer değiştirme (m)", color=TEXT, gridcolor=BORDER),
+        height=420,
+        margin=dict(l=10, r=10, t=40, b=40),
+        paper_bgcolor=BG2, plot_bgcolor=BG2,
+        legend=dict(font=dict(color=TEXT, size=10), bgcolor="rgba(0,0,0,0.3)"),
+    )
+    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+
+    post_pct = 100.0 * o["postseismic_total_m"] / o["coseismic_los_m"]
+    c1, c2, c3, c4 = st.columns(4)
+    kartlar = [
+        (c1, f"{o['coseismic_los_m']:.2f} m", "#A32D2D", "Koseismik adım"),
+        (c2, f"{o['postseismic_total_m']:.2f} m", "#EF9F27", f"Postseismik (%{post_pct:.0f})"),
+        (c3, f"{o['tau_yr']:.2f} yıl",         "#FFD700", "Gevşeme zaman sabiti τ"),
+        (c4, f"{int((o['veri_son'] - o['veri_baslangic']) / 6)}", "#1976D2",
+         "Sentinel-1 görüntü sayısı (~6 gün)"),
+    ]
+    for col, val, color, label in kartlar:
+        with col:
+            st.markdown(
+                f'<div class="stat-box">'
+                f'<div style="font-size:1.35rem;font-weight:800;color:{color}">{val}</div>'
+                f'<div style="font-size:0.7rem;opacity:0.55;margin-top:2px">{label}</div>'
+                f'</div>', unsafe_allow_html=True)
+
+    st.markdown(f"""
+**🔬 Postseismik Mekanizma:** {o['mekanizma']}
+
+**📐 Model bileşenleri (Bürgmann 2002):**
+- **Afterslip** — Sığ kabukta (0-10 km) sismik olmayan kayma
+- **Viskoelastik gevşeme** — Alt kabuk (15-30 km) + üst manto akış
+- **Poroelastik** — Yeraltı suyu yeniden dağılımı (yıllar)
+    """)
+
+    st.markdown('<div class="chart-title">📋 PS-InSAR vs SBAS</div>', unsafe_allow_html=True)
+    df_methods = pd.DataFrame([
+        {"Yöntem": "PS-InSAR (Permanent Scatterers)",
+         "Hedef": "Kentsel pikseller", "Hassasiyet": "1-3 mm/yıl",
+         "Referans": "Ferretti et al. 2001 IEEE TGRS 39"},
+        {"Yöntem": "SBAS (Small Baseline Subset)",
+         "Hedef": "Geniş alan, vejetatif", "Hassasiyet": "3-5 mm/yıl",
+         "Referans": "Berardino et al. 2002 IEEE TGRS 40"},
+        {"Yöntem": "Stacking (basit ortalama)",
+         "Hedef": "Tek piksel", "Hassasiyet": "5-10 mm",
+         "Referans": "Wright et al. 2001 GRL"},
+    ])
+    st.dataframe(df_methods, use_container_width=True, hide_index=True)
+
+    st.caption(
+        f"📚 **Senaryo:** {o['ref']} | "
+        "**Ferretti et al. (2001)** *IEEE TGRS* 39(1) — DOI:10.1109/36.898661 | "
+        "**Berardino et al. (2002)** *IEEE TGRS* 40(11) — DOI:10.1109/TGRS.2002.803792 | "
+        "**Bürgmann et al. (2002)** *GJI* 148, 358-378 | "
+        "**Cetin et al. (2014)** *JGR* 119 — DOI:10.1002/2013JB010734. "
+        "⚠️ Zaman serisi sentetik; gerçek için COMET LiCS veya ESA G-POD."
+    )
+
+
+if active_menu == "📡 InSAR Zaman Serisi":
+    _render_insar_zaman_serisi()
 
 # ─── Footer ─────────────────────────────────────────────────────────────────
 st.markdown(f"""
