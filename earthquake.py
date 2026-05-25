@@ -5882,6 +5882,286 @@ def _render_shakemap():
 if active_menu == "🌊 ShakeMap":
     _render_shakemap()
 
+
+# ════════════════════════════════════════════════════════════════════════════
+# 🗺️ SİSMİK TEHLİKE — F-44 / v1.22 — PSHA (Probabilistic Seismic Hazard)
+# ────────────────────────────────────────────────────────────────────────────
+# Bilimsel temel:
+#   • Woessner, J. et al. (2015). The 2013 European seismic hazard model.
+#       Bull. Earthq. Eng. 13(12), 3553-3596. DOI:10.1007/s10518-015-9795-1
+#   • Pagani, M. et al. (2014). OpenQuake Engine. SRL 85(3), 692-702.
+#       DOI:10.1785/0220130087
+#   • AFAD (2018). Türkiye Bina Deprem Yönetmeliği (TBDY-2018).
+#       deprem.afad.gov.tr/depremzonasi
+#   • EFEHR API: http://www.efehr.org/
+# ════════════════════════════════════════════════════════════════════════════
+
+# TBDY-2018 + SHARE 2013 türevi: Türkiye için statik PGA(g) ızgara noktaları.
+# Her nokta = (lat, lon, şehir, PGA_475yıl, TBDY_zone, kısa_açıklama)
+# Kaynak: AFAD TBDY-2018 spektral ivme haritası + SHARE Woessner 2015 referansı.
+_PSHA_GRID_TR = [
+    # ── Doğu Anadolu (DAF) — yüksek tehlike ──
+    {"city": "Hakkari",        "lat": 37.57, "lon": 43.74, "pga475": 0.42, "zone": 1, "note": "Bitlis kenet kuşağı"},
+    {"city": "Van",            "lat": 38.49, "lon": 43.41, "pga475": 0.45, "zone": 1, "note": "Van fay zonu (2011 Mw 7.1)"},
+    {"city": "Bingöl",         "lat": 38.88, "lon": 40.50, "pga475": 0.48, "zone": 1, "note": "KAF–DAF kesişim"},
+    {"city": "Muş",            "lat": 38.74, "lon": 41.49, "pga475": 0.40, "zone": 1, "note": "Doğu Anadolu sıkışma"},
+    {"city": "Elazığ",         "lat": 38.68, "lon": 39.22, "pga475": 0.45, "zone": 1, "note": "DAF (2020 Mw 6.8 Sivrice)"},
+    {"city": "Malatya",        "lat": 38.36, "lon": 38.30, "pga475": 0.48, "zone": 1, "note": "DAF kuzey kanadı"},
+    {"city": "Adıyaman",       "lat": 37.76, "lon": 38.27, "pga475": 0.45, "zone": 1, "note": "DAF (2023 Mw 7.8)"},
+    {"city": "Kahramanmaraş",  "lat": 37.58, "lon": 36.93, "pga475": 0.52, "zone": 1, "note": "DAF kuzey + Sürgü (2023 Mw 7.8+7.7)"},
+    {"city": "Gaziantep",      "lat": 37.07, "lon": 37.38, "pga475": 0.44, "zone": 1, "note": "DAF güney"},
+    {"city": "Hatay",          "lat": 36.20, "lon": 36.16, "pga475": 0.50, "zone": 1, "note": "ÖDF triple junction (2023)"},
+    {"city": "Osmaniye",       "lat": 37.07, "lon": 36.25, "pga475": 0.50, "zone": 1, "note": "DAF güney kanadı"},
+
+    # ── KAF doğu (Erzincan ekseni) ──
+    {"city": "Erzincan",       "lat": 39.75, "lon": 39.49, "pga475": 0.45, "zone": 1, "note": "KAF (1939 Ms 7.8, 1992 Ms 6.8)"},
+    {"city": "Erzurum",        "lat": 39.91, "lon": 41.27, "pga475": 0.35, "zone": 2, "note": "KAF doğu uzantısı"},
+    {"city": "Tunceli",        "lat": 39.10, "lon": 39.55, "pga475": 0.40, "zone": 1, "note": "KAF–DAF arası"},
+    {"city": "Sivas",          "lat": 39.75, "lon": 37.02, "pga475": 0.35, "zone": 2, "note": "KAF güney"},
+    {"city": "Tokat",          "lat": 40.32, "lon": 36.55, "pga475": 0.42, "zone": 1, "note": "KAF (1939 Niksar-Erbaa)"},
+    {"city": "Amasya",         "lat": 40.65, "lon": 35.83, "pga475": 0.40, "zone": 1, "note": "KAF (1668 Ms ~8)"},
+    {"city": "Çorum",          "lat": 40.55, "lon": 34.96, "pga475": 0.38, "zone": 2, "note": "KAF yakını"},
+
+    # ── KAF batı (İstanbul-Marmara koridoru) ──
+    {"city": "Kastamonu",      "lat": 41.38, "lon": 33.78, "pga475": 0.40, "zone": 1, "note": "KAF (1943 Tosya Ms 7.6)"},
+    {"city": "Bolu",           "lat": 40.74, "lon": 31.61, "pga475": 0.42, "zone": 1, "note": "KAF (1944 Gerede)"},
+    {"city": "Düzce",          "lat": 40.84, "lon": 31.16, "pga475": 0.45, "zone": 1, "note": "KAF (1999 Mw 7.2)"},
+    {"city": "Sakarya",        "lat": 40.78, "lon": 30.40, "pga475": 0.48, "zone": 1, "note": "KAF (1999 İzmit Mw 7.6)"},
+    {"city": "Kocaeli",        "lat": 40.85, "lon": 29.88, "pga475": 0.50, "zone": 1, "note": "KAF (1999 İzmit hipo)"},
+    {"city": "Yalova",         "lat": 40.65, "lon": 29.27, "pga475": 0.48, "zone": 1, "note": "Marmara segmenti"},
+    {"city": "İstanbul",       "lat": 41.01, "lon": 28.98, "pga475": 0.40, "zone": 1, "note": "Marmara seismic gap (Parsons 2004)"},
+    {"city": "Tekirdağ",       "lat": 40.98, "lon": 27.51, "pga475": 0.40, "zone": 1, "note": "Ganos-Saros segmenti"},
+    {"city": "Çanakkale",      "lat": 40.15, "lon": 26.41, "pga475": 0.42, "zone": 1, "note": "Saros (1912 Ms 7.4)"},
+    {"city": "Bursa",          "lat": 40.18, "lon": 29.07, "pga475": 0.42, "zone": 1, "note": "Bursa fayı"},
+    {"city": "Bilecik",        "lat": 40.14, "lon": 29.98, "pga475": 0.38, "zone": 2, "note": "Eskişehir fay zonu"},
+
+    # ── Batı Anadolu grabenleri (normal fay rejimi) ──
+    {"city": "Balıkesir",      "lat": 39.65, "lon": 27.88, "pga475": 0.42, "zone": 1, "note": "Edremit grabeni"},
+    {"city": "Manisa",         "lat": 38.62, "lon": 27.43, "pga475": 0.45, "zone": 1, "note": "Gediz grabeni (1969 Ms 6.9)"},
+    {"city": "İzmir",          "lat": 38.42, "lon": 27.14, "pga475": 0.45, "zone": 1, "note": "İzmir körfez fayı (2020 Mw 6.9)"},
+    {"city": "Aydın",          "lat": 37.85, "lon": 27.85, "pga475": 0.45, "zone": 1, "note": "Büyük Menderes grabeni"},
+    {"city": "Denizli",        "lat": 37.78, "lon": 29.09, "pga475": 0.45, "zone": 1, "note": "Pamukkale grabeni"},
+    {"city": "Muğla",          "lat": 37.21, "lon": 28.36, "pga475": 0.42, "zone": 1, "note": "Hellenic Trench"},
+    {"city": "Antalya",        "lat": 36.89, "lon": 30.71, "pga475": 0.28, "zone": 2, "note": "Kıbrıs yayı"},
+    {"city": "Burdur",         "lat": 37.72, "lon": 30.29, "pga475": 0.45, "zone": 1, "note": "Burdur fay zonu (1971 Ms 6.2)"},
+    {"city": "Isparta",        "lat": 37.76, "lon": 30.55, "pga475": 0.40, "zone": 1, "note": "Isparta açısı"},
+    {"city": "Uşak",           "lat": 38.68, "lon": 29.41, "pga475": 0.40, "zone": 1, "note": "Simav fayı"},
+    {"city": "Kütahya",        "lat": 39.42, "lon": 29.99, "pga475": 0.40, "zone": 1, "note": "Simav (2011 Mw 5.9)"},
+    {"city": "Afyon",          "lat": 38.76, "lon": 30.54, "pga475": 0.35, "zone": 2, "note": "Akşehir grabeni"},
+    {"city": "Eskişehir",      "lat": 39.78, "lon": 30.52, "pga475": 0.30, "zone": 2, "note": "Eskişehir fay zonu"},
+
+    # ── İç Anadolu (düşük tehlike) ──
+    {"city": "Ankara",         "lat": 39.93, "lon": 32.86, "pga475": 0.25, "zone": 3, "note": "İç Anadolu masifi"},
+    {"city": "Konya",          "lat": 37.87, "lon": 32.48, "pga475": 0.22, "zone": 3, "note": "Düşük sismisite"},
+    {"city": "Aksaray",        "lat": 38.37, "lon": 34.03, "pga475": 0.20, "zone": 3, "note": "İç Anadolu"},
+    {"city": "Niğde",          "lat": 37.97, "lon": 34.68, "pga475": 0.25, "zone": 3, "note": "Tuz Gölü fayı"},
+    {"city": "Kayseri",        "lat": 38.73, "lon": 35.48, "pga475": 0.28, "zone": 3, "note": "Erciyes volkanik bölge"},
+    {"city": "Nevşehir",       "lat": 38.62, "lon": 34.71, "pga475": 0.22, "zone": 3, "note": "Kapadokya"},
+    {"city": "Kırşehir",       "lat": 39.15, "lon": 34.16, "pga475": 0.25, "zone": 3, "note": "Kırşehir bloğu"},
+    {"city": "Yozgat",         "lat": 39.82, "lon": 34.81, "pga475": 0.28, "zone": 3, "note": "KAF güneyi"},
+    {"city": "Karaman",        "lat": 37.18, "lon": 33.22, "pga475": 0.20, "zone": 4, "note": "Düşük (Toroslar güneyi)"},
+    {"city": "Mersin",         "lat": 36.81, "lon": 34.64, "pga475": 0.25, "zone": 3, "note": "Kıbrıs yayı uzak"},
+    {"city": "Adana",          "lat": 37.00, "lon": 35.32, "pga475": 0.32, "zone": 2, "note": "Misis-Andırın fayı"},
+
+    # ── Karadeniz kıyı (görece düşük) ──
+    {"city": "Trabzon",        "lat": 41.00, "lon": 39.73, "pga475": 0.20, "zone": 3, "note": "Karadeniz kıyı"},
+    {"city": "Rize",           "lat": 41.02, "lon": 40.52, "pga475": 0.18, "zone": 4, "note": "Doğu Karadeniz"},
+    {"city": "Samsun",         "lat": 41.29, "lon": 36.34, "pga475": 0.30, "zone": 2, "note": "KAF kuzeyi"},
+    {"city": "Zonguldak",      "lat": 41.46, "lon": 31.79, "pga475": 0.28, "zone": 2, "note": "Batı Karadeniz"},
+    {"city": "Sinop",          "lat": 42.03, "lon": 35.15, "pga475": 0.22, "zone": 3, "note": "Karadeniz kıyı"},
+]
+
+_PSHA_RETURN_PERIODS = {
+    "72 yıl (50% / 50 yr)":   {"factor": 0.45, "label": "72 yıl",   "desc": "Sık karşılaşılan — DD-4"},
+    "475 yıl (10% / 50 yr)":  {"factor": 1.00, "label": "475 yıl",  "desc": "TBDY-2018 standart — DD-2"},
+    "2475 yıl (2% / 50 yr)":  {"factor": 1.80, "label": "2475 yıl", "desc": "Çok nadir — DD-1"},
+}
+
+
+def _psha_pga_color(pga_g: float) -> str:
+    """USGS PGA renk skalası (g cinsinden)."""
+    if pga_g < 0.10: return "#1D9E75"   # yeşil
+    if pga_g < 0.20: return "#7DC872"
+    if pga_g < 0.30: return "#C0DD97"   # açık sarı-yeşil
+    if pga_g < 0.40: return "#FAC775"   # sarı
+    if pga_g < 0.55: return "#EF9F27"   # turuncu
+    if pga_g < 0.75: return "#E24B4A"   # kırmızı
+    return "#A32D2D"                     # koyu kırmızı
+
+
+def _psha_zone_label(zone: int) -> str:
+    return {1: "Zone-1 (en yüksek)", 2: "Zone-2", 3: "Zone-3", 4: "Zone-4 (en düşük)"}.get(zone, f"Zone-{zone}")
+
+
+@st.cache_data(ttl=600, show_spinner=False)
+def _psha_try_efehr_api(lat: float, lon: float):
+    """EFEHR API denemesi — 5 sn timeout, fail olursa None."""
+    try:
+        r = requests.get(
+            "https://efehr.org/services/seismicHazardData/",
+            params={"latitude": lat, "longitude": lon, "returnPeriod": 475, "imt": "PGA"},
+            timeout=5,
+        )
+        if r.status_code == 200:
+            return r.json()
+    except Exception:
+        pass
+    return None
+
+
+@st.fragment
+def _render_sismik_tehlike():
+    st.markdown(
+        '<div class="chart-title">🗺️ Sismik Tehlike Haritası — PSHA (F-44 / v1.22)</div>',
+        unsafe_allow_html=True,
+    )
+    st.info(
+        "🗺️ **PSHA (Probabilistic Seismic Hazard Analysis):** Bir konumda belirli bir "
+        "dönüş periyodunda aşılma olasılığı olan en büyük yer ivmesini (PGA, g) verir. "
+        "Teorik temel: **Woessner et al. (2015), SHARE 2013 European Seismic Hazard Model**; "
+        "Türkiye verisi: **AFAD TBDY-2018**."
+    )
+
+    # ── Bölüm A: Dönüş periyodu seçici ─────────────────────────────────────
+    col_rp, col_api = st.columns([2, 1])
+    with col_rp:
+        rp_choice = st.selectbox(
+            "Dönüş periyodu seç",
+            options=list(_PSHA_RETURN_PERIODS.keys()),
+            index=1,  # Default: 475 yıl
+            key="psha_rp_select",
+        )
+    with col_api:
+        try_api = st.checkbox("EFEHR API dene", value=False, key="psha_try_api",
+                              help="EFEHR canlı API; 5s timeout, fail olursa statik veri")
+
+    rp_meta = _PSHA_RETURN_PERIODS[rp_choice]
+    rp_factor = rp_meta["factor"]
+    rp_label = rp_meta["label"]
+
+    # API denemesi (opsiyonel) — Erzincan için test
+    api_pga = None
+    if try_api:
+        with st.spinner("EFEHR API sorgulanıyor..."):
+            api_resp = _psha_try_efehr_api(ERZ_LAT, ERZ_LON)
+        if api_resp:
+            st.success("✅ EFEHR API yanıtladı (Erzincan ref)")
+            api_pga = api_resp
+        else:
+            st.warning("⚠️ EFEHR API erişilemedi — TBDY-2018 statik verisi kullanılıyor")
+
+    # ── Bölüm B: PGA heatmap haritası ──────────────────────────────────────
+    df_psha = pd.DataFrame(_PSHA_GRID_TR)
+    df_psha["pga_rp"] = df_psha["pga475"] * rp_factor
+    df_psha["renk"] = df_psha["pga_rp"].apply(_psha_pga_color)
+    df_psha["zone_label"] = df_psha["zone"].apply(_psha_zone_label)
+
+    fig_map = go.Figure()
+    fig_map.add_trace(go.Scattermapbox(
+        lat=df_psha["lat"],
+        lon=df_psha["lon"],
+        mode="markers",
+        marker=dict(
+            size=22,
+            color=df_psha["pga_rp"],
+            colorscale=[
+                [0.00, "#1D9E75"],
+                [0.20, "#7DC872"],
+                [0.35, "#C0DD97"],
+                [0.50, "#FAC775"],
+                [0.65, "#EF9F27"],
+                [0.85, "#E24B4A"],
+                [1.00, "#A32D2D"],
+            ],
+            cmin=0.0,
+            cmax=max(0.6, df_psha["pga_rp"].max()),
+            colorbar=dict(
+                title=dict(text=f"PGA (g)<br>{rp_label}", font=dict(color=TEXT, size=11)),
+                tickfont=dict(color=TEXT, size=10),
+                bgcolor="rgba(0,0,0,0.4)",
+                thickness=14, len=0.7,
+            ),
+            opacity=0.92,
+        ),
+        text=df_psha.apply(
+            lambda r: (
+                f"<b>{r['city']}</b><br>"
+                f"PGA ({rp_label}): {r['pga_rp']:.2f} g<br>"
+                f"TBDY-2018: {r['zone_label']}<br>"
+                f"Bağlam: {r['note']}"
+                "<extra></extra>"
+            ),
+            axis=1,
+        ),
+        hovertemplate="%{text}",
+        showlegend=False,
+    ))
+
+    fig_map.update_layout(
+        mapbox=dict(style="open-street-map", center=dict(lat=39.0, lon=35.0), zoom=5),
+        height=540,
+        margin=dict(l=0, r=0, t=10, b=0),
+        paper_bgcolor=BG2,
+    )
+    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": False})
+
+    # ── Bölüm C: 4 bilgi kartı ─────────────────────────────────────────────
+    pga_max = df_psha["pga_rp"].max()
+    pga_min = df_psha["pga_rp"].min()
+    pga_mean = df_psha["pga_rp"].mean()
+    zone1_n = int((df_psha["zone"] == 1).sum())
+
+    c1, c2, c3, c4 = st.columns(4)
+    kartlar = [
+        (c1, f"{pga_max:.2f} g",  "#A32D2D", f"Maks PGA ({rp_label})"),
+        (c2, f"{pga_mean:.2f} g", "#EF9F27", "Türkiye ortalama"),
+        (c3, f"{pga_min:.2f} g",  "#1D9E75", "Min (Karadeniz/iç)"),
+        (c4, f"{zone1_n}",        "#E24B4A", "Zone-1 il sayısı"),
+    ]
+    for col, val, color, label in kartlar:
+        with col:
+            st.markdown(
+                f'<div class="stat-box">'
+                f'<div style="font-size:1.35rem;font-weight:800;color:{color}">{val}</div>'
+                f'<div style="font-size:0.7rem;opacity:0.55;margin-top:2px">{label}</div>'
+                f'</div>', unsafe_allow_html=True)
+
+    # ── Bölüm D: TBDY-2018 zone tablosu ────────────────────────────────────
+    st.markdown('<div class="chart-title">📋 TBDY-2018 Deprem Bölgeleri</div>', unsafe_allow_html=True)
+    df_zone_summary = pd.DataFrame([
+        {"Zone": "Zone-1", "Tanım": "En yüksek tehlike",  "PGA (475 yıl)": "≥ 0.40 g", "Renk": "🔴", "İl sayısı": int((df_psha["zone"] == 1).sum())},
+        {"Zone": "Zone-2", "Tanım": "Yüksek tehlike",     "PGA (475 yıl)": "0.30 – 0.40 g", "Renk": "🟠", "İl sayısı": int((df_psha["zone"] == 2).sum())},
+        {"Zone": "Zone-3", "Tanım": "Orta tehlike",       "PGA (475 yıl)": "0.20 – 0.30 g", "Renk": "🟡", "İl sayısı": int((df_psha["zone"] == 3).sum())},
+        {"Zone": "Zone-4", "Tanım": "Düşük tehlike",      "PGA (475 yıl)": "< 0.20 g",      "Renk": "🟢", "İl sayısı": int((df_psha["zone"] == 4).sum())},
+    ])
+    st.dataframe(df_zone_summary, use_container_width=True, hide_index=True)
+
+    # ── Bölüm E: İl bazlı tablo ────────────────────────────────────────────
+    st.markdown('<div class="chart-title">🏙️ İl Bazlı PGA Değerleri</div>', unsafe_allow_html=True)
+    df_view = df_psha[["city", "pga_rp", "zone_label", "note"]].copy()
+    df_view.columns = ["İl", f"PGA ({rp_label}) g", "TBDY-2018 Zonu", "Tektonik Bağlam"]
+    df_view = df_view.sort_values(f"PGA ({rp_label}) g", ascending=False).reset_index(drop=True)
+    st.dataframe(df_view, use_container_width=True, hide_index=True, height=320)
+
+    # ── Bölüm F: Kaynaklar ve uyarı ────────────────────────────────────────
+    st.info(
+        "📚 **PSHA Metodolojisi:** Cornell (1968) BSSA 58(5) | "
+        "**SHARE 2013:** Woessner et al. (2015), *Bull. Earthq. Eng.* 13(12), 3553-3596 — "
+        "DOI:10.1007/s10518-015-9795-1 | "
+        "**OpenQuake:** Pagani et al. (2014), *SRL* 85(3), 692-702 | "
+        "**Türkiye:** AFAD TBDY-2018 — deprem.afad.gov.tr/depremzonasi | "
+        f"**Veri:** {len(_PSHA_GRID_TR)} il, statik harita (EFEHR API opsiyonel)"
+    )
+    st.warning(
+        "⚠️ Bu harita TBDY-2018 spektral ivme değerlerinden türetilmiştir; yerel zemin "
+        "koşulları (Vs30, mikrobölgeleme) PGA'yı 1.5–3× büyütebilir. Resmi proje hesabı "
+        "için TBDY-2018 doğrudan referansı gereklidir."
+    )
+
+
+if active_menu == "🗺️ Sismik Tehlike":
+    _render_sismik_tehlike()
+
 # ─── Footer ─────────────────────────────────────────────────────────────────
 st.markdown(f"""
 <div style="text-align:center;color:{SUBTEXT};font-size:0.7rem;
