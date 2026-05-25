@@ -8,6 +8,12 @@
 - UI yerleşimi belirsizse → Ajan 7'ye sorar
 - Tüm kararları `features/BACKLOG.md`'ye kaydeder
 
+### Zorunlu Bilimsel Ön Tarama
+Her yeni özellik briefi oluşturmadan önce Ajan 8'e şu soruyu sor:
+"Bu özelliğin bilimsel açıdan açık uçlu risk taramasını yap — sana spesifik soru sormuyorum, sen ne görüyorsan söyle."
+
+Ajan 8'in proaktif uyarıları olmadan brief tamamlanmış sayılmaz.
+
 ## Feature Backlog
 - Dosya: `features/BACKLOG.md`
 - Toplam: 39 özellik (F-01 — F-43)

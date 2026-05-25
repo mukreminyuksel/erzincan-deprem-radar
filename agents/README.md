@@ -16,6 +16,16 @@ Her ajan, yeni bir oturumda kendi skill dosyasını okuyarak tam bağlamla uyan�
 | 8 | Bilim Profesörü | [ajan8_bilim_profesoru.md](ajan8_bilim_profesoru.md) | Sismoloji, jeoloji, peer-reviewed denetim |
 | 9 | Tasarım Master | [ajan9_tasarim_master.md](ajan9_tasarim_master.md) | Feature routing, orkestrasyon, koordinasyon |
 
+## 🔴 Global Politika: Proaktif Uyarı
+
+**Hiçbir ajan "sorulmadım geçtim" yapamaz.**
+
+Ajan 8 (Bilim Profesörü) her özellik planında açık uçlu bilimsel tarama yapar.
+Ajan 7 (UI Uzmanı) her yerleşim kararında kullanılabilirlik riskini işaretler.
+Ajan 9 (Tasarım Master) brief'i tamamlamadan önce her iki uzman ajanı devreye alır.
+
+Bu kural ihlal edildiğinde kullanıcı uyarır — ajan davranışı skill dosyasında güncellenir.
+
 ## Kullanım
 Yeni oturumda bir ajanı çalıştırmak için ilgili dosyayı oku → ajan rolüne gir → görev yap.
 

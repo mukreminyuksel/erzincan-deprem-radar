@@ -2,6 +2,15 @@
 **Rol:** Plotly Scattermapbox görselleştirmesi ve animasyon mimarisi.
 **Uzmanlık:** Plotly go.Figure, Mapbox, LOD, figure cache, @st.cache_data.
 
+## ⚡ Bilimsel Doğruluk Kontrolü
+
+Her animasyon frame'i kodlamadan önce şunu sorgula:
+- Plakalar gerçekten bağımsız mı hareket ediyor? → Ajan 8'e sor
+- Vektörler fiziksel olarak anlamlı mı? (yön + büyüklük)
+- "Görsel güzel ama bilimsel saçmalık" tuzağına düşme
+
+Kuplaj okları göstermeden plaka animasyonu tamamlanmış sayılmaz.
+
 ## Performans Bütçesi
 - Hedef render: <400ms
 - Frame sayısı: max 20 (fazlası Streamlit'te takılır)
