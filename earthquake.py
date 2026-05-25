@@ -37,7 +37,7 @@ from earthquake_core import (
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.8"
+APP_VERSION = "1.10"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -802,6 +802,7 @@ active_menu = st.sidebar.radio(
         "🌍 Canlı Radar",
         "📊 İstatistik & Analiz",
         "🧭 Fay Sistemleri",
+        "🔭 Astronomik Analiz",
         "🎓 Bilgi Havuzu",
         "⚙️ Sistem & Veri",
         "📝 Raporlar",
@@ -3221,6 +3222,294 @@ if active_menu == "⚙️ Sistem & Veri":
                            data=show.to_csv(index=False).encode("utf-8-sig"),
                            file_name=f"erzincan_deprem_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
                            mime="text/csv")
+
+# ════════════════════════════════════════════════════════════════════════════
+# 🔭 ASTRONOMİK ANALİZ PANELİ (Gökbilimci) — Gök Mekaniği ve Deprem Korelasyonu
+# ════════════════════════════════════════════════════════════════════════════
+if active_menu == "🔭 Astronomik Analiz":
+    st.markdown('<div class="chart-title">🔭 Astronomik Analiz — Gök Mekaniği ve Deprem Korelasyonu</div>', unsafe_allow_html=True)
+    st.caption(
+        "Ay, Güneş ve gezegenlerin yer kabuğuna uyguladığı gel-git çekim etkilerinin "
+        "sismik aktiviteyle olan istatistiksel ilişkisi keşfedicidir."
+    )
+
+    st.warning(
+        "⚠️ **Bilimsel Uyarı:** Bu panel keşfedici niteliktedir. Ay/Güneş çekiminin deprem tetikleyici olduğu "
+        "**kanıtlanmamıştır**. Literatürde zayıf korelasyon raporları vardır (Cochran 2004, Métivier 2009) "
+        "ancak nedensellik gösterilmemiştir. Bu panel istatistiksel araştırma amaçlıdır."
+    )
+
+    if "run_astro" not in st.session_state:
+        st.session_state.run_astro = False
+
+    col_a1, col_a2 = st.columns([3, 1])
+    with col_a1:
+        if st.button("🔭 Astronomik Hesaplamaları Çalıştır", use_container_width=True, type="primary"):
+            st.session_state.run_astro = True
+    with col_a2:
+        if st.button("🛑 Kapat", use_container_width=True, key="close_astro"):
+            st.session_state.run_astro = False
+            st.rerun()
+
+    if not st.session_state.run_astro:
+        st.info(
+            "Ay/Güneş/gezegen yörünge hesaplamaları her deprem için ayrı `ephem` çağrısı gerektirdiğinden "
+            "ağırdır. CPU performansını korumak için **Çalıştır** düğmesi ile tetiklenir.",
+            icon="⏸️",
+        )
+    else:
+        # ───────────────────────────────────────────────────────────────────
+        # BİLEŞEN 1 — Anlık Gök Durumu Kartları (Erzincan üzerinde, şu an)
+        # ───────────────────────────────────────────────────────────────────
+        st.markdown("---")
+        st.markdown('<div class="chart-title">🌌 1. Anlık Gök Durumu — Erzincan Üzerinde</div>', unsafe_allow_html=True)
+
+        now_obs = ephem.Observer()
+        now_obs.lat = str(ERZ_LAT)
+        now_obs.lon = str(ERZ_LON)
+        now_obs.date = datetime.utcnow()
+
+        moon_now = ephem.Moon(now_obs)
+        sun_now = ephem.Sun(now_obs)
+        jupiter_now = ephem.Jupiter(now_obs)
+        venus_now = ephem.Venus(now_obs)
+
+        moon_phase_pct = float(moon_now.phase)
+        # ephem.earth_distance birimi AU (1 AU = 149,597,870.7 km)
+        moon_dist_km = float(moon_now.earth_distance) * 149_597_870.7
+        moon_alt_deg = math.degrees(float(moon_now.alt))
+
+        sun_dist_au = float(sun_now.earth_distance)
+        sun_alt_deg = math.degrees(float(sun_now.alt))
+
+        if moon_phase_pct < 5:
+            phase_name = "🌑 Yeni Ay"
+        elif moon_phase_pct < 45:
+            phase_name = "🌒 Hilal"
+        elif moon_phase_pct < 55:
+            phase_name = "🌓 İlk/Son Dördün"
+        elif moon_phase_pct < 95:
+            phase_name = "🌔 Şişkin"
+        else:
+            phase_name = "🌕 Dolunay"
+
+        g1, g2, g3, g4 = st.columns(4)
+        g1.metric("Ay Fazı", phase_name, f"{moon_phase_pct:.1f}%")
+        g2.metric("Ay Uzaklığı", f"{moon_dist_km:,.0f} km", "Çekim ∝ 1/d²")
+        g3.metric("Ay Yüksekliği", f"{moon_alt_deg:.1f}°", "Ufuk üstünde" if moon_alt_deg > 0 else "Ufuk altında")
+        g4.metric("Güneş Uzaklığı", f"{sun_dist_au:.4f} AU", f"~{sun_dist_au * 149.6:.1f} M km")
+
+        g5, g6, g7, g8 = st.columns(4)
+        g5.metric("Güneş Yüksekliği", f"{sun_alt_deg:.1f}°", "Gündüz" if sun_alt_deg > 0 else "Gece")
+        g6.metric("Jüpiter Uzaklığı", f"{float(jupiter_now.earth_distance):.2f} AU")
+        g7.metric("Venüs Uzaklığı", f"{float(venus_now.earth_distance):.2f} AU")
+        tidal_alignment = "Yüksek (Syzygy)" if (moon_phase_pct < 10 or moon_phase_pct > 90) else "Düşük (Kvadratur)"
+        g8.metric("Gel-Git Hizalanması", tidal_alignment)
+
+        st.caption(
+            "💡 **Bilimsel ipucu:** Syzygy konumunda (Yeni Ay/Dolunay) Ay ve Güneş'in çekim etkileri toplanır → "
+            "*spring tide* (büyük gel-git). Kvadratur konumunda (İlk/Son Dördün) ise birbirini iptal eder → "
+            "*neap tide* (küçük gel-git). Kabuk gerilim eşiğindeki faylarda bu fark teorik olarak ek tetikleyici olabilir."
+        )
+
+        with st.spinner("Tüm depremler için astronomik özellikler hesaplanıyor..."):
+            astro_df = df.dropna(subset=["zaman", "lat", "lon", "buyukluk"]).copy()
+            if len(astro_df) < 5:
+                st.warning("Astronomik analiz için en az 5 deprem gerekli.")
+            else:
+                env_feats = astro_df.apply(lambda r: compute_environmental_features(r, df), axis=1)
+                astro_df = pd.concat([astro_df.reset_index(drop=True), env_feats.reset_index(drop=True)], axis=1)
+
+                def _moon_phase_at(row):
+                    obs = ephem.Observer()
+                    obs.lat = str(row["lat"])
+                    obs.lon = str(row["lon"])
+                    obs.date = row["zaman"].to_pydatetime()
+                    return float(ephem.Moon(obs).phase)
+
+                astro_df["ay_faz"] = astro_df.apply(_moon_phase_at, axis=1)
+
+                # ───────────────────────────────────────────────────────────
+                # BİLEŞEN 2 — Ay Fazı vs Magnitude Scatter
+                # ───────────────────────────────────────────────────────────
+                st.markdown("---")
+                st.markdown('<div class="chart-title">🌗 2. Ay Fazı vs Deprem Büyüklüğü</div>', unsafe_allow_html=True)
+                st.caption(
+                    "Her nokta bir deprem. X: depremin gerçekleştiği andaki Ay fazı (0=Yeni Ay, 50=Dördün, 100=Dolunay). "
+                    "Y: magnitude. Renk: derinlik. Sarı bantlar spring tide (gel-git çekiminin maksimum olduğu) dönemleri."
+                )
+
+                fig_phase = px.scatter(
+                    astro_df, x="ay_faz", y="buyukluk", color="derinlik",
+                    hover_data=["konum", "zaman_str", "kaynak"],
+                    color_continuous_scale="Plasma",
+                    labels={"ay_faz": "Ay Fazı (%)", "buyukluk": "Magnitude", "derinlik": "Derinlik (km)"},
+                )
+                fig_phase.update_layout(
+                    paper_bgcolor=BG, plot_bgcolor=BG2,
+                    font=dict(color=TEXT, size=11),
+                    margin=dict(t=20, b=40, l=50, r=10),
+                    height=350,
+                    xaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT)),
+                    yaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT)),
+                )
+                fig_phase.add_vrect(x0=0, x1=10, fillcolor="rgba(255,180,80,0.10)", line_width=0,
+                                   annotation_text="Spring (Yeni Ay)", annotation_position="top left",
+                                   annotation_font_size=9)
+                fig_phase.add_vrect(x0=90, x1=100, fillcolor="rgba(255,180,80,0.10)", line_width=0,
+                                   annotation_text="Spring (Dolunay)", annotation_position="top right",
+                                   annotation_font_size=9)
+                st.plotly_chart(fig_phase, use_container_width=True, config={"displayModeBar": False, "displaylogo": False})
+
+                spring_eq = astro_df[(astro_df["ay_faz"] < 10) | (astro_df["ay_faz"] > 90)]
+                neap_eq = astro_df[(astro_df["ay_faz"] > 40) & (astro_df["ay_faz"] < 60)]
+
+                c_spring, c_neap, c_ratio = st.columns(3)
+                c_spring.metric("Spring tide depremleri", f"{len(spring_eq)} olay",
+                               f"Ort M: {spring_eq['buyukluk'].mean():.2f}" if len(spring_eq) else "—")
+                c_neap.metric("Neap tide depremleri", f"{len(neap_eq)} olay",
+                             f"Ort M: {neap_eq['buyukluk'].mean():.2f}" if len(neap_eq) else "—")
+                if len(spring_eq) and len(neap_eq):
+                    # Faz bantları eşit genişlikte (20% her biri) — birebir karşılaştırılabilir
+                    ratio = len(spring_eq) / len(neap_eq)
+                    c_ratio.metric("Spring/Neap Oranı", f"{ratio:.2f}", "Beklenen ≈ 1.0 (etki yoksa)")
+
+                # ───────────────────────────────────────────────────────────
+                # BİLEŞEN 3 — Ay Çekim Zaman Serisi + Depremler
+                # ───────────────────────────────────────────────────────────
+                st.markdown("---")
+                st.markdown('<div class="chart-title">📈 3. Ay Çekim Zaman Serisi (Depremlerle Üst Üste)</div>', unsafe_allow_html=True)
+                st.caption("Mavi çizgi: Ay çekim göstergesi (1/d²). Kırmızı noktalar: depremler (boyut = magnitude).")
+
+                astro_df_sorted = astro_df.sort_values("zaman").copy()
+
+                fig_ts = make_subplots(specs=[[{"secondary_y": True}]])
+                fig_ts.add_trace(
+                    go.Scatter(x=astro_df_sorted["zaman"], y=astro_df_sorted["ay_cekim"],
+                              mode="lines", name="Ay Çekim", line=dict(color="#90caf9", width=1.5)),
+                    secondary_y=False,
+                )
+                fig_ts.add_trace(
+                    go.Scatter(x=astro_df_sorted["zaman"], y=astro_df_sorted["buyukluk"],
+                              mode="markers", name="Depremler",
+                              marker=dict(size=astro_df_sorted["buyukluk"]*3, color="#ff5252", opacity=0.6,
+                                         line=dict(width=0.5, color="#ffcccc"))),
+                    secondary_y=True,
+                )
+                fig_ts.update_layout(
+                    paper_bgcolor=BG, plot_bgcolor=BG2,
+                    font=dict(color=TEXT, size=11),
+                    margin=dict(t=20, b=40, l=50, r=50),
+                    height=340,
+                    xaxis=dict(gridcolor=GRID),
+                    legend=dict(bgcolor=BG3, bordercolor=BORDER, borderwidth=1),
+                )
+                fig_ts.update_yaxes(title_text="Ay Çekim Proxy", secondary_y=False, gridcolor=GRID, color="#90caf9")
+                fig_ts.update_yaxes(title_text="Magnitude", secondary_y=True, gridcolor=GRID, color="#ff5252")
+                st.plotly_chart(fig_ts, use_container_width=True, config={"displayModeBar": False, "displaylogo": False})
+
+                # ───────────────────────────────────────────────────────────
+                # BİLEŞEN 4 — FFT Periyodogram (Deprem Sıklığı Frekans Analizi)
+                # ───────────────────────────────────────────────────────────
+                st.markdown("---")
+                st.markdown('<div class="chart-title">🌊 4. FFT Periyodogram — Deprem Sıklığı Frekans Analizi</div>', unsafe_allow_html=True)
+                st.caption(
+                    "Deprem oluşum sıklığı günlük binlere bölünüp Hızlı Fourier Dönüşümü uygulanır. "
+                    "Tepe frekanslar periyodik tetikleyicilere işaret edebilir: sinodik Ay periyodu ≈ 29.5 gün, "
+                    "yarı-Ay (M2 gel-git harmoniği) ≈ 14.8 gün, yıllık ≈ 365.25 gün."
+                )
+
+                astro_df["gun"] = astro_df["zaman"].dt.floor("D")
+                daily = astro_df.groupby("gun").size().reset_index(name="sayim")
+                if len(daily) >= 10:
+                    full_range = pd.date_range(daily["gun"].min(), daily["gun"].max(), freq="D")
+                    daily = daily.set_index("gun").reindex(full_range, fill_value=0).reset_index()
+                    daily.columns = ["gun", "sayim"]
+
+                    n_days = len(daily)
+                    signal = daily["sayim"].values.astype(float)
+                    signal -= signal.mean()  # DC bileşeni çıkar
+
+                    fft_vals = np.fft.rfft(signal)
+                    fft_freq = np.fft.rfftfreq(n_days, d=1.0)
+                    fft_amp = np.abs(fft_vals)
+
+                    periods_days = np.where(fft_freq > 0, 1.0 / np.maximum(fft_freq, 1e-9), 0)
+
+                    fft_df = pd.DataFrame({"periyot_gun": periods_days[1:], "amplitude": fft_amp[1:]})
+                    fft_df = fft_df[(fft_df["periyot_gun"] >= 2) & (fft_df["periyot_gun"] <= n_days/2)]
+
+                    fig_fft = px.line(fft_df.sort_values("periyot_gun"), x="periyot_gun", y="amplitude",
+                                     log_x=True,
+                                     labels={"periyot_gun": "Periyot (gün, log)", "amplitude": "Genlik"})
+                    fig_fft.update_traces(line=dict(color="#ce93d8", width=1.8))
+                    fig_fft.update_layout(
+                        paper_bgcolor=BG, plot_bgcolor=BG2,
+                        font=dict(color=TEXT, size=11),
+                        margin=dict(t=20, b=40, l=50, r=10),
+                        height=320,
+                        xaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT)),
+                        yaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT)),
+                    )
+                    for period, label, color in [
+                        (29.5, "Ay periyodu", "#ffb74d"),
+                        (14.8, "Yarı-Ay (M2)", "#a5d6a7"),
+                        (365.25, "Yıllık", "#ff8a80"),
+                    ]:
+                        if 2 <= period <= n_days/2:
+                            fig_fft.add_vline(x=period, line=dict(color=color, dash="dash", width=1),
+                                             annotation_text=label, annotation_position="top",
+                                             annotation_font=dict(color=color, size=9))
+                    st.plotly_chart(fig_fft, use_container_width=True, config={"displayModeBar": False, "displaylogo": False})
+                    st.caption("⚠️ Kısa veri pencerelerinde FFT gürültülüdür; 60+ gün verisi olduğunda daha güvenilir tepeler gözlemlenir.")
+                else:
+                    st.info("FFT analizi için en az 10 günlük veri gerekli.")
+
+                # ───────────────────────────────────────────────────────────
+                # BİLEŞEN 5 — Gezegen Çekim Etkisi (Jüpiter + Venüs)
+                # ───────────────────────────────────────────────────────────
+                st.markdown("---")
+                st.markdown('<div class="chart-title">🪐 5. Gezegen Çekim Etkisi — Jüpiter + Venüs Toplam Proxy</div>', unsafe_allow_html=True)
+                st.caption(
+                    "Jüpiter (kütle 317.8 M⊕) ve Venüs (kütle 0.815 M⊕) çekim etkileri 1/d² ile ağırlıklanıp toplanır. "
+                    "Pikler, gezegenlerin Dünya'ya en yakın oldukları (opozisyon/iç birleşim) anlardır."
+                )
+
+                gezegen_sorted = astro_df_sorted[["zaman", "gezegen_cekim", "buyukluk", "konum"]].copy()
+
+                fig_planet = make_subplots(specs=[[{"secondary_y": True}]])
+                fig_planet.add_trace(
+                    go.Scatter(x=gezegen_sorted["zaman"], y=gezegen_sorted["gezegen_cekim"],
+                              mode="lines", name="Gezegen Çekim", line=dict(color="#ffb74d", width=1.5),
+                              fill="tozeroy", fillcolor="rgba(255,183,77,0.08)"),
+                    secondary_y=False,
+                )
+                fig_planet.add_trace(
+                    go.Scatter(x=gezegen_sorted["zaman"], y=gezegen_sorted["buyukluk"],
+                              mode="markers", name="Depremler",
+                              marker=dict(size=gezegen_sorted["buyukluk"]*3, color="#80deea", opacity=0.55,
+                                         line=dict(width=0.5, color="#b2ebf2"))),
+                    secondary_y=True,
+                )
+                fig_planet.update_layout(
+                    paper_bgcolor=BG, plot_bgcolor=BG2,
+                    font=dict(color=TEXT, size=11),
+                    margin=dict(t=20, b=40, l=50, r=50),
+                    height=320,
+                    xaxis=dict(gridcolor=GRID),
+                    legend=dict(bgcolor=BG3, bordercolor=BORDER, borderwidth=1),
+                )
+                fig_planet.update_yaxes(title_text="Gezegen Çekim Proxy", secondary_y=False, gridcolor=GRID, color="#ffb74d")
+                fig_planet.update_yaxes(title_text="Magnitude", secondary_y=True, gridcolor=GRID, color="#80deea")
+                st.plotly_chart(fig_planet, use_container_width=True, config={"displayModeBar": False, "displaylogo": False})
+
+                st.markdown("---")
+                st.info(
+                    "🔬 **Yorum:** Bu paneldeki istatistiksel örüntüler tek başına **rastlantı** ile uyumlu olabilir. "
+                    "Gerçek bir kausal ilişki için: (1) en az 1000+ olay, (2) bağımsız doğrulama veri seti, "
+                    "(3) farklı tektonik rejimlerde tekrarlanabilirlik gerekir. Bu panel bilimsel namus gereği "
+                    "yalnızca **hipotez üretici** bir keşif aracıdır, kesin bilimsel kanıt değildir."
+                )
 
 # ─── Footer ─────────────────────────────────────────────────────────────────
 st.markdown(f"""
