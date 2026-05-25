@@ -37,7 +37,7 @@ from earthquake_core import (
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.10"
+APP_VERSION = "1.11"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -803,6 +803,7 @@ active_menu = st.sidebar.radio(
         "📊 İstatistik & Analiz",
         "🧭 Fay Sistemleri",
         "🔭 Astronomik Analiz",
+        "🚨 Erken Uyarı",
         "🎓 Bilgi Havuzu",
         "⚙️ Sistem & Veri",
         "📝 Raporlar",
@@ -3510,6 +3511,296 @@ if active_menu == "🔭 Astronomik Analiz":
                     "(3) farklı tektonik rejimlerde tekrarlanabilirlik gerekir. Bu panel bilimsel namus gereği "
                     "yalnızca **hipotez üretici** bir keşif aracıdır, kesin bilimsel kanıt değildir."
                 )
+
+# ════════════════════════════════════════════════════════════════════════════
+# 🚨 ERKEN UYARI SİMÜLATÖRÜ — P/S Dalga Geri Sayım ve Şiddet Tahmini
+# ════════════════════════════════════════════════════════════════════════════
+if active_menu == "🚨 Erken Uyarı":
+    st.markdown('<div class="chart-title">🚨 Erken Uyarı Simülatörü — P/S Dalga Geri Sayım</div>', unsafe_allow_html=True)
+    st.caption(
+        "Bir deprem olduğunda P-dalgası (hızlı, hasarsız) ile S-dalgası (yavaş, yıkıcı) arasındaki "
+        "saniyeler **uyarı penceresidir**. Bu simülatör mevcut depremleri kullanarak farklı şehirlerin "
+        "ne kadar uyarı süresine sahip olacağını gösterir."
+    )
+
+    st.warning(
+        "⚠️ **Bu bir simülasyondur.** Gerçek bir EEW (Earthquake Early Warning) sistemi değildir. "
+        "Türkiye'de operasyonel EEW olarak AFAD-EQE/EWS çalışmaktadır. Bu panel sadece kavram demonstrasyonudur; "
+        "afet hazırlığı veya gerçek zamanlı kararlar için kullanılamaz."
+    )
+
+    # ────────────────────────────────────────────────────────────────────────
+    # Dalga hızı sabitleri (kabuk için tipik P/S/Rayleigh)
+    # ────────────────────────────────────────────────────────────────────────
+    VP = 6.0   # P-dalga hızı (km/s)
+    VS = 3.5   # S-dalga hızı (km/s)
+    VR = 2.5   # Rayleigh yüzey dalga hızı (km/s)
+
+    # Türkiye'nin önemli şehirleri (kullanıcı gözlemci konumu)
+    SEHIRLER = {
+        "Erzincan":   (39.7333, 39.4917),
+        "İstanbul":   (41.0082, 28.9784),
+        "Ankara":     (39.9334, 32.8597),
+        "İzmir":      (38.4192, 27.1287),
+        "Erzurum":    (39.9000, 41.2700),
+        "Trabzon":    (41.0050, 39.7267),
+        "Diyarbakır": (37.9144, 40.2306),
+        "Antalya":    (36.8841, 30.7056),
+        "Konya":      (37.8714, 32.4847),
+        "Bursa":      (40.1828, 29.0665),
+        "Adana":      (37.0000, 35.3213),
+        "Gaziantep":  (37.0662, 37.3833),
+        "Kayseri":    (38.7312, 35.4787),
+        "Samsun":     (41.2867, 36.3300),
+        "Van":        (38.5012, 43.3724),
+    }
+
+    # ────────────────────────────────────────────────────────────────────────
+    # Olay ve şehir seçicileri
+    # ────────────────────────────────────────────────────────────────────────
+    eq_pool = df.dropna(subset=["lat", "lon", "buyukluk", "derinlik"]).copy()
+    eq_pool = eq_pool[eq_pool["buyukluk"] >= 3.5].sort_values("buyukluk", ascending=False)
+
+    if len(eq_pool) == 0:
+        st.info("Erken uyarı simülasyonu için M ≥ 3.5 olay gerekli. Seçili dönemde yok — zaman aralığını genişletin.")
+    else:
+        eq_options = []
+        for _, row in eq_pool.head(20).iterrows():
+            label = f"M{row['buyukluk']:.1f} · {row['zaman_str']} · {row['konum'][:50]} (d={row['derinlik']:.0f} km)"
+            eq_options.append(label)
+
+        col_sel1, col_sel2 = st.columns([2, 1])
+        with col_sel1:
+            selected_eq_label = st.selectbox(
+                "🌍 Senaryo depremi seçin (M ≥ 3.5, son seçili dönem)",
+                eq_options,
+                index=0,
+            )
+        with col_sel2:
+            mode = st.radio(
+                "Gözlemci konumu",
+                ["Şehir listesi", "Manuel koordinat"],
+                horizontal=False,
+            )
+
+        selected_eq = eq_pool.iloc[eq_options.index(selected_eq_label)]
+        eq_lat, eq_lon, eq_depth, eq_mag = (
+            float(selected_eq["lat"]),
+            float(selected_eq["lon"]),
+            float(selected_eq["derinlik"]),
+            float(selected_eq["buyukluk"]),
+        )
+
+        if mode == "Şehir listesi":
+            city_name = st.selectbox("🏙️ Şehir seçin", list(SEHIRLER.keys()), index=0)
+            obs_lat, obs_lon = SEHIRLER[city_name]
+            obs_label = city_name
+        else:
+            col_m1, col_m2 = st.columns(2)
+            obs_lat = col_m1.number_input("Enlem", value=39.7333, format="%.4f", min_value=35.0, max_value=43.0)
+            obs_lon = col_m2.number_input("Boylam", value=39.4917, format="%.4f", min_value=25.0, max_value=45.0)
+            obs_label = f"({obs_lat:.3f}, {obs_lon:.3f})"
+
+        # ────────────────────────────────────────────────────────────────────
+        # Mesafe ve varış süresi hesabı
+        # ────────────────────────────────────────────────────────────────────
+        # Yüzey mesafesi (haversine)
+        surface_km = haversine(eq_lat, eq_lon, obs_lat, obs_lon)
+        # Hipocenter mesafesi (3B): yüzey ve derinlik bacakları
+        hypo_km = math.sqrt(surface_km**2 + eq_depth**2)
+
+        t_p = hypo_km / VP
+        t_s = hypo_km / VS
+        t_r = hypo_km / VR
+        warning_window = t_s - t_p  # S − P penceresi (gözlemcinin uyarı süresi)
+
+        # MMI tahmini (basitleştirilmiş GMPE)
+        # I = 1.5*M - 1.5*log10(R) - 3.5  (R = hypocenter mesafesi, km)
+        if hypo_km < 1:
+            mmi = 12.0  # epicenter üstünde — maksimum
+        else:
+            mmi = 1.5 * eq_mag - 1.5 * math.log10(hypo_km) - 3.5
+        mmi = max(0.0, min(12.0, mmi))
+
+        # MMI eşik renk + açıklama
+        if mmi < 3:
+            mmi_color = "#66bb6a"
+            mmi_level = "Hafif (hissedilmez)"
+        elif mmi < 5:
+            mmi_color = "#ffd54f"
+            mmi_level = "Zayıf-Orta (hissedilir)"
+        elif mmi < 7:
+            mmi_color = "#ff8a65"
+            mmi_level = "Kuvvetli (mobilya hareket eder)"
+        elif mmi < 9:
+            mmi_color = "#e53935"
+            mmi_level = "Yıkıcı (yapısal hasar)"
+        else:
+            mmi_color = "#7b1fa2"
+            mmi_level = "Aşırı (büyük yıkım)"
+
+        # ────────────────────────────────────────────────────────────────────
+        # Sonuç kartları
+        # ────────────────────────────────────────────────────────────────────
+        st.markdown("---")
+        st.markdown(f'<div class="chart-title">📊 Sonuç — M{eq_mag:.1f} → {obs_label}</div>', unsafe_allow_html=True)
+
+        r1, r2, r3, r4 = st.columns(4)
+        r1.metric("Yüzey Mesafesi", f"{surface_km:.1f} km")
+        r2.metric("Hipocenter Mesafesi", f"{hypo_km:.1f} km", f"derinlik: {eq_depth:.0f} km")
+        r3.metric("P-dalga Varışı", f"{t_p:.1f} s", f"vp={VP} km/s")
+        r4.metric("S-dalga Varışı", f"{t_s:.1f} s", f"vs={VS} km/s")
+
+        # Uyarı penceresi (öne çıkan büyük kart)
+        if warning_window < 3:
+            window_color = "#e53935"
+            window_msg = "ÇOK KISA — Anında sığın!"
+        elif warning_window < 10:
+            window_color = "#ff8a65"
+            window_msg = "Kısa — Hızlı pozisyon al"
+        elif warning_window < 30:
+            window_color = "#ffd54f"
+            window_msg = "Orta — Pozisyon al, dışarı çıkma"
+        else:
+            window_color = "#66bb6a"
+            window_msg = "Uzun — Güvenli noktaya geç"
+
+        st.markdown(
+            f'<div style="background:linear-gradient(135deg, {BG3} 0%, {BG2} 100%);'
+            f'border:2px solid {window_color};border-radius:12px;padding:18px;margin:12px 0;'
+            f'text-align:center">'
+            f'<div style="font-size:0.75rem;opacity:0.7;letter-spacing:2px">S − P UYARI PENCERESİ</div>'
+            f'<div style="font-size:3.5rem;font-weight:900;color:{window_color};line-height:1">'
+            f'{warning_window:.1f} <span style="font-size:1.5rem;opacity:0.7">sn</span></div>'
+            f'<div style="font-size:0.95rem;color:{window_color};margin-top:6px">{window_msg}</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+        # MMI kartı
+        st.markdown(
+            f'<div style="background:{BG3};border-left:5px solid {mmi_color};border-radius:8px;padding:14px;margin:10px 0">'
+            f'<div style="display:flex;justify-content:space-between;align-items:center">'
+            f'<div><div style="font-size:0.72rem;opacity:0.7;letter-spacing:1px">BEKLENEN ŞİDDET (MMI tahmini)</div>'
+            f'<div style="font-size:1.05rem;color:{mmi_color};font-weight:700">{mmi_level}</div></div>'
+            f'<div style="font-size:2.6rem;font-weight:900;color:{mmi_color}">{mmi:.1f}</div>'
+            f'</div></div>',
+            unsafe_allow_html=True,
+        )
+
+        # ────────────────────────────────────────────────────────────────────
+        # Görsel zaman ekseni (Plotly)
+        # ────────────────────────────────────────────────────────────────────
+        st.markdown("---")
+        st.markdown('<div class="chart-title">⏱️ Dalga Varış Zaman Ekseni</div>', unsafe_allow_html=True)
+
+        t_max = max(t_r * 1.15, 5.0)
+        fig_tl = go.Figure()
+
+        # P/S/Rayleigh varış oklarını dikey çizgi olarak ekle
+        for t_val, label, color, height in [
+            (t_p, f"P {t_p:.1f}s",       "#42a5f5", 1.0),
+            (t_s, f"S {t_s:.1f}s",       "#ef5350", 1.0),
+            (t_r, f"Rayleigh {t_r:.1f}s", "#ab47bc", 1.0),
+        ]:
+            fig_tl.add_trace(go.Scatter(
+                x=[t_val, t_val], y=[0, height],
+                mode="lines+markers+text",
+                line=dict(color=color, width=3),
+                marker=dict(size=14, color=color, symbol="diamond"),
+                text=["", label],
+                textposition="top center",
+                textfont=dict(color=color, size=12, family="Arial Black"),
+                showlegend=False,
+                hovertemplate=f"{label}<extra></extra>",
+            ))
+
+        # Uyarı penceresi: P ile S arasında yeşil bant
+        fig_tl.add_shape(
+            type="rect", x0=t_p, x1=t_s, y0=0, y1=0.45,
+            fillcolor=window_color, opacity=0.20, line=dict(width=0),
+            layer="below",
+        )
+        fig_tl.add_annotation(
+            x=(t_p + t_s) / 2, y=0.22,
+            text=f"🛡️ Uyarı Penceresi<br>{warning_window:.1f} sn",
+            showarrow=False, font=dict(color=window_color, size=13, family="Arial Black"),
+        )
+
+        # S dalgasından sonra: tehlike bandı (S'den Rayleigh'in 1.2x'ine kadar)
+        fig_tl.add_shape(
+            type="rect", x0=t_s, x1=t_r * 1.15, y0=0, y1=0.45,
+            fillcolor="#ef5350", opacity=0.10, line=dict(width=0),
+            layer="below",
+        )
+
+        fig_tl.update_layout(
+            paper_bgcolor=BG, plot_bgcolor=BG2,
+            font=dict(color=TEXT, size=11),
+            margin=dict(t=30, b=40, l=50, r=20),
+            height=270,
+            xaxis=dict(
+                title="Olaydan itibaren süre (saniye)",
+                range=[0, t_max], gridcolor=GRID, zerolinecolor=BORDER,
+                tickfont=dict(color=TEXT),
+            ),
+            yaxis=dict(visible=False, range=[0, 1.4]),
+            showlegend=False,
+        )
+        st.plotly_chart(fig_tl, use_container_width=True, config={"displayModeBar": False, "displaylogo": False})
+
+        # ────────────────────────────────────────────────────────────────────
+        # Eğitimsel "Ne yapmalı?" kartı
+        # ────────────────────────────────────────────────────────────────────
+        st.markdown("---")
+        st.markdown('<div class="chart-title">🧠 Bu Süre İçinde Ne Yapmalı?</div>', unsafe_allow_html=True)
+
+        c_a, c_b, c_c = st.columns(3)
+        with c_a:
+            st.markdown(
+                f'<div style="background:{BG3};border-radius:8px;padding:12px;height:170px">'
+                f'<div style="font-size:1.6rem">🛏️</div>'
+                f'<div style="font-weight:700;color:#90caf9">Çök – Kapan – Tutun</div>'
+                f'<div style="font-size:0.85rem;opacity:0.85;margin-top:6px">'
+                f'Sağlam masanın altına gir. Boynunu kollarınla koru. Bina dururken hareket etme.'
+                f'</div></div>',
+                unsafe_allow_html=True,
+            )
+        with c_b:
+            st.markdown(
+                f'<div style="background:{BG3};border-radius:8px;padding:12px;height:170px">'
+                f'<div style="font-size:1.6rem">🚪</div>'
+                f'<div style="font-weight:700;color:#ffb74d">Pencere/Cam/Eşyadan Uzak Dur</div>'
+                f'<div style="font-size:0.85rem;opacity:0.85;margin-top:6px">'
+                f'Düşebilecek eşyaların yakınından uzaklaş. Asansöre binme; merdivenden hızlı inme.'
+                f'</div></div>',
+                unsafe_allow_html=True,
+            )
+        with c_c:
+            st.markdown(
+                f'<div style="background:{BG3};border-radius:8px;padding:12px;height:170px">'
+                f'<div style="font-size:1.6rem">🚗</div>'
+                f'<div style="font-weight:700;color:#a5d6a7">Araçtaysan / Dışarıdaysan</div>'
+                f'<div style="font-size:0.85rem;opacity:0.85;margin-top:6px">'
+                f'Aracını yan banketere çek. Açık alandaysan binadan, tel/direkten uzak dur.'
+                f'</div></div>',
+                unsafe_allow_html=True,
+            )
+
+        # Edge case uyarıları
+        st.markdown("---")
+        if surface_km < 5:
+            st.error("🎯 Sen merkez üstündesin — uyarı penceresi anlamsız. P ve S aynı anda gelir.")
+        elif eq_depth > 200:
+            st.warning(f"🌋 Derin odaklı deprem (d={eq_depth:.0f} km). P/S hızları manto malzemesinde farklılaşır — gerçek varış bu tahminden hızlı olabilir.")
+        elif surface_km > 500:
+            st.warning(f"📏 Çok uzak deprem ({surface_km:.0f} km). Yüzey (Rayleigh/Love) dalgaları baskın gelir; S-P penceresi yanıltıcıdır.")
+
+        st.caption(
+            "📚 **Formül kaynağı:** Hipocenter mesafesi `R = √(yüzey² + derinlik²)`. "
+            "Tipik kabuk hızları: vp=6.0 km/s, vs=3.5 km/s, vr=2.5 km/s. "
+            "MMI yaklaşımı: `I = 1.5·M − 1.5·log₁₀(R) − 3.5` (ham GMPE, bölgesel kalibrasyon yapılmamış)."
+        )
 
 # ─── Footer ─────────────────────────────────────────────────────────────────
 st.markdown(f"""
