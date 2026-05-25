@@ -1,5 +1,24 @@
 # Changelog
 
+## v1.18.1 - 2026-05-26 — Paleografik mode ±1 milyar yıl (kullanıcı talebi)
+
+Kullanıcı talebi: "🪨 Paleografik — Spekülatif (-1.000.000 → +10.000.000 yıl), -1 milyar + 1 milyar olsun"
+
+Değişiklikler:
+- `_PLAKA_MODES["pal"]`:
+  - Label: "Spekülatif (-1M → +10M)" → "**Hiper-Spekülatif** (-1 milyar → +1 milyar yıl)"
+  - Stops: 20 frame [-1M..+10M] → 21 frame log-spaced [-1B, -300M, -100M, -30M, -10M, -3M, -1M, -300K, -100K, -10K, 0, +10K, +100K, +300K, +1M, +3M, +10M, +30M, +100M, +300M, +1B]
+  - visual_scale_factor: 1.0 → 0.005 (zaman ufku 100x genişledi, görsel ölçek 1/200; 1B yıl × 2.25e-7°/yıl × 0.005 ≈ 1.1° görsel kayma — harita içinde kalır)
+
+Bilimsel namus uyarısı (label'da explicit): Milyar yıl ölçeğinde lineer GNSS-türevli ekstrapolasyon **bilimsel geçerliliğini tamamen yitirir**. Kıta sürüklenmesi Pangaea'dan beri non-lineer döngülerle yürür (PALEOMAP / Scotese 2016 rekonstrüksiyonları gerekir). Bu mode yalnızca **eğitsel-sezgisel** "büyük zaman ölçeğinde plakalar nereye gider" görselidir.
+
+`_plaka_warning()` 1M+ için zaten "🔴 Spekülatif Senaryo" çıkarıyor — bu mode'daki tüm 1M+ stop'lar bu uyarıyı tetikler. Hassas zaman çözünürlüğü için Jeodezik mode (±1M) tercih edilmeli.
+
+## v1.18 - 2026-05-26 — Erzincan Arşivi menüsü + Akademik Özellik Backlog (Antigravity)
+- Yeni menü öğesi: "🏛️ Erzincan Arşivi" (archive ikonu)
+- features/ACADEMIC_FEATURES.md eklendi — Ajan 8 (Bilim Profesörü) peer-reviewed literatür kataloglu yeni özellik önerileri
+- features/BACKLOG.md F-44..F-69 eklendi (26 yeni akademik özellik): PSHA, Vs30, GCMT, ZMAP Z-testi, PI, Omori-Utsu, Reasenberg-Jones, dinamik gerilme, vb.
+
 ## v1.17.5 - 2026-05-26 — Jeodezik mode ±1.000.000 yıl (kullanıcı talebi)
 
 Kullanıcı talebi: "-1 milyon + 1 milyon yapalım"
