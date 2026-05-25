@@ -8959,6 +8959,224 @@ def _render_tsunami_katalog():
 if active_menu == "🌊 Tsunami Kataloğu":
     _render_tsunami_katalog()
 
+
+# ════════════════════════════════════════════════════════════════════════════
+# ⏱️ TSUNAMİ VARIŞ — F-58 / v1.35 — Shallow Water c=√(gd)
+# ────────────────────────────────────────────────────────────────────────────
+# Kaynaklar:
+#   • Titov & Synolakis (1998) J. Waterw. 124(4); Lamb (1932) Hydrodynamics
+#   • Yalçıner et al. (2017) Pure Appl. Geophys. 174(8) — Bodrum-Kos
+#   • GEBCO 2023 batimetri (gebco.net)
+# ════════════════════════════════════════════════════════════════════════════
+
+_TSUNAMI_HEDEFLER = [
+    {"yer": "Bodrum",         "lat": 37.04, "lon": 27.43},
+    {"yer": "İzmir",          "lat": 38.42, "lon": 27.14},
+    {"yer": "Kuşadası",       "lat": 37.86, "lon": 27.26},
+    {"yer": "Marmaris",       "lat": 36.85, "lon": 28.27},
+    {"yer": "Antalya",        "lat": 36.89, "lon": 30.71},
+    {"yer": "Mersin",         "lat": 36.81, "lon": 34.64},
+    {"yer": "İskenderun",     "lat": 36.59, "lon": 36.17},
+    {"yer": "Çeşme",          "lat": 38.33, "lon": 26.30},
+    {"yer": "Foça",           "lat": 38.66, "lon": 26.76},
+    {"yer": "Edremit",        "lat": 39.60, "lon": 27.02},
+    {"yer": "Çanakkale",      "lat": 40.15, "lon": 26.41},
+    {"yer": "Tekirdağ",       "lat": 40.98, "lon": 27.51},
+    {"yer": "İstanbul (Marmara)", "lat": 40.85, "lon": 28.50},
+]
+
+_TSUNAMI_KAYNAKLAR = {
+    "Hellenic Trench (Mw 8.5 senaryo, Stiros 2001 benzer)": {
+        "lat": 35.50, "lon": 23.50, "ortalama_derinlik_m": 2500,
+        "ref": "Stiros 2001; Yolsal-Çevikbilen 2012"},
+    "Doğu Akdeniz subdüksiyon (Mw 8.0 senaryo)": {
+        "lat": 34.50, "lon": 27.50, "ortalama_derinlik_m": 2000,
+        "ref": "Papadopoulos 2014"},
+    "Kıbrıs yayı (Mw 7.5 senaryo)": {
+        "lat": 34.80, "lon": 32.50, "ortalama_derinlik_m": 1500,
+        "ref": "Yolsal-Çevikbilen 2012"},
+    "Saros Körfezi (Mw 7.4, 1912 tekrarı)": {
+        "lat": 40.65, "lon": 26.50, "ortalama_derinlik_m": 200,
+        "ref": "Altınok 1999 Phys. Chem. Earth"},
+    "Marmara (Mw 7.2, 1766 tekrarı)": {
+        "lat": 40.80, "lon": 28.50, "ortalama_derinlik_m": 1100,
+        "ref": "Hancilar 2012; Parsons 2004"},
+    "Bodrum-Kos (Mw 6.6, 2017 tekrarı)": {
+        "lat": 36.96, "lon": 27.43, "ortalama_derinlik_m": 300,
+        "ref": "Yalçıner 2017 Pure Appl. Geophys."},
+}
+
+
+def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    R = 6371.0
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlam = math.radians(lon2 - lon1)
+    a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlam / 2) ** 2
+    return 2 * R * math.asin(math.sqrt(a))
+
+
+def _shallow_water_speed_kmh(depth_m: float) -> float:
+    """c = √(g·d), m/s → km/h."""
+    if depth_m <= 0:
+        return 0.0
+    return math.sqrt(9.81 * depth_m) * 3.6
+
+
+@st.fragment
+def _render_tsunami_varis():
+    st.markdown(
+        '<div class="chart-title">⏱️ Tsunami Varış Süresi — Shallow Water c=√(gd) (F-58 / v1.35)</div>',
+        unsafe_allow_html=True,
+    )
+    st.info(
+        "⏱️ **Shallow Water Yaklaşımı:** Tsunami dalgaları **c = √(g·d)** ile ilerler. "
+        "2500m derinlikte ~565 km/h (jet uçağı), 100m'de ~113 km/h, sahile yaklaşınca "
+        "yavaşlar (Lamb 1932). **Titov & Synolakis (1998) J. Waterw.** sayısal model."
+    )
+
+    sec = st.selectbox(
+        "Tsunami kaynak senaryosu",
+        options=list(_TSUNAMI_KAYNAKLAR.keys()),
+        index=0,
+        key="tsunami_var_kaynak",
+    )
+    k = _TSUNAMI_KAYNAKLAR[sec]
+    speed_kmh = _shallow_water_speed_kmh(k["ortalama_derinlik_m"])
+
+    rows = []
+    for h in _TSUNAMI_HEDEFLER:
+        dist_km = _haversine_km(k["lat"], k["lon"], h["lat"], h["lon"])
+        varis_dk = (dist_km / speed_kmh) * 60 if speed_kmh > 0 else None
+        rows.append({**h, "mesafe_km": round(dist_km, 0),
+                     "varis_dk": round(varis_dk, 1) if varis_dk else None})
+    df_v = pd.DataFrame(rows).sort_values("varis_dk").reset_index(drop=True)
+
+    # ── Harita: eş-zaman halkaları ─────────────────────────────────────────
+    fig = go.Figure()
+    for t_dk, renk in [(5, "#1D9E75"), (10, "#7DC872"), (15, "#FAC775"),
+                        (20, "#EF9F27"), (30, "#E24B4A"), (45, "#A32D2D"), (60, "#3F0080")]:
+        r_km = (t_dk / 60.0) * speed_kmh
+        if r_km > 1500:
+            continue
+        clat, clon = _shakemap_circle_coords(k["lat"], k["lon"], r_km, n=60)
+        fig.add_trace(go.Scattermapbox(
+            lat=clat, lon=clon,
+            mode="lines",
+            line=dict(width=1.8, color=renk),
+            name=f"{t_dk} dk ({r_km:.0f} km)",
+            opacity=0.7,
+            hovertemplate=f"{t_dk} dk varış<br>r = {r_km:.0f} km<extra></extra>",
+        ))
+
+    fig.add_trace(go.Scattermapbox(
+        lat=[k["lat"]], lon=[k["lon"]],
+        mode="markers+text",
+        marker=dict(size=18, color="#FFD700", symbol="star"),
+        text=["★ Kaynak"],
+        textposition="top right",
+        textfont=dict(size=12, color="#FFD700"),
+        hoverinfo="text",
+        name="Tsunami kaynağı",
+    ))
+    fig.add_trace(go.Scattermapbox(
+        lat=df_v["lat"], lon=df_v["lon"],
+        mode="markers+text",
+        marker=dict(size=10, color="#E24B4A"),
+        text=df_v["yer"],
+        textfont=dict(size=9, color="#fff"),
+        textposition="top right",
+        hovertemplate=df_v.apply(
+            lambda r: (f"<b>{r['yer']}</b><br>"
+                       f"Mesafe: {r['mesafe_km']:.0f} km<br>"
+                       f"Varış: {r['varis_dk']:.1f} dk"
+                       "<extra></extra>"),
+            axis=1,
+        ),
+        name="Hedef kıyılar",
+    ))
+
+    fig.update_layout(
+        mapbox=dict(style="open-street-map", center=dict(lat=37.5, lon=28.0), zoom=4.7),
+        height=520,
+        margin=dict(l=0, r=0, t=10, b=0),
+        paper_bgcolor=BG2,
+        legend=dict(orientation="v", yanchor="top", y=0.98, xanchor="left", x=0.01,
+                    bgcolor="rgba(0,0,0,0.55)", font=dict(color="#fff", size=10),
+                    bordercolor=BORDER, borderwidth=1),
+    )
+    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+
+    # ── Bar chart varış süreleri ──────────────────────────────────────────
+    st.markdown('<div class="chart-title">📊 Kıyı Hedefleri — Varış Süresi (dk)</div>', unsafe_allow_html=True)
+    fig_bar = go.Figure()
+    fig_bar.add_trace(go.Bar(
+        y=df_v["yer"],
+        x=df_v["varis_dk"],
+        orientation="h",
+        marker=dict(color=df_v["varis_dk"],
+                    colorscale=[[0.0, "#A32D2D"], [0.5, "#EF9F27"], [1.0, "#1D9E75"]],
+                    cmin=0, cmax=60,
+                    line=dict(color="#222", width=0.5)),
+        text=df_v.apply(lambda r: f"{r['varis_dk']:.1f} dk ({r['mesafe_km']:.0f} km)", axis=1),
+        textposition="outside",
+        textfont=dict(color=TEXT, size=10),
+        hovertemplate="<b>%{y}</b><br>Varış: %{x:.1f} dk<extra></extra>",
+    ))
+    fig_bar.update_layout(
+        xaxis=dict(title="Tahmini varış (dakika)", color=TEXT, gridcolor=BORDER),
+        yaxis=dict(color=TEXT, gridcolor=BORDER),
+        height=420,
+        margin=dict(l=10, r=10, t=10, b=40),
+        paper_bgcolor=BG2, plot_bgcolor=BG2,
+        showlegend=False,
+    )
+    st.plotly_chart(fig_bar, use_container_width=True, config={"displayModeBar": False})
+
+    en_yakin = df_v.iloc[0]
+    en_uzak = df_v.iloc[-1]
+    c1, c2, c3, c4 = st.columns(4)
+    kartlar = [
+        (c1, f"{en_yakin['varis_dk']:.1f} dk", "#A32D2D", f"En yakın ({en_yakin['yer'][:15]})"),
+        (c2, f"{en_uzak['varis_dk']:.1f} dk",  "#1D9E75", f"En uzak ({en_uzak['yer'][:15]})"),
+        (c3, f"{speed_kmh:.0f} km/h",          "#FFD700", f"Dalga hızı (d = {k['ortalama_derinlik_m']} m)"),
+        (c4, f"{len(df_v)}",                    "#1976D2", "Hedef kıyı sayısı"),
+    ]
+    for col, val, color, label in kartlar:
+        with col:
+            st.markdown(
+                f'<div class="stat-box">'
+                f'<div style="font-size:1.35rem;font-weight:800;color:{color}">{val}</div>'
+                f'<div style="font-size:0.7rem;opacity:0.55;margin-top:2px">{label}</div>'
+                f'</div>', unsafe_allow_html=True)
+
+    st.markdown('<div class="chart-title">📋 Derinlik × Hız (Shallow Water)</div>', unsafe_allow_html=True)
+    df_dh = pd.DataFrame([
+        {"Derinlik (m)": 5000, "Hız (km/h)": round(_shallow_water_speed_kmh(5000)), "Yorum": "Derin Pasifik (jet uçağı)"},
+        {"Derinlik (m)": 2500, "Hız (km/h)": round(_shallow_water_speed_kmh(2500)), "Yorum": "Akdeniz derin havza"},
+        {"Derinlik (m)": 1000, "Hız (km/h)": round(_shallow_water_speed_kmh(1000)), "Yorum": "Marmara havzası"},
+        {"Derinlik (m)": 500,  "Hız (km/h)": round(_shallow_water_speed_kmh(500)),  "Yorum": "Şelf kenarı"},
+        {"Derinlik (m)": 200,  "Hız (km/h)": round(_shallow_water_speed_kmh(200)),  "Yorum": "Karaya yakın şelf"},
+        {"Derinlik (m)": 50,   "Hız (km/h)": round(_shallow_water_speed_kmh(50)),   "Yorum": "Sığ kıyı (yavaşlama → büyüme)"},
+        {"Derinlik (m)": 10,   "Hız (km/h)": round(_shallow_water_speed_kmh(10)),   "Yorum": "Kıyı şeridi (max runup)"},
+    ])
+    st.dataframe(df_dh, use_container_width=True, hide_index=True)
+
+    st.caption(
+        f"📚 **Senaryo:** {k['ref']} | "
+        "**Lamb (1932)** *Hydrodynamics* | "
+        "**Titov & Synolakis (1998)** *J. Waterw.* 124(4) — "
+        "DOI:10.1061/(ASCE)0733-950X(1998)124:4(157) | "
+        "**Yalçıner et al. (2017)** *PAGEOPH* 174(8) (Bodrum-Kos) | "
+        "**GEBCO 2023:** gebco.net. "
+        "⚠️ Ortalama derinlik varsayımı; gerçek için NAMI-DANCE / MOST tam batimetri."
+    )
+
+
+if active_menu == "⏱️ Tsunami Varış":
+    _render_tsunami_varis()
+
 # ─── Footer ─────────────────────────────────────────────────────────────────
 st.markdown(f"""
 <div style="text-align:center;color:{SUBTEXT};font-size:0.7rem;
