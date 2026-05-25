@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.17.5 - 2026-05-26 — Jeodezik mode ±1.000.000 yıl (kullanıcı talebi)
+
+Kullanıcı talebi: "-1 milyon + 1 milyon yapalım"
+
+Değişiklikler:
+- `_PLAKA_MODES["geo"]`:
+  - Label: "(-100.000 → +100.000 yıl)" → "(-1.000.000 → +1.000.000 yıl)"
+  - Stops: 21 frame log-spaced [-1M, -300K, -100K, -30K, -10K, -3K, -1K, -300, -100, -10, 0, +10, +100, +300, +1K, +3K, +10K, +30K, +100K, +300K, +1M]
+  - visual_scale_factor: 100 → 10 (zaman 10x genişledi, görsel ölçek 1/10; net etki ~aynı: 1M yıl × 2.25e-7°/yıl × 10 ≈ 2.25° görsel kayma)
+
+Bilimsel namus: 1M yıl `_plaka_warning()` eşiğinde "🟡 Soyutlama" zonunun **üst sınırı** — paleosismik kalibrasyon yapılmadan görselleştirme. Üzerine (>1M) Paleografik mode'da kırmızı "🔴 Spekülatif" başlar.
+
+Jeodezik ve Paleografik artık örtüşüyor (1M ortak nokta) — kullanıcı zaman çözünürlüğüne göre seçer: Jeodezik 1M'a kadar daha hassas log-spacing, Paleografik 10M'a kadar geniş.
+
 ## v1.17.4 - 2026-05-26 — Jeodezik mode zaman ufku genişletildi: ±100.000 yıl
 
 Kullanıcı talebi: "Jeodezik (-1.000 → +10.000 yıl) yerine -100.000 → +100.000 olsa uygun mu?"
