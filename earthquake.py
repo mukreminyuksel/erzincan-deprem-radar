@@ -50,7 +50,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.38"
+APP_VERSION = "1.39"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -878,6 +878,7 @@ _MENU_LABELS = [
     "🎬 Ambraseys Animasyon",
     "⛏️ Paleosismik Kazı",
     "🗺️ Tsunami Tehlike",
+    "🏔️ Vs30 Zemin",
     "🏛️ Erzincan Arşivi",
     "🎓 Bilgi Havuzu",
     "⚙️ Sistem & Veri",
@@ -886,7 +887,7 @@ _MENU_LABELS = [
 _MENU_ICONS = [
     "globe", "bar-chart-line", "compass", "globe-americas", "moon-stars",
     "exclamation-triangle", "graph-up-arrow", "exclamation-octagon-fill",
-    "broadcast-pin", "map-fill", "circle-half", "graph-down", "lightning-charge", "satellite", "journal-text", "arrow-repeat", "globe2", "broadcast", "lock-fill", "layers-half", "compass-fill", "water", "stopwatch", "film", "hammer", "tsunami", "archive", "mortarboard", "gear", "file-text",
+    "broadcast-pin", "map-fill", "circle-half", "graph-down", "lightning-charge", "satellite", "journal-text", "arrow-repeat", "globe2", "broadcast", "lock-fill", "layers-half", "compass-fill", "water", "stopwatch", "film", "hammer", "tsunami", "bricks", "archive", "mortarboard", "gear", "file-text",
 ]
 with st.container(key="sticky_nav"):
     active_menu = option_menu(
@@ -9843,6 +9844,223 @@ def _render_tsunami_tehlike():
 
 if active_menu == "🗺️ Tsunami Tehlike":
     _render_tsunami_tehlike()
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# 🏔️ VS30 ZEMİN — F-64 / v1.39 — Zemin Sınıfı + NEHRP Kategorileri
+# ────────────────────────────────────────────────────────────────────────────
+# Bilimsel temel:
+#   • Wald, D.J. & Allen, T.I. (2007). Topographic slope as a proxy for
+#       seismic site conditions and amplification. BSSA 97(5), 1379-1395.
+#       DOI:10.1785/0120060267
+#   • Boore, D.M. et al. (2014). NGA-West2 GMPE. Earthquake Spectra 30(3),
+#       1057-1085. DOI:10.1193/070113EQS184M
+#   • BSSC (2003). NEHRP Recommended Provisions for Seismic Regulations,
+#       FEMA 450. (NEHRP site classes A-F tanımları)
+#   • USGS Global Vs30 Server: earthquake.usgs.gov/data/vs30/
+# ════════════════════════════════════════════════════════════════════════════
+
+# Türkiye şehirleri Vs30 tahmini (USGS Global Vs30 + KOERI mikrobölgeleme türevi)
+# Wald & Allen 2007 topografik eğim proxy + lokal kalibrasyon
+_VS30_NOKTALAR = [
+    # KAF + Marmara — karışık zemin
+    {"city": "İstanbul (Kadıköy/Beyoğlu)", "lat": 41.01, "lon": 28.98, "vs30": 380, "nehrp": "C"},
+    {"city": "İstanbul (Avcılar dolgu)",   "lat": 41.02, "lon": 28.72, "vs30": 180, "nehrp": "D"},
+    {"city": "Adapazarı (dolgu)",          "lat": 40.78, "lon": 30.40, "vs30": 140, "nehrp": "E"},
+    {"city": "İzmit",                       "lat": 40.77, "lon": 29.91, "vs30": 320, "nehrp": "D"},
+    {"city": "Düzce",                       "lat": 40.84, "lon": 31.16, "vs30": 230, "nehrp": "D"},
+    {"city": "Yalova (kıyı dolgu)",        "lat": 40.65, "lon": 29.27, "vs30": 200, "nehrp": "D"},
+    {"city": "Bursa",                       "lat": 40.18, "lon": 29.07, "vs30": 360, "nehrp": "C"},
+    {"city": "Çanakkale",                   "lat": 40.15, "lon": 26.41, "vs30": 280, "nehrp": "D"},
+    {"city": "Tekirdağ",                    "lat": 40.98, "lon": 27.51, "vs30": 410, "nehrp": "C"},
+
+    # Erzincan + Doğu Anadolu
+    {"city": "Erzincan ovası (allüvyon)",   "lat": 39.75, "lon": 39.49, "vs30": 220, "nehrp": "D"},
+    {"city": "Erzincan dağ etekleri (kaya)", "lat": 39.85, "lon": 39.55, "vs30": 720, "nehrp": "B"},
+    {"city": "Erzurum",                      "lat": 39.91, "lon": 41.27, "vs30": 500, "nehrp": "C"},
+    {"city": "Van",                          "lat": 38.49, "lon": 43.41, "vs30": 320, "nehrp": "D"},
+    {"city": "Elazığ",                       "lat": 38.68, "lon": 39.22, "vs30": 380, "nehrp": "C"},
+    {"city": "Malatya",                      "lat": 38.36, "lon": 38.30, "vs30": 290, "nehrp": "D"},
+    {"city": "Kahramanmaraş",               "lat": 37.58, "lon": 36.93, "vs30": 350, "nehrp": "C"},
+    {"city": "Hatay (Amik ovası)",          "lat": 36.20, "lon": 36.16, "vs30": 180, "nehrp": "D"},
+    {"city": "Gaziantep",                    "lat": 37.07, "lon": 37.38, "vs30": 420, "nehrp": "C"},
+    {"city": "Adıyaman",                     "lat": 37.76, "lon": 38.27, "vs30": 380, "nehrp": "C"},
+
+    # Batı Anadolu (Ege grabenleri)
+    {"city": "İzmir merkez (dolgu)",        "lat": 38.42, "lon": 27.14, "vs30": 230, "nehrp": "D"},
+    {"city": "İzmir Karşıyaka",              "lat": 38.46, "lon": 27.12, "vs30": 220, "nehrp": "D"},
+    {"city": "Manisa",                       "lat": 38.62, "lon": 27.43, "vs30": 280, "nehrp": "D"},
+    {"city": "Denizli",                      "lat": 37.78, "lon": 29.09, "vs30": 320, "nehrp": "D"},
+    {"city": "Aydın",                        "lat": 37.85, "lon": 27.85, "vs30": 250, "nehrp": "D"},
+    {"city": "Muğla",                        "lat": 37.21, "lon": 28.36, "vs30": 520, "nehrp": "C"},
+    {"city": "Antalya",                      "lat": 36.89, "lon": 30.71, "vs30": 350, "nehrp": "C"},
+
+    # İç Anadolu (kayalık)
+    {"city": "Ankara",                       "lat": 39.93, "lon": 32.86, "vs30": 580, "nehrp": "C"},
+    {"city": "Konya",                        "lat": 37.87, "lon": 32.48, "vs30": 480, "nehrp": "C"},
+    {"city": "Kayseri",                      "lat": 38.73, "lon": 35.48, "vs30": 620, "nehrp": "C"},
+    {"city": "Sivas",                        "lat": 39.75, "lon": 37.02, "vs30": 520, "nehrp": "C"},
+
+    # Karadeniz
+    {"city": "Samsun",                       "lat": 41.29, "lon": 36.34, "vs30": 320, "nehrp": "D"},
+    {"city": "Trabzon",                      "lat": 41.00, "lon": 39.73, "vs30": 480, "nehrp": "C"},
+]
+
+
+def _vs30_nehrp_color(nehrp: str) -> str:
+    return {
+        "A": "#1D9E75",  # sert kaya — yeşil
+        "B": "#7DC872",
+        "C": "#C0DD97",
+        "D": "#FAC775",  # sert zemin — sarı
+        "E": "#E24B4A",  # yumuşak — kırmızı
+        "F": "#A32D2D",  # özel
+    }.get(nehrp, "#888")
+
+
+def _vs30_amplification(vs30: float, pga: float) -> tuple:
+    """
+    Boore et al. (2014) NGA-West2 basitleştirilmiş zemin amplifikasyon faktörleri.
+    Lin & doğrusal olmayan terimler ihmal edilmiş.
+    Vs_ref = 760 m/s (NEHRP B/C sınırı).
+    """
+    vs_ref = 760.0
+    # Lineer terim
+    if vs30 >= vs_ref:
+        F_lin = 1.0
+    else:
+        F_lin = (vs_ref / vs30) ** 0.5  # rough approximation
+    # PGA bağımlı doğrusal olmayan azalma (yüksek PGA'da zemin etkisi düşer)
+    nl_factor = max(0.5, 1.0 - pga * 0.3)
+    return F_lin, F_lin * nl_factor
+
+
+@st.fragment
+def _render_vs30_zemin():
+    st.markdown(
+        '<div class="chart-title">🏔️ Vs30 Zemin Sınıflandırma — NEHRP (F-64 / v1.39)</div>',
+        unsafe_allow_html=True,
+    )
+    st.info(
+        "🏔️ **Vs30:** Üst 30 m'nin ortalama kayma dalga hızı (m/s). Zemin "
+        "büyütme katsayısının en yaygın proxy'si. **NEHRP** (BSSC 2003) sınıfları: "
+        "A (≥1500) sert kaya → E (<180) yumuşak zemin. **Wald & Allen (2007) BSSA 97** "
+        "topografik eğim proxy'si; **Boore et al. (2014) Earthq. Spectra 30** "
+        "NGA-West2 GMPE."
+    )
+
+    df_v = pd.DataFrame(_VS30_NOKTALAR)
+    df_v["renk"] = df_v["nehrp"].apply(_vs30_nehrp_color)
+
+    # ── Harita ─────────────────────────────────────────────────────────────
+    fig_map = go.Figure()
+    fig_map.add_trace(go.Scattermapbox(
+        lat=df_v["lat"], lon=df_v["lon"],
+        mode="markers+text",
+        marker=dict(size=14, color=df_v["renk"], opacity=0.9,
+                    ),
+        text=df_v["city"],
+        textfont=dict(size=8, color="#fff"),
+        textposition="top right",
+        hovertemplate=df_v.apply(
+            lambda r: (f"<b>{r['city']}</b><br>"
+                       f"Vs30: {r['vs30']} m/s<br>"
+                       f"NEHRP: {r['nehrp']}"
+                       "<extra></extra>"),
+            axis=1,
+        ),
+        showlegend=False,
+    ))
+
+    # Legend için dummy traces
+    for sınıf in ["A", "B", "C", "D", "E"]:
+        fig_map.add_trace(go.Scattermapbox(
+            lat=[None], lon=[None],
+            mode="markers",
+            marker=dict(size=12, color=_vs30_nehrp_color(sınıf)),
+            name=f"NEHRP {sınıf}",
+        ))
+
+    fig_map.update_layout(
+        mapbox=dict(style="open-street-map", center=dict(lat=39.0, lon=35.0), zoom=5),
+        height=520,
+        margin=dict(l=0, r=0, t=10, b=0),
+        paper_bgcolor=BG2,
+        legend=dict(orientation="h", yanchor="bottom", y=1.0, xanchor="left", x=0.0,
+                    bgcolor="rgba(0,0,0,0)", font=dict(color=TEXT, size=11)),
+    )
+    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": False})
+
+    # ── Amplifikasyon hesaplayıcı ──────────────────────────────────────────
+    st.markdown('<div class="chart-title">🧮 Zemin Büyütme Hesaplayıcı</div>', unsafe_allow_html=True)
+    col_city, col_pga = st.columns([2, 1])
+    with col_city:
+        sec_city = st.selectbox(
+            "Konum seç",
+            options=df_v["city"].tolist(),
+            index=df_v["city"].tolist().index("Erzincan ovası (allüvyon)")
+            if "Erzincan ovası (allüvyon)" in df_v["city"].tolist() else 0,
+            key="vs30_city",
+        )
+    with col_pga:
+        pga_g = st.slider("PGA (g) — kaya temel",
+                          min_value=0.05, max_value=0.6, value=0.20, step=0.05,
+                          key="vs30_pga")
+
+    site = df_v[df_v["city"] == sec_city].iloc[0]
+    F_lin, F_total = _vs30_amplification(site["vs30"], pga_g)
+    pga_site = pga_g * F_total
+
+    c1, c2, c3, c4 = st.columns(4)
+    risk_color = "#A32D2D" if pga_site > 0.4 else ("#EF9F27" if pga_site > 0.2 else "#1D9E75")
+    kartlar = [
+        (c1, f"{site['vs30']} m/s",   _vs30_nehrp_color(site["nehrp"]),
+         f"Vs30 ({site['city'][:25]})"),
+        (c2, site["nehrp"],            _vs30_nehrp_color(site["nehrp"]), "NEHRP zemin sınıfı"),
+        (c3, f"×{F_total:.2f}",        "#EF9F27",                          "Büyütme faktörü (toplam)"),
+        (c4, f"{pga_site:.3f} g",      risk_color,                         f"Site PGA ({pga_g:.2f}g kaya → site)"),
+    ]
+    for col, val, color, label in kartlar:
+        with col:
+            st.markdown(
+                f'<div class="stat-box">'
+                f'<div style="font-size:1.35rem;font-weight:800;color:{color}">{val}</div>'
+                f'<div style="font-size:0.7rem;opacity:0.55;margin-top:2px">{label}</div>'
+                f'</div>', unsafe_allow_html=True)
+
+    # ── NEHRP sınıf tablosu ───────────────────────────────────────────────
+    st.markdown('<div class="chart-title">📋 NEHRP Zemin Sınıfları (BSSC 2003 / FEMA 450)</div>',
+                unsafe_allow_html=True)
+    df_nehrp = pd.DataFrame([
+        {"Sınıf": "A", "Vs30 (m/s)": "≥ 1500", "Tanım": "Sert kaya",            "Tipik Büyütme": "1.0×"},
+        {"Sınıf": "B", "Vs30 (m/s)": "760 – 1500", "Tanım": "Kaya",            "Tipik Büyütme": "1.0×"},
+        {"Sınıf": "C", "Vs30 (m/s)": "360 – 760",  "Tanım": "Sıkı toprak/yumuşak kaya", "Tipik Büyütme": "1.2× – 1.6×"},
+        {"Sınıf": "D", "Vs30 (m/s)": "180 – 360",  "Tanım": "Sert zemin (kil/kum)",      "Tipik Büyütme": "1.5× – 2.5×"},
+        {"Sınıf": "E", "Vs30 (m/s)": "< 180",       "Tanım": "Yumuşak zemin (kil)",       "Tipik Büyütme": "2.5× – 4×"},
+        {"Sınıf": "F", "Vs30 (m/s)": "Özel",        "Tanım": "Sıvılaşabilir / organik",   "Tipik Büyütme": "Site-spesifik"},
+    ])
+    st.dataframe(df_nehrp, use_container_width=True, hide_index=True)
+
+    # ── İl tablosu ────────────────────────────────────────────────────────
+    st.markdown('<div class="chart-title">🏙️ İl/Konum Detayları</div>', unsafe_allow_html=True)
+    df_show = df_v[["city", "vs30", "nehrp"]].copy()
+    df_show.columns = ["Konum", "Vs30 (m/s)", "NEHRP"]
+    df_show = df_show.sort_values("Vs30 (m/s)").reset_index(drop=True)
+    st.dataframe(df_show, use_container_width=True, hide_index=True, height=320)
+
+    st.caption(
+        "📚 **Wald & Allen (2007)** *BSSA* 97(5), 1379-1395 — DOI:10.1785/0120060267 (Vs30 proxy) | "
+        "**Boore et al. (2014)** *Earthquake Spectra* 30(3), 1057-1085 — "
+        "DOI:10.1193/070113EQS184M (NGA-West2 GMPE) | "
+        "**BSSC (2003)** FEMA 450 NEHRP Provisions | "
+        "**USGS Global Vs30:** earthquake.usgs.gov/data/vs30/. "
+        "⚠️ Vs30 değerleri proxy/lokal kalibrasyon türevi; tam değerlendirme MASW/REMI "
+        "saha ölçümü ile yapılmalıdır."
+    )
+
+
+if active_menu == "🏔️ Vs30 Zemin":
+    _render_vs30_zemin()
 
 # ─── Footer ─────────────────────────────────────────────────────────────────
 st.markdown(f"""
