@@ -64,7 +64,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.42.1"
+APP_VERSION = "1.43"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -5397,6 +5397,53 @@ if active_menu == "🏛️ Erzincan Arşivi":
 #   • Ambraseys & Jackson 2000 — Saros, Geophys. J. Int.
 # ════════════════════════════════════════════════════════════════════════════
 
+# ════════════════════════════════════════════════════════════════════════════
+# GEM Global Active Faults — Türkiye fay overlay yardımcıları (v1.43)
+# ────────────────────────────────────────────────────────────────────────────
+# Kaynak: Styron, R. & Pagani, M. (2020). The GEM Global Active Faults
+#   Database. Earthquake Spectra 36(1_suppl), 160-180.
+#   DOI:10.1177/8755293020944182
+# CC BY 4.0 lisansı.
+# ════════════════════════════════════════════════════════════════════════════
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def _gem_fault_traces_cached():
+    """GEM Türkiye faylarını 24 saat cache'le; ağ erişimi başarısızsa boş döner."""
+    if _fetch_gem_faults_turkey is None:
+        return []
+    features = _fetch_gem_faults_turkey(timeout=10)
+    if not features or _gem_fault_traces_for_plotly is None:
+        return []
+    return _gem_fault_traces_for_plotly(features)
+
+
+def _add_gem_fault_overlay(fig, max_traces: int = 250,
+                           color: str = "#FF3333", width: float = 1.5,
+                           opacity: float = 0.55, legend_group: str = "gem_faults"):
+    """
+    Plotly figure'a GEM aktif fay çizgilerini overlay olarak ekle.
+
+    max_traces — perf için sınır (default 250); 460 fay var, ilk 250 göster.
+    Yalnızca tek bir legend item; tüm segmentler aynı legend group.
+    """
+    traces = _gem_fault_traces_cached()
+    if not traces:
+        return False  # caller fallback yapabilir
+    for i, t in enumerate(traces[:max_traces]):
+        fig.add_trace(go.Scattermapbox(
+            lat=t["lats"], lon=t["lons"],
+            mode="lines",
+            line=dict(color=color, width=width),
+            opacity=opacity,
+            name="GEM Aktif Fay (Türkiye)",
+            legendgroup=legend_group,
+            showlegend=(i == 0),  # sadece ilk trace legend'de görünsün
+            hoverinfo="skip" if not t.get("name") else "text",
+            text=t.get("name", "Anonim Fay") if t.get("name") else None,
+        ))
+    return True
+
+
 #  v1.43 — Koordinatlar Şengör et al. 2005 + AFAD diri fay verisine göre düzeltildi.
 #  (Önceki versiyonlardaki sabit-enlem hataları ve doğu-uç kayıklığı giderildi.)
 #  Kaynak: Şengör, A.M.C. et al. (2005). Annual Review of Earth and Planetary
@@ -5511,6 +5558,58 @@ _KAF_RISK_KALINLIK = {"yuksek": 6, "orta": 4, "dusuk": 2}
 _KAF_RISK_ETIKET   = {"yuksek": "Yüksek", "orta": "Orta", "dusuk": "Düşük"}
 
 
+# ── GEM Aktif Fay Harita Helper — v1.43 ────────────────────────────────────
+# GEM Global Active Faults geojson features → Plotly go.Scattermapbox trace listesi.
+# Kaynak: GEM Science Tools (CC BY 4.0); Styron & Pagani 2020 Earthq. Spectra 36.
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def _cached_gem_faults_turkey():
+    """GEM Türkiye faylarını 24 saatlik cache ile getirir."""
+    if _fetch_gem_faults_turkey is None:
+        return []
+    return _fetch_gem_faults_turkey()
+
+
+def gem_fault_traces(faults, color="red", width=1.5, name="Aktif Fay (GEM)"):
+    """
+    GEM GeoJSON features listesinden go.Scattermapbox trace listesi üretir.
+    Kaynak: Styron & Pagani 2020, Earthq. Spectra DOI:10.1177/8755293020944182 (CC BY 4.0)
+    """
+    traces = []
+    for f in faults:
+        geom = f.get("geometry") or {}
+        props = f.get("properties") or {}
+        fault_name = props.get("name") or props.get("ns_name") or "Anonim Fay"
+        slip = props.get("slip_rate", "?")
+        gtype = geom.get("type")
+        coords = geom.get("coordinates") or []
+        if gtype == "LineString":
+            segments_gem = [coords]
+        elif gtype == "MultiLineString":
+            segments_gem = coords
+        else:
+            continue
+        for seg in segments_gem:
+            lons = [c[0] for c in seg if c and len(c) >= 2]
+            lats = [c[1] for c in seg if c and len(c) >= 2]
+            if len(lats) < 2:
+                continue
+            traces.append(go.Scattermapbox(
+                lon=lons, lat=lats, mode="lines",
+                line=dict(color=color, width=width),
+                name=fault_name,
+                hovertemplate=(
+                    f"<b>{fault_name}</b><br>"
+                    f"Kayma hızı: {slip} mm/yr<br>"
+                    "Kaynak: GEM Global Active Faults (CC BY 4.0)"
+                    "<extra></extra>"
+                ),
+                showlegend=False,
+            ))
+    return traces
+
+
+
 @st.fragment
 def _render_sismik_acik():
     st.markdown(
@@ -5543,6 +5642,9 @@ def _render_sismik_acik():
     # (kullanıcı talebi). Kaba hardcoded 2-nokta düz çizgi yerine gerçek 100+
     # vertex multi-polyline geometri. MTA eşleşmesi yoksa hardcoded fallback.
     fig_map = go.Figure()
+    # v1.43 — GEM Global Active Faults overlay (gerçek koordinatlar, taban katman)
+    # Türkiye bbox'ında ~460 fay; segment çizgilerinden ÖNCE eklenmeli ki altta kalsın.
+    _add_gem_fault_overlay(fig_map, color="#888888", width=1.0, opacity=0.45)
     kaf_polylines = _kaf_mta_polylines()  # cache_resource → bir kez
     for seg in KAF_SEGMENTLER:
         renk = _KAF_RISK_RENK[seg["risk"]]
@@ -5901,6 +6003,8 @@ def _render_shakemap():
 
     # ── Bölüm B: MMI izoseist haritası ─────────────────────────────────────
     fig_map = go.Figure()
+    # v1.43 — GEM aktif fay overlay (deprem hangi fay üzerinde + komşu faylar)
+    _add_gem_fault_overlay(fig_map, color="#666666", width=0.8, opacity=0.5)
 
     # Dıştan içe çiz (büyük yarıçaplardan küçüklere) → küçük zonlar üstte kalsın
     mmi_seviye_sirali = [4, 5, 6, 7, 8, 9]
@@ -6934,6 +7038,8 @@ def _render_coulomb_stress():
     # ── Harita: CFS densitymapbox ─────────────────────────────────────────
     z_max = float(np.max(np.abs(cfs)))
     fig_map = go.Figure()
+    # v1.43 — GEM aktif fay overlay (CFS lobları hangi gerçek faylarla örtüşüyor görünür)
+    _add_gem_fault_overlay(fig_map, color="#444444", width=0.8, opacity=0.4)
     fig_map.add_trace(go.Densitymapbox(
         lat=LAT.flatten(),
         lon=LON.flatten(),
