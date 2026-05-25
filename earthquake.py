@@ -50,7 +50,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.21"
+APP_VERSION = "1.22"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -861,6 +861,7 @@ _MENU_LABELS = [
     "📈 Artçı Tahmin",
     "🔴 Sismik Açık",
     "🌊 ShakeMap",
+    "🗺️ Sismik Tehlike",
     "🏛️ Erzincan Arşivi",
     "🎓 Bilgi Havuzu",
     "⚙️ Sistem & Veri",
@@ -869,7 +870,7 @@ _MENU_LABELS = [
 _MENU_ICONS = [
     "globe", "bar-chart-line", "compass", "globe-americas", "moon-stars",
     "exclamation-triangle", "graph-up-arrow", "exclamation-octagon-fill",
-    "broadcast-pin", "archive", "mortarboard", "gear", "file-text",
+    "broadcast-pin", "map-fill", "archive", "mortarboard", "gear", "file-text",
 ]
 with st.container(key="sticky_nav"):
     active_menu = option_menu(
@@ -3912,38 +3913,32 @@ _PLAKA_CITIES = {
 _PLAKA_MODES = {
     "sci": {
         # 🟢 BİLİMSEL — gerçek GNSS ölçüm rejimi, lineer ekstrapolasyon doğrudan geçerli
-        # _plaka_warning() ≤10K = "🟢 Bilimsel" otomatik gösterir
-        # 10K × 2.25e-7°/yıl × 1000 ≈ 2.25° görsel kayma — geo modu ile aynı görsel
-        # (gerçek hareket küçük: 10K × 25 mm/yıl = 250 m, görselleştirme için ölçek)
+        # v1.21.1 KADEMELI ÖLÇEK: sci max 10K → ~0.5° görsel (KÜÇÜK kayma)
+        # Modlar arası 5× artış sağlanır → kullanıcı 10K vs 1M vs 1B'yi NET ayırt eder
+        # (önce hepsi ~2.25°/2.7° idi, görsel olarak aynı görünüyordu — kullanıcı bildirdi)
+        # Mod İÇİNDE log-orantılı: sci 1K=0.05°, 10K=0.5° (her 10× yıl → 10× görsel)
         "label":   "🟢 Bilimsel — Doğrudan Ölçüm (-10.000 → +10.000 yıl)",
         "short":   "Bilimsel",
         "stops":   [-10_000, -3_000, -1_000, -500, -200, -100, -50, -20, -10, -3,
                     0,
                     3, 10, 20, 50, 100, 200, 500, 1_000, 3_000, 10_000],
         "default_idx": 10,  # 0
-        "visual_scale_factor": 1000.0,
+        "visual_scale_factor": 222.0,  # 10K × 2.25e-7 × 222 ≈ 0.5° görsel (KÜÇÜK)
     },
     "geo": {
-        # 🟡 GENİŞLETİLMİŞ — paleosismik kalibrasyon zonu, lineer GNSS yaklaşımı
-        # fay döngülerini ve viskoelastik relaksasyonu ihmal eder
-        # _plaka_warning() 10K..1M = "🟡 Soyutlama"
-        # 1M × 2.25e-7°/yıl × 10 ≈ 2.25° görsel kayma
+        # 🟡 GENİŞLETİLMİŞ — paleosismik kalibrasyon zonu
+        # Max 1M × 2.25e-7 × 11.1 ≈ 2.5° görsel (sci'nin 5×'i, pal'in 1/2'si — ORTA)
         "label":   "🟡 Genişletilmiş — Paleosismik Ufuk (-1 milyon → +1 milyon yıl)",
         "short":   "Genişletilmiş",
         "stops":   [-1_000_000, -300_000, -100_000, -30_000, -10_000, -3_000, -1_000, -300, -100, -10,
                     0,
                     10, 100, 300, 1_000, 3_000, 10_000, 30_000, 100_000, 300_000, 1_000_000],
         "default_idx": 10,  # 0
-        "visual_scale_factor": 10.0,
+        "visual_scale_factor": 11.1,  # 1M × 2.25e-7 × 11.1 ≈ 2.5° görsel (ORTA)
     },
     "pal": {
-        # 🔴 SPEKÜLATİF — kıta sürüklenmesi eğitsel sezgi; lineer ekstrapolasyon
-        # bilimsel geçerliliğini tamamen yitirir, PALEOMAP/Scotese rekonstrüksiyonları gerek
-        # _plaka_warning() >1M = "🔴 Spekülatif Senaryo"
-        # v1.18.3 düzeltme: stops sadece anlamlı görsel kaymanın olduğu yıllara odaklı
-        # (1M+ aralık) + visual_scale 0.005 → 0.012 → küçük yıllar artık "aynı tekrar"
-        # değil, log-orantılı kayma görünür: 1B × 0.012 = 2.7°, 1M × 0.012 = 0.0027° (≈0,
-        # bu mod paleotektonik için).
+        # 🔴 SPEKÜLATİF — kıta sürüklenmesi eğitsel sezgi
+        # Max 1B × 2.25e-7 × 0.0222 ≈ 5° görsel (geo'nun 2×'i, sci'nin 10×'i — BÜYÜK)
         "label":   "🔴 Spekülatif — Eğitsel Sezgi (-1 milyar → +1 milyar yıl)",
         "short":   "Spekülatif",
         "stops":   [-1_000_000_000, -500_000_000, -200_000_000, -100_000_000, -50_000_000,
@@ -3952,7 +3947,7 @@ _PLAKA_MODES = {
                     1_000_000, 2_000_000, 5_000_000, 10_000_000, 20_000_000,
                     50_000_000, 100_000_000, 200_000_000, 500_000_000, 1_000_000_000],
         "default_idx": 10,  # 0
-        "visual_scale_factor": 0.012,
+        "visual_scale_factor": 0.0222,  # 1B × 2.25e-7 × 0.0222 ≈ 5° görsel (BÜYÜK)
     },
 }
 

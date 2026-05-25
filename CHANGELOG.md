@@ -1,5 +1,33 @@
 # Changelog
 
+## v1.21.1 - 2026-05-26 — Plaka Simülasyonu modlar arası 5× görsel kademe
+
+Kullanıcı bildirimi: "10 bin yıl, 1 milyon ya da 1 milyar yıldaki hareketler aynı görünüyor, mesafeler ve kaymalar aynısı, oysa daha farklı olmalı"
+
+**Sorunun kökü:** v1.18.2'de modlar arası görsel kayma tasarımı *kullanıcı dostu okunabilirlik* için her modun max stop'unda ~2.25° eşit görsel veriyordu (sci=10K×1000, geo=1M×10, pal=1B×0.012 hep ~2.5° görsel). Kullanıcı modlar arası **bilimsel farkı görmek istiyor**.
+
+**Düzeltme — kademeli görsel ölçek (PALEOMAP/GPlates referansı):**
+
+| Mod | Max yıl | Eski visual_scale | Yeni visual_scale | Max görsel kayma | Kademe |
+|---|---:|---:|---:|---:|---|
+| 🟢 sci | 10K | 1000 | **222** | **~0.5°** | KÜÇÜK |
+| 🟡 geo | 1M | 10 | **11.1** | **~2.5°** | ORTA |
+| 🔴 pal | 1B | 0.012 | **0.0222** | **~5°** | BÜYÜK |
+
+Modlar arası **5× görsel artış**: sci (0.5°) → geo (2.5°) → pal (5°). Kullanıcı modlar arası geçince **net farkı görür**.
+
+Mod **içinde** log-orantılı korundu — sci 1K=0.05°, 10K=0.5° (10× yıl → 10× görsel); geo 100K=0.25°, 1M=2.5° (10× → 10×); pal 100M=0.5°, 1B=5° (10× → 10×).
+
+Bilimsel namus: Bu hâlâ approximation — gerçek tools (PALEOMAP, GPlates) gerçek mesafe + auto camera zoom kullanır. Bizim hibrit kompromis: görsel okunabilirlik + modlar arası net fark. Bilgi kutusunda gerçek metrik (250 m / 25 km / 22.500 km) zaten doğru gösteriliyor.
+
+APP_VERSION 1.21 → 1.21.1
+
+## v1.21 - 2026-05-26 — F-61 ShakeMap (Antigravity Ajan 8)
+- USGS ShakeMap API entegrasyonu + MMI izoseist haritası (Wald 1999, Worden 2016, Bakun 1997).
+
+## v1.20 - 2026-05-26 — F-63 KAF Sismik Açık (Antigravity Ajan 8)
+- Kuzey Anadolu Fayı seismic gap haritası + Gantt zaman çizelgesi (Barka 1996, Stein 1997, Parsons 2004).
+
 ## v1.19.1 - 2026-05-26 — Plaka Simülasyonu PERF + Spekülatif mode kayma düzeltmesi
 
 İki kullanıcı bildirimi:
