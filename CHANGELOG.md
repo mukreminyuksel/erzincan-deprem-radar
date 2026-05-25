@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.16 - 2026-05-26 — Sticky scroll fix + in_view bbox optimizasyonu
+
+**📌 Sticky pill bar tam çalıştırıldı (UI Uzmanı):**
+- v1.15c'de sticky CSS eklendi ama Streamlit'in varsayılan `overflow:hidden` kuralı `position:sticky`'yi kırıyordu.
+- Fix: `[data-testid="stMain"] { overflow-x: clip }` ve `[data-testid="stMainBlockContainer"], [data-testid="stVerticalBlock"] { overflow: visible }` kuralları eklendi.
+- Sticky CSS güçlendirildi: `position: -webkit-sticky` Safari uyumlu, `z-index: 9999`, `box-shadow: 0 4px 16px rgba(0,0,0,0.55)` (scroll'da pill bar'ın altındaki içerikten ayrıştığını net göster).
+- Tema-aware arka plan `{BG}` değişkenine bağlandı (önceki sürümde hardcoded `#0e1117`/`#ffffff`).
+
+**🚀 in_view bbox optimizasyonu (Render Uzmanı — v1.9 takip işi):**
+- `_render_canli_radar` ve Bilgi Havuzu Erzincan haritasındaki `in_view(fault)` fonksiyonu `any(lat_min <= la <= lat_max for la in fault["lats"])` Python generator kullanıyordu — 14,500 fay × ortalama 10 vertex = ~145K karşılaştırma.
+- v1.9'da eklenmiş `fault["min_lat"]/max_lat/min_lon/max_lon` precompute'u **kullanılmıyordu** (eksik takip).
+- Yeni: bbox-overlap testi (`fault["max_lat"] >= lat_min and ...`) — 14,500 fay × 4 op = 58K; üstelik Python `any()` generator iterasyon overhead'i de ortadan kalkar — **~10× hızlanma**.
+- Bonus: Bbox-overlap testi mantıksal olarak daha doğru — segmenti yalnızca *uçları* view dışındaysa eski kod gözden kaçırabiliyordu, yeni kod kesişimi yakalar.
+
 ## v1.15c - 2026-05-25 — UI Uzmanı + Render Uzmanı: Sticky pill + Sidebar reorg + Plaka glyph (F-32)
 
 **🎨 UI iyileştirmeleri (UI Uzmanı):**

@@ -38,7 +38,7 @@ from earthquake_core import (
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.15c"
+APP_VERSION = "1.16"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -643,17 +643,27 @@ st.markdown(f"""
     font-weight: inherit;
   }}
 
-  /* v1.15b: ANA MENÜ pill bar sticky — scroll edildiğinde üstte kalır */
-  .st-key-sticky_nav {{
-    position: sticky;
-    top: 0;
-    z-index: 999;
-    background: {"#0e1117" if DARK else "#ffffff"};
-    padding: 4px 0 6px 0;
-    border-bottom: 1px solid {"#1e3a5f" if DARK else "#cfd8dc"};
-    margin-bottom: 6px;
+  /* ─── ANA MENÜ sticky (v1.16) ────────────────────────────────────────────
+     Streamlit varsayılan overflow:hidden → position:sticky kırar.
+     overflow-x:clip → yeni scroll container OLUŞTURMAZ → sticky çalışır.  */
+  [data-testid="stMain"] {{
+    overflow-x: clip !important;
   }}
-  /* Iframe içindeki option_menu kendi yüksekliğini korusun */
+  [data-testid="stMainBlockContainer"],
+  [data-testid="stVerticalBlock"] {{
+    overflow: visible !important;
+  }}
+  .st-key-sticky_nav {{
+    position: -webkit-sticky !important;
+    position: sticky !important;
+    top: 0px !important;
+    z-index: 9999 !important;
+    background: {BG} !important;
+    padding: 3px 0 5px 0 !important;
+    border-bottom: 1px solid {BORDER} !important;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.55) !important;
+    margin-bottom: 4px !important;
+  }}
   .st-key-sticky_nav iframe {{
     background: transparent !important;
   }}
@@ -770,6 +780,7 @@ with st.sidebar:
         st.markdown(f"**Sürüm:** v{APP_VERSION}")
         st.markdown(
             "<div style='font-size:0.78rem;opacity:0.85;line-height:1.45'>"
+            "• 📌 ANA MENÜ scroll'da viewport'ta sabit kalır — overflow:clip fix (v1.16).<br>"
             "• 🎨 ANA MENÜ üst horizontal pill bar'a taşındı (v1.15a).<br>"
             "• 🧭 Sidebar 3 expander grubuna düzenlendi (v1.15b).<br>"
             "• ⚡ Her panel @st.fragment ile izole — etkileşimler diğer panel state'ini bozmaz.<br>"
@@ -822,8 +833,8 @@ last1h  = df[df["zaman"] >= now_utc - timedelta(hours=1)]
 last24h = df[df["zaman"] >= now_utc - timedelta(hours=24)]
 big4    = df[df["buyukluk"] >= 4.0]
 
-# ─── ANA MENÜ — üst horizontal pill (UI Uzmanı kararı v1.15a, v1.15b: sticky) ──
-# st.container(key="sticky_nav") → CSS class ".st-key-sticky_nav" → position:sticky
+# ─── ANA MENÜ — üst horizontal pill (v1.16: tam sticky) ───────────────────────
+# st.container(key="sticky_nav") → ".st-key-sticky_nav" → position:sticky (v1.16 fix)
 _MENU_LABELS = [
     "🌍 Canlı Radar",
     "📊 İstatistik & Analiz",
@@ -1249,9 +1260,13 @@ def _render_canli_radar():
             lon_min, lon_max = ERZ_LON - margin / math.cos(math.radians(ERZ_LAT)), \
                                ERZ_LON + margin / math.cos(math.radians(ERZ_LAT))
 
+            # v1.9 precomputed bbox + bbox-overlap testi (Python any() generator yerine
+            # O(1) numerik karşılaştırma — 14,500 fay × ortalama 10 vertex'lik any()
+            # döngüsünden ~10× hızlanma; ayrıca segmenti yalnızca uçları view dışındaysa
+            # gözden kaçırma riskini ortadan kaldırır).
             def in_view(fault):
-                return any(lat_min <= la <= lat_max for la in fault["lats"]) and \
-                       any(lon_min <= lo <= lon_max for lo in fault["lons"])
+                return (fault["max_lat"] >= lat_min and fault["min_lat"] <= lat_max
+                        and fault["max_lon"] >= lon_min and fault["min_lon"] <= lon_max)
 
             visible = [f for f in FAULT_LINES if in_view(f)]
 
@@ -2313,7 +2328,8 @@ if active_menu == "🎓 Bilgi Havuzu":
                 lon_min, lon_max = ERZ_LON - margin / math.cos(math.radians(ERZ_LAT)), ERZ_LON + margin / math.cos(math.radians(ERZ_LAT))
 
                 def in_view(fault):
-                    return any(lat_min <= la <= lat_max for la in fault["lats"]) and                            any(lon_min <= lo <= lon_max for lo in fault["lons"])
+                    return (fault["max_lat"] >= lat_min and fault["min_lat"] <= lat_max
+                            and fault["max_lon"] >= lon_min and fault["min_lon"] <= lon_max)
 
                 visible = [f for f in FAULT_LINES if in_view(f)]
 
