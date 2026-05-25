@@ -1,0 +1,15 @@
+# Kişisel/taşınabilir editör workspace dosyaları (repo'ya girmesin)
+*.code-workspace
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Geçici profilleme çıktıları
+earthquake_profiled.py
+/tmp/st_perf.log
