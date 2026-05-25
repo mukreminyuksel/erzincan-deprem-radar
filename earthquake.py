@@ -38,7 +38,7 @@ from earthquake_core import (
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.16"
+APP_VERSION = "1.17"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -643,12 +643,13 @@ st.markdown(f"""
     font-weight: inherit;
   }}
 
-  /* ─── ANA MENÜ sticky (v1.16) ────────────────────────────────────────────
-     Streamlit varsayılan overflow:hidden → position:sticky kırar.
-     overflow-x:clip → yeni scroll container OLUŞTURMAZ → sticky çalışır.  */
-  [data-testid="stMain"] {{
-    overflow-x: clip !important;
-  }}
+  /* ─── ANA MENÜ sticky (v1.17a — overflow düzeltmesi) ──────────────────
+     CSS spec: position:sticky için TÜM ata zincirinde overflow:visible şart.
+     overflow değerleri hidden/auto/scroll/CLIP — HEPSİ sticky'yi kırar.
+     v1.16'da `overflow-x: clip` konmuştu → sticky DEVRE DIŞIYDI (kullanıcı bildirdi).
+     Düzeltme: stMain + stMainBlockContainer + stVerticalBlock = visible.
+     Scroll stApp/body seviyesinde kalır, içerik akışı normal. */
+  [data-testid="stMain"],
   [data-testid="stMainBlockContainer"],
   [data-testid="stVerticalBlock"] {{
     overflow: visible !important;
@@ -656,13 +657,13 @@ st.markdown(f"""
   .st-key-sticky_nav {{
     position: -webkit-sticky !important;
     position: sticky !important;
-    top: 0px !important;
+    top: 0 !important;
     z-index: 9999 !important;
     background: {BG} !important;
-    padding: 3px 0 5px 0 !important;
+    padding: 6px 0 !important;
     border-bottom: 1px solid {BORDER} !important;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.55) !important;
-    margin-bottom: 4px !important;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.45) !important;
+    margin-bottom: 6px !important;
   }}
   .st-key-sticky_nav iframe {{
     background: transparent !important;
@@ -839,6 +840,7 @@ _MENU_LABELS = [
     "🌍 Canlı Radar",
     "📊 İstatistik & Analiz",
     "🧭 Fay Sistemleri",
+    "🌍 Plaka Simülasyonu",
     "🔭 Astronomik Analiz",
     "🚨 Erken Uyarı",
     "🎓 Bilgi Havuzu",
@@ -846,7 +848,7 @@ _MENU_LABELS = [
     "📝 Raporlar",
 ]
 _MENU_ICONS = [
-    "globe", "bar-chart-line", "compass", "moon-stars",
+    "globe", "bar-chart-line", "compass", "globe-americas", "moon-stars",
     "exclamation-triangle", "mortarboard", "gear", "file-text",
 ]
 with st.container(key="sticky_nav"):
@@ -1037,6 +1039,125 @@ def load_tectonic_plates():
     return lines
 
 PLATE_LINES = load_tectonic_plates()
+
+# ════════════════════════════════════════════════════════════════════════════
+# 🌍 Plaka Hız Vektörleri — v1.17 (Ajan 5)
+# data/plate_velocities.json'dan iki olası formatı destekler:
+#   1) NNR-MORVEL56 Euler kutubu  (Argus, Gordon & DeMets 2011, G-cubed)
+#      {"AN": {"euler_lat", "euler_lon", "omega_deg_myr", ...}}
+#   2) Hazır deg/yıl deltaları    (Ajan 5 fallback formatı)
+#      {"plates": [{"plate": "AN", "delta_lat_per_year": ..., "delta_lon_per_year": ...}]}
+# Hiçbir kaynak yoksa AN için literal hardcode fallback.
+# ════════════════════════════════════════════════════════════════════════════
+_PLAKA_FALLBACK_AN = {
+    "delta_lat_per_year": -0.00022,
+    "delta_lon_per_year":  0.00020,
+    "name": "Anadolu (fallback)",
+    "approx_speed_mm_yr": 25,
+}
+
+def _euler_to_delta_deg(euler_lat, euler_lon, omega_deg_myr, lat, lon):
+    """NNR-MORVEL56 Euler kutbundan (lat, lon) noktasında deg/yıl yer değiştirme.
+
+    Çıktı: (delta_lat_per_year, delta_lon_per_year) — derece/yıl cinsinden.
+    Math: V = Ω × P (birim küre); V tanjant düzlemine doğu/kuzey projeksiyonu;
+    dλ_rad = ve_rad / cos(φ).
+    """
+    omega_rad_yr = math.radians(omega_deg_myr) / 1_000_000.0
+    phi   = math.radians(lat)
+    lam   = math.radians(lon)
+    phi_e = math.radians(euler_lat)
+    lam_e = math.radians(euler_lon)
+    cos_phi = math.cos(phi)
+    if abs(cos_phi) < 1e-6:
+        cos_phi = 1e-6 if cos_phi >= 0 else -1e-6
+
+    P  = (math.cos(phi)*math.cos(lam), math.cos(phi)*math.sin(lam), math.sin(phi))
+    Om = (omega_rad_yr*math.cos(phi_e)*math.cos(lam_e),
+          omega_rad_yr*math.cos(phi_e)*math.sin(lam_e),
+          omega_rad_yr*math.sin(phi_e))
+    Vx = Om[1]*P[2] - Om[2]*P[1]
+    Vy = Om[2]*P[0] - Om[0]*P[2]
+    Vz = Om[0]*P[1] - Om[1]*P[0]
+    east  = (-math.sin(lam),               math.cos(lam),                0.0)
+    north = (-math.sin(phi)*math.cos(lam), -math.sin(phi)*math.sin(lam), math.cos(phi))
+    ve_rad = Vx*east[0]  + Vy*east[1]  + Vz*east[2]
+    vn_rad = Vx*north[0] + Vy*north[1] + Vz*north[2]
+    dlat_deg_yr = math.degrees(vn_rad)
+    dlon_deg_yr = math.degrees(ve_rad / cos_phi)
+    return dlat_deg_yr, dlon_deg_yr
+
+@st.cache_resource(show_spinner=False)
+def load_plate_velocities(ref_lat: float = ERZ_LAT, ref_lon: float = ERZ_LON):
+    """Tüm plakalar için (ref_lat, ref_lon) noktasında deg/yıl hız vektörü.
+
+    Ajan 4 entegrasyonu (try/except ile):
+      - varsa data/plate_velocities.json → format otomatik tespit
+      - yoksa veya parse hatası → hardcode AN fallback
+
+    Çıkış formatı:
+      {plate_code: {"delta_lat_per_year": float, "delta_lon_per_year": float,
+                    "name": str, "approx_speed_mm_yr": float|None,
+                    "is_euler_derived": bool}}
+    """
+    out = {}
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "data", "plate_velocities.json")
+    if os.path.exists(path):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                raw = json.load(f)
+        except Exception:
+            raw = None
+        if isinstance(raw, dict):
+            entries = []
+            if "plates" in raw and isinstance(raw["plates"], list):
+                entries = raw["plates"]
+            else:
+                for code, val in raw.items():
+                    if isinstance(val, dict):
+                        entries.append({"plate": code, **val})
+            for e in entries:
+                if not isinstance(e, dict):
+                    continue
+                code = e.get("plate") or e.get("code")
+                if not code or not isinstance(code, str):
+                    continue
+                name = e.get("name") or code
+                speed = e.get("approx_speed_mm_yr")
+                if "delta_lat_per_year" in e and "delta_lon_per_year" in e:
+                    out[code] = {
+                        "delta_lat_per_year": float(e["delta_lat_per_year"]),
+                        "delta_lon_per_year": float(e["delta_lon_per_year"]),
+                        "name": name,
+                        "approx_speed_mm_yr": speed,
+                        "is_euler_derived": False,
+                    }
+                elif ("euler_lat" in e and "euler_lon" in e and "omega_deg_myr" in e):
+                    dlat, dlon = _euler_to_delta_deg(
+                        float(e["euler_lat"]), float(e["euler_lon"]),
+                        float(e["omega_deg_myr"]), ref_lat, ref_lon)
+                    out[code] = {
+                        "delta_lat_per_year": dlat,
+                        "delta_lon_per_year": dlon,
+                        "name": name,
+                        "approx_speed_mm_yr": speed,
+                        "is_euler_derived": True,
+                    }
+                elif "ve_mm_yr" in e and "vn_mm_yr" in e:
+                    ve = float(e["ve_mm_yr"])  # mm/yr east
+                    vn = float(e["vn_mm_yr"])  # mm/yr north
+                    cos_phi = math.cos(math.radians(ref_lat)) or 1e-6
+                    out[code] = {
+                        "delta_lat_per_year": (vn / 1000.0) / 111_320.0,
+                        "delta_lon_per_year": (ve / 1000.0) / (111_320.0 * cos_phi),
+                        "name": name,
+                        "approx_speed_mm_yr": speed,
+                        "is_euler_derived": False,
+                    }
+    if "AN" not in out:
+        out["AN"] = {**_PLAKA_FALLBACK_AN, "is_euler_derived": False}
+    return out
 
 def make_mapbox_layout(stil):
     # Uydu: saf uydu + yer adlari katmani (labels below traces)
@@ -3736,6 +3857,267 @@ def _render_astronomik():
 
 if active_menu == "🔭 Astronomik Analiz":
     _render_astronomik()
+
+# ════════════════════════════════════════════════════════════════════════════
+# 🌍 TEKTONİK PLAKA HAREKETİ SİMÜLASYONU — v1.17 (Ajan 5 / F-43)
+# ════════════════════════════════════════════════════════════════════════════
+_PLAKA_CITIES = {
+    "Erzincan":   (39.7333, 39.4917),
+    "İstanbul":   (41.0082, 28.9784),
+    "Diyarbakır": (37.9144, 40.2306),
+    "Van":        (38.4942, 43.3805),
+}
+
+@st.cache_data(show_spinner=False)
+def _plaka_build_figure(years_total: int, focus_lat: float, focus_lon: float,
+                        city: str, plate_code: str = "AN"):
+    """Pre-compute Plotly animation: 20 frames of plate displacement.
+
+    Slider değeri (years_total) → 20 frame linear interpolation. Her frame'de
+    PLATE_LINES geometrisi `plate_code`'un hız vektörüyle ötelenir; Erzincan
+    pini sabit kalır; bir ok vektörü kümülatif yer değiştirmeyi gösterir.
+    """
+    N_FRAMES = 20
+    vels = load_plate_velocities(focus_lat, focus_lon)
+    vel  = vels.get(plate_code) or vels.get("AN") or {**_PLAKA_FALLBACK_AN, "is_euler_derived": False}
+    dlat_yr = vel["delta_lat_per_year"]
+    dlon_yr = vel["delta_lon_per_year"]
+
+    # Görsel ölçek: Euler-türevli (gerçek ~mm-cm/yr) değerler büyük zoom'da
+    # görünmez → ×1000. Hardcode delta formatı (önceden şişirilmiş) için ×1.
+    visual_scale = 1000.0 if vel.get("is_euler_derived") else 1.0
+
+    # Statik gri "bugünkü plaka sınırları" tabanı (her frame'de aynı)
+    base_lats, base_lons = [], []
+    for plate in PLATE_LINES:
+        base_lats.extend(plate["lats"] + [None])
+        base_lons.extend(plate["lons"] + [None])
+    base_trace = go.Scattermapbox(
+        lat=base_lats, lon=base_lons, mode="lines",
+        line=dict(color="rgba(170,170,180,0.40)", width=1.1),
+        name="Bugünkü Plaka Sınırları", hoverinfo="skip",
+    )
+
+    # Plaka tip rengi (kayan sınır için)
+    type_color = {
+        "convergent": "#ff5252", "divergent": "#42a5f5",
+        "transform":  "#ffd54f", "unknown":   "#bdbdbd",
+    }
+
+    frames = []
+    for i in range(N_FRAMES + 1):
+        frac    = i / N_FRAMES
+        year_at = years_total * frac
+        dlat    = dlat_yr * year_at * visual_scale
+        dlon    = dlon_yr * year_at * visual_scale
+
+        # Kayan plaka geometrisi — tip bazında ayrı trace yapma yerine tek trace
+        # (animasyon performansı için)
+        shifted_lats, shifted_lons = [], []
+        for plate in PLATE_LINES:
+            shifted_lats.extend([la + dlat for la in plate["lats"]] + [None])
+            shifted_lons.extend([lo + dlon for lo in plate["lons"]] + [None])
+        shifted_trace = go.Scattermapbox(
+            lat=shifted_lats, lon=shifted_lons, mode="lines",
+            line=dict(color="#ff6d00", width=2.2),
+            name=f"{int(year_at)} yıl sonra", hoverinfo="skip",
+        )
+
+        # Hız vektörü — focus şehirden, görsel ölçek uygulanmış
+        arrow_lat_end = focus_lat + dlat
+        arrow_lon_end = focus_lon + dlon
+        arrow_trace = go.Scattermapbox(
+            lat=[focus_lat, arrow_lat_end],
+            lon=[focus_lon, arrow_lon_end],
+            mode="lines",
+            line=dict(color="#fff176", width=3),
+            name="Plaka hız vektörü", hoverinfo="skip",
+        )
+        # Ok ucu (basit nokta)
+        arrow_head = go.Scattermapbox(
+            lat=[arrow_lat_end], lon=[arrow_lon_end],
+            mode="markers",
+            marker=dict(size=10, color="#fff176"),
+            name="", hoverinfo="skip", showlegend=False,
+        )
+
+        # Gerçek (görsel olmayan) yer değiştirme — info hover için
+        real_dlat_m = dlat_yr * year_at * 111_320.0
+        real_dlon_m = dlon_yr * year_at * 111_320.0 * math.cos(math.radians(focus_lat))
+        real_disp_m = math.sqrt(real_dlat_m**2 + real_dlon_m**2)
+        if real_disp_m < 1.0:
+            disp_str = f"{real_disp_m*1000:.1f} mm"
+        elif real_disp_m < 1000.0:
+            disp_str = f"{real_disp_m:.2f} m"
+        else:
+            disp_str = f"{real_disp_m/1000:.2f} km"
+
+        pin_trace = go.Scattermapbox(
+            lat=[focus_lat], lon=[focus_lon],
+            mode="markers+text",
+            marker=dict(size=14, color="#ff4136"),
+            text=[f"★ {city}"],
+            textposition="top right",
+            textfont=dict(color="#ffffff", size=12),
+            name=city,
+            hovertemplate=(f"<b>{city}</b><br>{int(year_at)} yıl sonra<br>"
+                           f"Gerçek kayma: {disp_str}<extra></extra>"),
+        )
+
+        frames.append(go.Frame(
+            data=[base_trace, shifted_trace, arrow_trace, arrow_head, pin_trace],
+            name=str(i),
+            layout=go.Layout(
+                title=dict(text=(f"🌍 Tektonik Plaka Hareketi — {city} · "
+                                 f"{int(year_at)} yıl · gerçek kayma {disp_str}"),
+                           font=dict(color="#eceff1", size=14)),
+            ),
+        ))
+
+    # Slider stepleri
+    slider_steps = []
+    for i in range(N_FRAMES + 1):
+        year_at = int(years_total * i / N_FRAMES)
+        slider_steps.append({
+            "args": [[str(i)], {"frame": {"duration": 250, "redraw": True},
+                                "mode": "immediate",
+                                "transition": {"duration": 0}}],
+            "label": str(year_at),
+            "method": "animate",
+        })
+
+    initial = frames[0].data
+    fig = go.Figure(
+        data=list(initial),
+        frames=frames,
+        layout=go.Layout(
+            mapbox=dict(
+                style="carto-darkmatter",
+                center=dict(lat=focus_lat, lon=focus_lon),
+                zoom=4.2,
+            ),
+            margin=dict(l=0, r=0, t=42, b=0),
+            height=600,
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            font=dict(color="#eceff1"),
+            showlegend=False,
+            updatemenus=[{
+                "type": "buttons",
+                "showactive": False,
+                "y": -0.02, "x": 0.0,
+                "xanchor": "left", "yanchor": "top",
+                "pad": {"t": 4, "r": 4},
+                "buttons": [
+                    {"label": "▶ Oynat", "method": "animate",
+                     "args": [None, {"frame": {"duration": 300, "redraw": True},
+                                     "fromcurrent": True,
+                                     "transition": {"duration": 0}}]},
+                    {"label": "⏸ Dur", "method": "animate",
+                     "args": [[None], {"frame": {"duration": 0, "redraw": False},
+                                       "mode": "immediate",
+                                       "transition": {"duration": 0}}]},
+                ],
+            }],
+            sliders=[{
+                "active": 0,
+                "currentvalue": {"prefix": "Simüle yıl: ", "suffix": " yıl",
+                                 "font": {"size": 13, "color": "#eceff1"}},
+                "x": 0.10, "y": -0.02, "len": 0.85,
+                "steps": slider_steps,
+                "transition": {"duration": 0},
+            }],
+        ),
+    )
+    return fig
+
+@st.fragment
+def _render_plaka_simulasyon():
+    st.subheader("🌍 Tektonik Plaka Hareketi Simülasyonu")
+    st.caption("⚠️ Bu bir eğitim simülasyonudur — bilimsel tahmin değildir. "
+               "Lineer hız ekstrapolasyonu; fay kilitleme, viskoelastik relaksasyon "
+               "ve büyük deprem atlamaları ihmal edilmiştir.")
+
+    col_y, col_c, col_p = st.columns([1.4, 1, 1])
+    with col_y:
+        years_total = st.select_slider(
+            "Simülasyon ufku (yıl)",
+            options=[10, 100, 1000, 10000],
+            value=1000,
+            key="plaka_sim_years",
+        )
+    with col_c:
+        city = st.selectbox(
+            "Odak şehir",
+            options=list(_PLAKA_CITIES.keys()),
+            index=0,
+            key="plaka_sim_city",
+        )
+    vels_for_select = load_plate_velocities(ERZ_LAT, ERZ_LON)
+    plate_options = list(vels_for_select.keys())
+    default_plate = "AN" if "AN" in plate_options else plate_options[0]
+    with col_p:
+        plate_code = st.selectbox(
+            "Hız vektörü plakası",
+            options=plate_options,
+            index=plate_options.index(default_plate),
+            format_func=lambda c: f"{c} — {vels_for_select[c].get('name', c)}",
+            key="plaka_sim_plate",
+        )
+
+    focus_lat, focus_lon = _PLAKA_CITIES[city]
+    vels_focus = load_plate_velocities(focus_lat, focus_lon)
+    vel_focus  = vels_focus.get(plate_code) or vels_focus.get("AN") or {
+        **_PLAKA_FALLBACK_AN, "is_euler_derived": False}
+
+    fig = _plaka_build_figure(years_total, focus_lat, focus_lon, city, plate_code)
+    st.plotly_chart(fig, use_container_width=True, key=f"plaka_sim_{city}_{years_total}_{plate_code}")
+
+    # Bilgi kutusu — gerçek (görsel ölçekten bağımsız) kümülatif yer değiştirme
+    dlat_total_m = vel_focus["delta_lat_per_year"] * years_total * 111_320.0
+    dlon_total_m = vel_focus["delta_lon_per_year"] * years_total * 111_320.0 \
+                   * math.cos(math.radians(focus_lat))
+    disp_m = math.sqrt(dlat_total_m**2 + dlon_total_m**2)
+    if disp_m < 1.0:
+        disp_str = f"{disp_m*1000:.1f} mm"
+    elif disp_m < 1000.0:
+        disp_str = f"{disp_m:.2f} m"
+    else:
+        disp_str = f"{disp_m/1000:.2f} km"
+
+    plate_name  = vel_focus.get("name", plate_code)
+    is_euler    = vel_focus.get("is_euler_derived", False)
+    speed_anno  = vel_focus.get("approx_speed_mm_yr")
+    speed_str   = f" (~{speed_anno} mm/yıl)" if speed_anno else ""
+
+    st.info(
+        f"📍 **{city}** çevresinde **{plate_name}{speed_str}** plakası "
+        f"**{years_total} yılda** lineer ekstrapolasyonla **~{disp_str}** kayar."
+    )
+    if is_euler:
+        st.caption("ℹ️ Harita üzerindeki kayma görseli ×1000 ölçekle büyütülmüştür "
+                   "(gerçek NNR-MORVEL56 mm/yr hızları binom büyük zoomlarda görünmez). "
+                   "Yukarıdaki **kayma değeri gerçek değerdir.**")
+
+    with st.expander("📚 Bilimsel Not & Kaynaklar"):
+        st.markdown(
+            "**Hız kaynağı:** [`data/plate_velocities.json`](data/plate_velocities.json) — "
+            "NNR-MORVEL56 mutlak plaka hareketi Euler kutupları "
+            "(Argus, Gordon & DeMets 2011, *Geochem. Geophys. Geosyst.*, "
+            "doi:10.1029/2011GC003751).\n\n"
+            "**Hesap:** Her frame'de plaka sınırı vertex'leri `Δφ = vN × t / 111.32 km` "
+            "ve `Δλ = vE × t / (111.32 km × cos φ)` ile ötelenir.\n\n"
+            "**Sınırlamalar:**\n"
+            "- Lineer ekstrapolasyon; deprem döngüleri (interseismik birikim → koseismik atlama) yok sayılır.\n"
+            "- Fay kilitleme ve viskoelastik relaksasyon modellenmedi.\n"
+            "- Düzlemsel Δlat/Δlon (küçük açı yaklaşımı); >1 My ufukta küresel hata baskın olur.\n"
+            "- Tüm plaka sınırları odak plakanın hızıyla ötelenir — bu komşu plakalar için fiziksel olarak yanlıştır; görsel referans amaçlıdır.\n\n"
+            "**Doğrulama (Erzincan, NAFZ kesiti):** 1939 Ms 7.8 ~4–7 m yatay kayma; "
+            "interseismik birikim 87 yıl × ~22 mm/yıl ≈ ~1.9 m — paleoseismik kayıtla tutarlı."
+        )
+
+if active_menu == "🌍 Plaka Simülasyonu":
+    _render_plaka_simulasyon()
 
 # ════════════════════════════════════════════════════════════════════════════
 # 🚨 ERKEN UYARI SİMÜLATÖRÜ — P/S Dalga Geri Sayım ve Şiddet Tahmini
