@@ -50,7 +50,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.33"
+APP_VERSION = "1.34"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -873,6 +873,7 @@ _MENU_LABELS = [
     "🔒 Fay Kilitlenme",
     "🌋 Moho Derinliği",
     "🌀 SKS Splitting",
+    "🌊 Tsunami Kataloğu",
     "🏛️ Erzincan Arşivi",
     "🎓 Bilgi Havuzu",
     "⚙️ Sistem & Veri",
@@ -881,7 +882,7 @@ _MENU_LABELS = [
 _MENU_ICONS = [
     "globe", "bar-chart-line", "compass", "globe-americas", "moon-stars",
     "exclamation-triangle", "graph-up-arrow", "exclamation-octagon-fill",
-    "broadcast-pin", "map-fill", "circle-half", "graph-down", "lightning-charge", "satellite", "journal-text", "arrow-repeat", "globe2", "broadcast", "lock-fill", "layers-half", "compass-fill", "archive", "mortarboard", "gear", "file-text",
+    "broadcast-pin", "map-fill", "circle-half", "graph-down", "lightning-charge", "satellite", "journal-text", "arrow-repeat", "globe2", "broadcast", "lock-fill", "layers-half", "compass-fill", "water", "archive", "mortarboard", "gear", "file-text",
 ]
 with st.container(key="sticky_nav"):
     active_menu = option_menu(
@@ -8747,6 +8748,205 @@ def _render_sks_splitting():
 
 if active_menu == "🌀 SKS Splitting":
     _render_sks_splitting()
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# 🌊 TSUNAMİ KATALOĞU — F-57 / v1.34 — Akdeniz Tarihsel + NEAM Tehlike
+# ────────────────────────────────────────────────────────────────────────────
+# Bilimsel temel:
+#   • Papadopoulos, G.A. et al. (2014). Historical and pre-historical
+#       tsunamis in the Mediterranean. Marine Geology 354, 81-109.
+#       DOI:10.1016/j.margeo.2014.04.014
+#   • Yolsal-Çevikbilen, S. & Taymaz, T. (2012). Earthquake source
+#       parameters along the Hellenic subduction zone. Tectonophysics
+#       536-537, 61-100. DOI:10.1016/j.tecto.2012.01.025
+#   • Stiros, S.C. (2001). The AD 365 Crete earthquake. J. Struct. Geol.
+#       23(2-3), 545-562.
+#   • NOAA NGDC Tsunami DB: ngdc.noaa.gov/hazard/tsu.shtml
+#   • TSUMAPS-NEAM: tsumaps-neam.eu
+# ════════════════════════════════════════════════════════════════════════════
+
+# Akdeniz tarihsel tsunami olayları (Papadopoulos 2014, NOAA NGDC)
+# runup_m: kıyıda gözlenen maks. dalga yüksekliği (m)
+_TSUNAMI_OLAYLAR = [
+    {"yil": -365, "yer": "Girit (Stiros 365 AD)", "lat": 35.50, "lon": 23.50, "runup_m": 9.0,
+     "kaynak_mw": 8.5, "kaynak": "Stiros 2001 J. Struct. Geol.; megatsunami"},
+    {"yil": 1303, "yer": "Rodos-Girit",            "lat": 35.50, "lon": 27.50, "runup_m": 8.0,
+     "kaynak_mw": 8.0, "kaynak": "Guidoboni 2004; Doğu Akdeniz mega"},
+    {"yil": 1481, "yer": "Rodos",                  "lat": 36.20, "lon": 28.10, "runup_m": 3.0,
+     "kaynak_mw": 7.0, "kaynak": "Papadopoulos 2014 Tablo 1"},
+    {"yil": 1509, "yer": "İstanbul",               "lat": 41.00, "lon": 28.97, "runup_m": 5.0,
+     "kaynak_mw": 7.2, "kaynak": "Hancılar 2012 J. Tsunami Soc. (Marmara)"},
+    {"yil": 1530, "yer": "Sicilya",                "lat": 38.10, "lon": 13.30, "runup_m": 3.0,
+     "kaynak_mw": 7.0, "kaynak": "Tinti et al. 2004 J. Geophys. Res."},
+    {"yil": 1556, "yer": "Sakız Adası",            "lat": 38.40, "lon": 26.10, "runup_m": 2.0,
+     "kaynak_mw": 6.8, "kaynak": "NOAA NGDC"},
+    {"yil": 1693, "yer": "Doğu Sicilya",           "lat": 37.10, "lon": 15.20, "runup_m": 12.0,
+     "kaynak_mw": 7.4, "kaynak": "Tinti 2004; Catania mega"},
+    {"yil": 1741, "yer": "Türkiye GB kıyısı",      "lat": 35.00, "lon": 28.00, "runup_m": 8.0,
+     "kaynak_mw": 7.5, "kaynak": "Papadopoulos 2014"},
+    {"yil": 1755, "yer": "Lizbon (uzak etki)",     "lat": 36.00, "lon": -10.50, "runup_m": 15.0,
+     "kaynak_mw": 8.5, "kaynak": "Baptista 1998 J. Geodyn.; Atlantik ana"},
+    {"yil": 1856, "yer": "Girit-Rodos",            "lat": 35.50, "lon": 26.00, "runup_m": 6.0,
+     "kaynak_mw": 7.7, "kaynak": "Ambraseys 1962"},
+    {"yil": 1908, "yer": "Messina (Sicilya-Calabria)", "lat": 38.10, "lon": 15.60, "runup_m": 13.0,
+     "kaynak_mw": 7.2, "kaynak": "Tinti et al. 2008 BSSA"},
+    {"yil": 1939, "yer": "Erzincan (göl tsunamisi)", "lat": 39.40, "lon": 39.00, "runup_m": 1.0,
+     "kaynak_mw": 7.8, "kaynak": "Altınok 1999 Phys. Chem. Earth (lokal)"},
+    {"yil": 1948, "yer": "Karpathos (Yunan)",      "lat": 35.50, "lon": 27.20, "runup_m": 3.0,
+     "kaynak_mw": 7.1, "kaynak": "Papadopoulos 2014"},
+    {"yil": 1956, "yer": "Amorgos (Ege)",          "lat": 36.80, "lon": 25.80, "runup_m": 25.0,
+     "kaynak_mw": 7.7, "kaynak": "Okal et al. 2009 Mar. Geol. (lokal mega)"},
+    {"yil": 1968, "yer": "Saros (Türkiye)",        "lat": 40.30, "lon": 26.60, "runup_m": 1.5,
+     "kaynak_mw": 6.9, "kaynak": "Altınok 1999"},
+    {"yil": 1999, "yer": "İzmit (Marmara)",        "lat": 40.75, "lon": 29.90, "runup_m": 2.5,
+     "kaynak_mw": 7.6, "kaynak": "Altınok et al. 2001 Phys. Chem. Earth (lokal)"},
+    {"yil": 2002, "yer": "Stromboli volkanik tsunami", "lat": 38.79, "lon": 15.21, "runup_m": 11.0,
+     "kaynak_mw": 0, "kaynak": "Tinti 2005 (volkanik kaynak)"},
+    {"yil": 2017, "yer": "Bodrum-Kos",             "lat": 36.96, "lon": 27.43, "runup_m": 1.9,
+     "kaynak_mw": 6.6, "kaynak": "Yalçıner et al. 2017 (Gümbet 1.9m)"},
+    {"yil": 2020, "yer": "Sığacık-Samos",          "lat": 37.90, "lon": 26.79, "runup_m": 3.8,
+     "kaynak_mw": 6.9, "kaynak": "Dogan et al. 2021 Pure Appl. Geophys."},
+]
+
+
+def _tsunami_renk(runup: float) -> str:
+    if runup >= 15: return "#3F0080"   # mega
+    if runup >= 10: return "#A32D2D"   # büyük
+    if runup >= 5:  return "#E24B4A"   # orta-büyük
+    if runup >= 3:  return "#EF9F27"   # orta
+    if runup >= 1.5: return "#FAC775"  # küçük-orta
+    return "#1D9E75"                    # küçük
+
+
+@st.fragment
+def _render_tsunami_katalog():
+    st.markdown(
+        '<div class="chart-title">🌊 Akdeniz Tsunami Kataloğu — Tarihsel + NEAM (F-57 / v1.34)</div>',
+        unsafe_allow_html=True,
+    )
+    st.info(
+        "🌊 **Akdeniz Tsunami:** 365 AD Girit megatsunami'sinden 2020 Samos olayına "
+        "kadar 19 önemli olay. **Papadopoulos et al. (2014) Mar. Geol. 354** "
+        "kapsamlı katalog. Türkiye kıyısı: Yolsal-Çevikbilen & Taymaz (2012) "
+        "Hellenic trench modellemesi."
+    )
+
+    df_t = pd.DataFrame(_TSUNAMI_OLAYLAR)
+    df_t["renk"] = df_t["runup_m"].apply(_tsunami_renk)
+
+    col_yil, col_runup = st.columns(2)
+    with col_yil:
+        yil_min, yil_max = st.slider(
+            "Yıl aralığı",
+            min_value=-500, max_value=2030, value=(-500, 2030), step=50,
+            key="tsunami_yil",
+        )
+    with col_runup:
+        min_runup = st.slider(
+            "Min. runup (m)",
+            min_value=0.5, max_value=20.0, value=1.0, step=0.5,
+            key="tsunami_min_runup",
+        )
+
+    df_filt = df_t[(df_t["yil"] >= yil_min) & (df_t["yil"] <= yil_max) &
+                   (df_t["runup_m"] >= min_runup)].copy()
+    if df_filt.empty:
+        st.warning("Bu filtreye uygun olay yok.")
+        return
+
+    # ── Harita ─────────────────────────────────────────────────────────────
+    fig_map = go.Figure()
+    for _, ev in df_filt.iterrows():
+        size = 10 + ev["runup_m"] * 1.5
+        mw_str = f"Mw {ev['kaynak_mw']:.1f}" if ev["kaynak_mw"] > 0 else "Volkanik kaynak"
+        hover = (
+            f"<b>{ev['yer']}</b><br>"
+            f"Yıl: {int(ev['yil'])}<br>"
+            f"Runup: {ev['runup_m']:.1f} m<br>"
+            f"Kaynak: {mw_str}<br>"
+            f"Atıf: {ev['kaynak']}"
+            "<extra></extra>"
+        )
+        fig_map.add_trace(go.Scattermapbox(
+            lat=[ev["lat"]], lon=[ev["lon"]],
+            mode="markers",
+            marker=dict(size=size, color=ev["renk"], opacity=0.85),
+            hovertemplate=hover,
+            showlegend=False,
+        ))
+
+    fig_map.update_layout(
+        mapbox=dict(style="open-street-map", center=dict(lat=37.0, lon=25.0), zoom=4.3),
+        height=520,
+        margin=dict(l=0, r=0, t=10, b=0),
+        paper_bgcolor=BG2,
+    )
+    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": False})
+
+    # ── Zaman serisi (runup vs yıl) ────────────────────────────────────────
+    st.markdown('<div class="chart-title">⏳ Zaman Çizelgesi (yıl × runup)</div>', unsafe_allow_html=True)
+    fig_t = go.Figure()
+    fig_t.add_trace(go.Scatter(
+        x=df_filt["yil"], y=df_filt["runup_m"],
+        mode="markers",
+        marker=dict(
+            size=10 + df_filt["runup_m"] * 1.5,
+            color=df_filt["renk"].tolist(),
+            opacity=0.85, line=dict(color="#222", width=0.4),
+        ),
+        text=df_filt["yer"],
+        hovertemplate="<b>%{text}</b><br>Yıl: %{x}<br>Runup: %{y:.1f} m<extra></extra>",
+    ))
+    fig_t.update_layout(
+        xaxis=dict(title="Yıl (MS, negatif = MÖ)", color=TEXT, gridcolor=BORDER),
+        yaxis=dict(title="Runup (m)", color=TEXT, gridcolor=BORDER, type="log",
+                   range=[math.log10(0.5), math.log10(30)]),
+        height=320,
+        margin=dict(l=10, r=10, t=10, b=40),
+        paper_bgcolor=BG2, plot_bgcolor=BG2,
+        showlegend=False,
+    )
+    st.plotly_chart(fig_t, use_container_width=True, config={"displayModeBar": False})
+
+    # ── Bilgi kartları ─────────────────────────────────────────────────────
+    biggest = df_filt.loc[df_filt["runup_m"].idxmax()]
+    c1, c2, c3, c4 = st.columns(4)
+    kartlar = [
+        (c1, f"{len(df_filt)}",                "#FFD700", "Olay sayısı (filtreli)"),
+        (c2, f"{biggest['runup_m']:.0f} m",    "#A32D2D", f"Maks runup ({biggest['yer'][:14]})"),
+        (c3, f"{df_filt['runup_m'].mean():.1f} m", "#EF9F27", "Ortalama runup"),
+        (c4, f"~{(yil_max - yil_min) // max(1, len(df_filt) - 1)} yıl", "#1976D2", "Ortalama olaylar arası"),
+    ]
+    for col, val, color, label in kartlar:
+        with col:
+            st.markdown(
+                f'<div class="stat-box">'
+                f'<div style="font-size:1.35rem;font-weight:800;color:{color}">{val}</div>'
+                f'<div style="font-size:0.7rem;opacity:0.55;margin-top:2px">{label}</div>'
+                f'</div>', unsafe_allow_html=True)
+
+    # ── Tablo ─────────────────────────────────────────────────────────────
+    st.markdown('<div class="chart-title">📋 Olay Listesi</div>', unsafe_allow_html=True)
+    df_show = df_filt[["yil", "yer", "runup_m", "kaynak_mw", "kaynak"]].copy()
+    df_show.columns = ["Yıl", "Yer", "Runup (m)", "Kaynak Mw", "Bilimsel Kaynak"]
+    df_show = df_show.sort_values("Yıl").reset_index(drop=True)
+    st.dataframe(df_show, use_container_width=True, hide_index=True, height=350)
+
+    st.caption(
+        "📚 **Papadopoulos et al. (2014)** *Marine Geology* 354, 81-109 — "
+        "DOI:10.1016/j.margeo.2014.04.014 (ana katalog) | "
+        "**Yolsal-Çevikbilen & Taymaz (2012)** *Tectonophysics* 536-537, 61-100 — "
+        "DOI:10.1016/j.tecto.2012.01.025 (Türkiye Hellenic) | "
+        "**Stiros (2001)** *J. Struct. Geol.* 23, 545-562 (365 AD Girit) | "
+        "**NOAA NGDC Tsunami DB:** ngdc.noaa.gov/hazard/tsu.shtml | "
+        "**TSUMAPS-NEAM:** tsumaps-neam.eu. "
+        "⚠️ 1900 öncesi runup değerleri tarihsel kayıt belirsizliği taşır (±2-3 m)."
+    )
+
+
+if active_menu == "🌊 Tsunami Kataloğu":
+    _render_tsunami_katalog()
 
 # ─── Footer ─────────────────────────────────────────────────────────────────
 st.markdown(f"""
