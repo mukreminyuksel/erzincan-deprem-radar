@@ -50,7 +50,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.30"
+APP_VERSION = "1.31"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -870,6 +870,7 @@ _MENU_LABELS = [
     "🔄 Sismik Döngü",
     "🌐 Dinamik Tetikleme",
     "📡 InSAR Zaman Serisi",
+    "🔒 Fay Kilitlenme",
     "🏛️ Erzincan Arşivi",
     "🎓 Bilgi Havuzu",
     "⚙️ Sistem & Veri",
@@ -878,7 +879,7 @@ _MENU_LABELS = [
 _MENU_ICONS = [
     "globe", "bar-chart-line", "compass", "globe-americas", "moon-stars",
     "exclamation-triangle", "graph-up-arrow", "exclamation-octagon-fill",
-    "broadcast-pin", "map-fill", "circle-half", "graph-down", "lightning-charge", "satellite", "journal-text", "arrow-repeat", "globe2", "broadcast", "archive", "mortarboard", "gear", "file-text",
+    "broadcast-pin", "map-fill", "circle-half", "graph-down", "lightning-charge", "satellite", "journal-text", "arrow-repeat", "globe2", "broadcast", "lock-fill", "archive", "mortarboard", "gear", "file-text",
 ]
 with st.container(key="sticky_nav"):
     active_menu = option_menu(
@@ -8064,6 +8065,241 @@ def _render_insar_zaman_serisi():
 
 if active_menu == "📡 InSAR Zaman Serisi":
     _render_insar_zaman_serisi()
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# 🔒 FAY KİLİTLENME — F-54 / v1.31 — İnterseismik Coupling (φ)
+# ────────────────────────────────────────────────────────────────────────────
+# Bilimsel temel:
+#   • Reilinger, R. et al. (2006). GPS constraints on continental
+#       deformation. JGR 111, B05411. DOI:10.1029/2005JB004051
+#   • Ergintav, S. et al. (2014). Istanbul's earthquake hot spots.
+#       GRL 41, 5783-5788. DOI:10.1002/2014GL060985
+#   • Barka, A. (1996). Slip distribution along the NAF.
+#       BSSA 86(5), 1238-1254.
+#   • Savage, J.C. & Burford, R.O. (1973). Geodetic determination of relative
+#       plate motion in central California. JGR 78(5), 832-845.
+#       (Backslip yöntemi — kilitlenme modeli temeli)
+#   • Hussain, E. et al. (2018). Geodetic observations of postseismic creep
+#       in the decade after the 1999 Izmit earthquake. JGR 123.
+# ════════════════════════════════════════════════════════════════════════════
+
+# Segment kilitlenme parametreleri
+# phi: 0 = aseismik creep (enerji birikmez), 1 = tam kilitli (enerji birikir)
+# locking_depth_km: kilitlenmenin derinliği (sığ kilitli → derin creep)
+_KILITLENME_SEGMENTLER = [
+    {"id": "marmara-pa",  "ad": "Marmara — Prens Adaları segmenti",
+     "lat1": 40.80, "lon1": 28.50, "lat2": 40.95, "lon2": 29.10,
+     "phi": 0.95, "locking_depth_km": 15, "slip_rate_mm_yr": 22.0, "son_yil": 1766,
+     "ref": "Ergintav et al. 2014 GRL 41"},
+    {"id": "marmara-cn",  "ad": "Marmara — Orta Marmara",
+     "lat1": 40.78, "lon1": 27.90, "lat2": 40.85, "lon2": 28.50,
+     "phi": 0.75, "locking_depth_km": 12, "slip_rate_mm_yr": 18.0, "son_yil": 1766,
+     "ref": "Ergintav 2014; Bohnhoff 2017 GRL"},
+    {"id": "ganos-saros", "ad": "Ganos-Saros",
+     "lat1": 40.60, "lon1": 26.00, "lat2": 40.75, "lon2": 27.30,
+     "phi": 0.85, "locking_depth_km": 12, "slip_rate_mm_yr": 20.0, "son_yil": 1912,
+     "ref": "Meade et al. 2002 BSSA"},
+    {"id": "izmit-creep", "ad": "İzmit segmenti (postseismik creep)",
+     "lat1": 40.75, "lon1": 29.50, "lat2": 40.85, "lon2": 30.40,
+     "phi": 0.30, "locking_depth_km": 8, "slip_rate_mm_yr": 22.0, "son_yil": 1999,
+     "ref": "Hussain et al. 2018 JGR 123 (decay)"},
+    {"id": "duzce-creep", "ad": "Düzce segmenti",
+     "lat1": 40.78, "lon1": 31.00, "lat2": 40.85, "lon2": 31.61,
+     "phi": 0.50, "locking_depth_km": 10, "slip_rate_mm_yr": 22.0, "son_yil": 1999,
+     "ref": "Hussain 2018; Çakir 2003 GJI"},
+    {"id": "tosya",       "ad": "Tosya-Ladik",
+     "lat1": 40.80, "lon1": 33.50, "lat2": 41.00, "lon2": 35.80,
+     "phi": 0.80, "locking_depth_km": 15, "slip_rate_mm_yr": 20.0, "son_yil": 1943,
+     "ref": "Yavasoglu 2011 GJI"},
+    {"id": "erzincan",    "ad": "Erzincan segmenti",
+     "lat1": 39.77, "lon1": 38.50, "lat2": 39.80, "lon2": 39.60,
+     "phi": 0.85, "locking_depth_km": 18, "slip_rate_mm_yr": 18.0, "son_yil": 1939,
+     "ref": "Aktug et al. 2013 JGR; Kozaci 2007"},
+    {"id": "daf-kuzey",   "ad": "DAF Kuzey (Pazarcık)",
+     "lat1": 37.40, "lon1": 36.80, "lat2": 37.70, "lon2": 37.20,
+     "phi": 0.20, "locking_depth_km": 7, "slip_rate_mm_yr": 10.0, "son_yil": 2023,
+     "ref": "Yetersiz GPS örtüm — 2023 sonrası creep beklenir"},
+    {"id": "daf-guney",   "ad": "DAF Güney (Türkoğlu-Hatay)",
+     "lat1": 36.30, "lon1": 36.10, "lat2": 37.10, "lon2": 36.80,
+     "phi": 0.65, "locking_depth_km": 12, "slip_rate_mm_yr": 10.0, "son_yil": 1822,
+     "ref": "Mahmoud 2013 JGR; Karabacak 2010"},
+    {"id": "ege-akhisar", "ad": "Batı Anadolu (Gediz grabeni)",
+     "lat1": 38.50, "lon1": 27.50, "lat2": 38.70, "lon2": 28.30,
+     "phi": 0.40, "locking_depth_km": 8, "slip_rate_mm_yr": 6.0, "son_yil": 1969,
+     "ref": "Aktug 2009 JGR; ekstansiyon"},
+]
+
+
+def _kilitlenme_renk(phi: float) -> str:
+    if phi >= 0.85: return "#A32D2D"
+    if phi >= 0.65: return "#E24B4A"
+    if phi >= 0.45: return "#EF9F27"
+    if phi >= 0.25: return "#FAC775"
+    return "#1D9E75"
+
+
+def _kilitlenme_etiket(phi: float) -> str:
+    if phi >= 0.85: return "Tam kilitli (φ ≥ 0.85)"
+    if phi >= 0.65: return "Yüksek (0.65 ≤ φ < 0.85)"
+    if phi >= 0.45: return "Orta (0.45 ≤ φ < 0.65)"
+    if phi >= 0.25: return "Kısmi creep (0.25 ≤ φ < 0.45)"
+    return "Aseismik creep (φ < 0.25)"
+
+
+@st.fragment
+def _render_fay_kilitlenme():
+    st.markdown(
+        '<div class="chart-title">🔒 İnterseismik Kilitlenme (φ) — KAF + DAF (F-54 / v1.31)</div>',
+        unsafe_allow_html=True,
+    )
+    st.info(
+        "🔒 **Kilitlenme katsayısı (φ):** GPS gözlemleriyle hesaplanır. "
+        "**φ = 1**: fay tamamen kilitli, enerji birikiyor (gelecek deprem habercisi). "
+        "**φ = 0**: aseismik creep, enerji birikmiyor. Teorik temel: "
+        "**Savage & Burford (1973), JGR 78** backslip yöntemi; "
+        "**Reilinger et al. (2006), JGR 111** Türkiye GPS uygulaması."
+    )
+
+    YIL_SIMDI = datetime.now().year
+
+    # Hesap: birikmiş kayma açığı = phi × slip_rate × elapsed
+    df_k = pd.DataFrame(_KILITLENME_SEGMENTLER)
+    df_k["elapsed_yr"] = YIL_SIMDI - df_k["son_yil"]
+    df_k["accumulated_slip_m"] = df_k["phi"] * df_k["slip_rate_mm_yr"] * df_k["elapsed_yr"] / 1000.0
+    df_k["renk"] = df_k["phi"].apply(_kilitlenme_renk)
+    df_k["etiket"] = df_k["phi"].apply(_kilitlenme_etiket)
+
+    # ── Harita: segment çizgileri (kalınlık = phi) ─────────────────────────
+    fig_map = go.Figure()
+    for _, seg in df_k.iterrows():
+        kalinlik = 2 + seg["phi"] * 8
+        hover = (
+            f"<b>{seg['ad']}</b><br>"
+            f"φ = {seg['phi']:.2f} — {seg['etiket']}<br>"
+            f"Kilitlenme derinliği: {seg['locking_depth_km']} km<br>"
+            f"Kayma hızı: {seg['slip_rate_mm_yr']:.0f} mm/yıl<br>"
+            f"Son deprem: {int(seg['son_yil'])} (geçen {int(seg['elapsed_yr'])} yıl)<br>"
+            f"Birikmiş açık (kilitli kısım): {seg['accumulated_slip_m']:.2f} m<br>"
+            f"Kaynak: {seg['ref']}"
+            "<extra></extra>"
+        )
+        fig_map.add_trace(go.Scattermapbox(
+            lat=[seg["lat1"], seg["lat2"]], lon=[seg["lon1"], seg["lon2"]],
+            mode="lines",
+            line=dict(width=kalinlik, color=seg["renk"]),
+            name=f"{seg['ad']} (φ={seg['phi']:.2f})",
+            hovertemplate=hover,
+            showlegend=False,
+        ))
+        mid_lat = (seg["lat1"] + seg["lat2"]) / 2
+        mid_lon = (seg["lon1"] + seg["lon2"]) / 2
+        fig_map.add_trace(go.Scattermapbox(
+            lat=[mid_lat], lon=[mid_lon],
+            mode="markers+text",
+            marker=dict(size=8, color=seg["renk"]),
+            text=[f"φ={seg['phi']:.2f}"],
+            textposition="top right",
+            textfont=dict(size=10, color="#ffffff"),
+            hoverinfo="skip",
+            showlegend=False,
+        ))
+
+    # Legend dummy traces
+    for phi_ref in (0.95, 0.75, 0.55, 0.35, 0.15):
+        fig_map.add_trace(go.Scattermapbox(
+            lat=[None], lon=[None],
+            mode="lines",
+            line=dict(width=2 + phi_ref * 8, color=_kilitlenme_renk(phi_ref)),
+            name=_kilitlenme_etiket(phi_ref),
+        ))
+
+    fig_map.update_layout(
+        mapbox=dict(style="open-street-map", center=dict(lat=39.5, lon=33.0), zoom=5),
+        height=520,
+        margin=dict(l=0, r=0, t=10, b=0),
+        paper_bgcolor=BG2,
+        legend=dict(
+            orientation="v", yanchor="top", y=0.98, xanchor="left", x=0.01,
+            bgcolor="rgba(0,0,0,0.55)", font=dict(color="#fff", size=10),
+            bordercolor=BORDER, borderwidth=1,
+        ),
+    )
+    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": False})
+
+    # ── Kilitlenme barchart ────────────────────────────────────────────────
+    st.markdown('<div class="chart-title">📊 Segment Kilitlenme Karşılaştırması</div>',
+                unsafe_allow_html=True)
+    df_sorted = df_k.sort_values("phi", ascending=True).reset_index(drop=True)
+    fig_bar = go.Figure()
+    fig_bar.add_trace(go.Bar(
+        y=df_sorted["ad"],
+        x=df_sorted["phi"],
+        orientation="h",
+        marker=dict(color=df_sorted["renk"].tolist(), line=dict(color="#222", width=0.5)),
+        text=df_sorted.apply(lambda r: f"{r['phi']:.2f} (açık: {r['accumulated_slip_m']:.2f} m)", axis=1),
+        textposition="outside",
+        textfont=dict(color=TEXT, size=10),
+        hovertemplate="<b>%{y}</b><br>φ = %{x:.2f}<extra></extra>",
+    ))
+    fig_bar.add_vline(x=0.5, line=dict(color="#888", width=1, dash="dot"))
+    fig_bar.update_layout(
+        xaxis=dict(title="Kilitlenme katsayısı φ (0 = creep, 1 = kilitli)",
+                   color=TEXT, gridcolor=BORDER, range=[0, 1.2]),
+        yaxis=dict(color=TEXT, gridcolor=BORDER),
+        height=380,
+        margin=dict(l=10, r=10, t=10, b=40),
+        paper_bgcolor=BG2, plot_bgcolor=BG2,
+        showlegend=False,
+    )
+    st.plotly_chart(fig_bar, use_container_width=True, config={"displayModeBar": False})
+
+    # ── Bilgi kartları ─────────────────────────────────────────────────────
+    en_kilitli = df_k.loc[df_k["phi"].idxmax()]
+    en_creep = df_k.loc[df_k["phi"].idxmin()]
+    toplam_acik = df_k["accumulated_slip_m"].sum()
+    c1, c2, c3, c4 = st.columns(4)
+    kartlar = [
+        (c1, f"{en_kilitli['phi']:.2f}",                 "#A32D2D",
+         f"En kilitli ({en_kilitli['ad'].split(' — ')[0]})"),
+        (c2, f"{en_creep['phi']:.2f}",                    "#1D9E75",
+         f"En creep'li ({en_creep['ad'].split(' segmenti')[0][:20]})"),
+        (c3, f"{en_kilitli['accumulated_slip_m']:.1f} m", "#EF9F27",
+         "Maks birikmiş açık (m)"),
+        (c4, f"{toplam_acik:.1f} m",                       "#1976D2",
+         "Tüm segm. kümülatif açık"),
+    ]
+    for col, val, color, label in kartlar:
+        with col:
+            st.markdown(
+                f'<div class="stat-box">'
+                f'<div style="font-size:1.35rem;font-weight:800;color:{color}">{val}</div>'
+                f'<div style="font-size:0.7rem;opacity:0.55;margin-top:2px">{label}</div>'
+                f'</div>', unsafe_allow_html=True)
+
+    # ── Tablo ─────────────────────────────────────────────────────────────
+    st.markdown('<div class="chart-title">📋 Segment Detayları</div>', unsafe_allow_html=True)
+    df_show = df_k[["ad", "phi", "etiket", "locking_depth_km", "slip_rate_mm_yr",
+                    "son_yil", "elapsed_yr", "accumulated_slip_m", "ref"]].copy()
+    df_show.columns = ["Segment", "φ", "Sınıf", "Kilitlenme Derinliği (km)",
+                       "Kayma Hızı (mm/yıl)", "Son Deprem (yıl)", "Geçen (yıl)",
+                       "Birikmiş Açık (m)", "Kaynak"]
+    df_show = df_show.round({"phi": 2, "accumulated_slip_m": 2}).sort_values("φ", ascending=False)
+    st.dataframe(df_show, use_container_width=True, hide_index=True)
+
+    st.caption(
+        "📚 **Savage & Burford (1973)** *JGR* 78(5), 832-845 (backslip yöntemi) | "
+        "**Reilinger et al. (2006)** *JGR* 111, B05411 — DOI:10.1029/2005JB004051 | "
+        "**Ergintav et al. (2014)** *GRL* 41, 5783-5788 — DOI:10.1002/2014GL060985 (Marmara) | "
+        "**Hussain et al. (2018)** *JGR* 123 (İzmit postseismik) | "
+        "**Aktug et al. (2013)** *JGR* (Erzincan φ). "
+        "⚠️ φ tahminleri GPS örtüm yoğunluğuna ve model boyutuna duyarlıdır; "
+        "tam 3D inversiyon için Okada 1992 + sismik fizik gerekir."
+    )
+
+
+if active_menu == "🔒 Fay Kilitlenme":
+    _render_fay_kilitlenme()
 
 # ─── Footer ─────────────────────────────────────────────────────────────────
 st.markdown(f"""
