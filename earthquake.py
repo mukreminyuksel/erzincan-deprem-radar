@@ -38,7 +38,7 @@ from earthquake_core import (
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.15b"
+APP_VERSION = "1.15c"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -642,6 +642,21 @@ st.markdown(f"""
     font-size: inherit;
     font-weight: inherit;
   }}
+
+  /* v1.15b: ANA MENÜ pill bar sticky — scroll edildiğinde üstte kalır */
+  .st-key-sticky_nav {{
+    position: sticky;
+    top: 0;
+    z-index: 999;
+    background: {"#0e1117" if DARK else "#ffffff"};
+    padding: 4px 0 6px 0;
+    border-bottom: 1px solid {"#1e3a5f" if DARK else "#cfd8dc"};
+    margin-bottom: 6px;
+  }}
+  /* Iframe içindeki option_menu kendi yüksekliğini korusun */
+  .st-key-sticky_nav iframe {{
+    background: transparent !important;
+  }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -807,7 +822,8 @@ last1h  = df[df["zaman"] >= now_utc - timedelta(hours=1)]
 last24h = df[df["zaman"] >= now_utc - timedelta(hours=24)]
 big4    = df[df["buyukluk"] >= 4.0]
 
-# ─── ANA MENÜ — üst horizontal pill (UI Uzmanı kararı v1.15a) ──────────────
+# ─── ANA MENÜ — üst horizontal pill (UI Uzmanı kararı v1.15a, v1.15b: sticky) ──
+# st.container(key="sticky_nav") → CSS class ".st-key-sticky_nav" → position:sticky
 _MENU_LABELS = [
     "🌍 Canlı Radar",
     "📊 İstatistik & Analiz",
@@ -822,27 +838,28 @@ _MENU_ICONS = [
     "globe", "bar-chart-line", "compass", "moon-stars",
     "exclamation-triangle", "mortarboard", "gear", "file-text",
 ]
-active_menu = option_menu(
-    menu_title=None,
-    options=_MENU_LABELS,
-    icons=_MENU_ICONS,
-    orientation="horizontal",
-    default_index=0,
-    key="main_nav",
-    styles={
-        "container": {"padding": "0!important", "background-color": "transparent", "margin-top": "4px"},
-        "icon": {"font-size": "0.95rem"},
-        "nav-link": {
-            "font-size": "0.82rem",
-            "text-align": "center",
-            "margin": "0 2px",
-            "padding": "6px 10px",
-            "border-radius": "8px",
-            "white-space": "nowrap",
+with st.container(key="sticky_nav"):
+    active_menu = option_menu(
+        menu_title=None,
+        options=_MENU_LABELS,
+        icons=_MENU_ICONS,
+        orientation="horizontal",
+        default_index=0,
+        key="main_nav",
+        styles={
+            "container": {"padding": "0!important", "background-color": "transparent", "margin-top": "0"},
+            "icon": {"font-size": "0.95rem"},
+            "nav-link": {
+                "font-size": "0.82rem",
+                "text-align": "center",
+                "margin": "0 2px",
+                "padding": "6px 10px",
+                "border-radius": "8px",
+                "white-space": "nowrap",
+            },
+            "nav-link-selected": {"background-color": "#1976d2", "font-weight": "600"},
         },
-        "nav-link-selected": {"background-color": "#1976d2", "font-weight": "600"},
-    },
-)
+    )
 
 # ─── Metrikler ──────────────────────────────────────────────────────────────
 c1, c2, c3, c4, c5, c6 = st.columns(6)
@@ -1309,6 +1326,51 @@ def _render_canli_radar():
                     line=dict(color=style["color"], width=style["width"]),
                     text=t_labels,
                     hovertemplate="<b>%{text}</b><extra></extra>",
+                ))
+
+            # ─── Plaka tip glyph dekoratörleri (F-32) ──────────────────────
+            # Çizgi vertex'leri boyunca eşit aralıklı yön/tip gösterici Unicode glyph:
+            # ▲ convergent (subduction üçgenleri), ◇ divergent (rift baklava),
+            # ↔ transform (yanal kayma okları). Mapbox tile'larda native dash/symbol
+            # desteklenmediğinden text glyph kullanılıyor.
+            def _sample_along_plates(plates_in_type, step_km):
+                lats_out, lons_out = [], []
+                for plate in plates_in_type:
+                    lats, lons = plate["lats"], plate["lons"]
+                    if len(lats) < 2:
+                        continue
+                    accumulated = 0.0
+                    lats_out.append(lats[0])
+                    lons_out.append(lons[0])
+                    for k in range(1, len(lats)):
+                        accumulated += haversine(lats[k-1], lons[k-1], lats[k], lons[k])
+                        if accumulated >= step_km:
+                            lats_out.append(lats[k])
+                            lons_out.append(lons[k])
+                            accumulated = 0.0
+                return lats_out, lons_out
+
+            glyph_specs = [
+                # (tip,         karakter, step_km, font_size, renk)
+                ("convergent", "▲", 80,  18, "#ff5252"),
+                ("divergent",  "◇", 100, 14, "#42a5f5"),
+                ("transform",  "↔", 120, 18, "#ffd54f"),
+            ]
+            for b_type, glyph_char, step_km, font_size, glyph_color in glyph_specs:
+                plates_in_type = plates_by_type.get(b_type, [])
+                if not plates_in_type:
+                    continue
+                g_lats, g_lons = _sample_along_plates(plates_in_type, step_km)
+                if not g_lats:
+                    continue
+                fig_map.add_trace(go.Scattermapbox(
+                    lat=g_lats, lon=g_lons,
+                    mode="text",
+                    text=[glyph_char] * len(g_lats),
+                    textfont=dict(size=font_size, color=glyph_color),
+                    textposition="middle center",
+                    hoverinfo="skip",
+                    showlegend=False,
                 ))
 
             # Plaka İtme Yönleri (Oklar)

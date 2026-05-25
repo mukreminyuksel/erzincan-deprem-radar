@@ -1,6 +1,11 @@
 # Changelog
 
-## v1.15b - 2026-05-25 — UI Uzmanı: Sidebar 3 expander reorganizasyonu
+## v1.15b - 2026-05-25 — UI Uzmanı: Sticky pill bar + Sidebar 3 expander reorganizasyonu
+- 📌 **ANA MENÜ pill bar artık yapışkan (sticky)** — sayfa scroll edildiğinde üstte sabit kalır.
+  Teknik: `st.container(key="sticky_nav")` + CSS `.st-key-sticky_nav { position: sticky; top: 0; z-index: 999; }`.
+  Tema-aware arka plan (`#0e1117` koyu / `#ffffff` aydınlık) + alt ayraç çizgisi (1px solid).
+  Gerekçe: v1.15a'da pill bar üste taşındı ama scroll edildiğinde kaybolup panel değiştirmek için scroll-to-top gerektiriyordu.
+  Sismolojik ergonomi: 1000+ deprem listesinde gezinirken panel geçişi tek tıkla — bilişsel kesinti yok.
 - 🧭 Sidebar yeniden yapılandırıldı — Filtreler açıkta + 3 expander (Görünüm / Veri Kaynakları / Sistem).
 - **Filtreler (her zaman görünür):** Yarıçap (km), Min. Büyüklük, Zaman Aralığı, Otomatik Yenileme.
   Bunlar kullanıcının en sık değiştirdiği parametreler — açıkta kalır.
