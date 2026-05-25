@@ -50,7 +50,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.39"
+APP_VERSION = "1.40"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -879,6 +879,7 @@ _MENU_LABELS = [
     "⛏️ Paleosismik Kazı",
     "🗺️ Tsunami Tehlike",
     "🏔️ Vs30 Zemin",
+    "🏚️ HAZUS Kayıp",
     "🏛️ Erzincan Arşivi",
     "🎓 Bilgi Havuzu",
     "⚙️ Sistem & Veri",
@@ -887,7 +888,7 @@ _MENU_LABELS = [
 _MENU_ICONS = [
     "globe", "bar-chart-line", "compass", "globe-americas", "moon-stars",
     "exclamation-triangle", "graph-up-arrow", "exclamation-octagon-fill",
-    "broadcast-pin", "map-fill", "circle-half", "graph-down", "lightning-charge", "satellite", "journal-text", "arrow-repeat", "globe2", "broadcast", "lock-fill", "layers-half", "compass-fill", "water", "stopwatch", "film", "hammer", "tsunami", "bricks", "archive", "mortarboard", "gear", "file-text",
+    "broadcast-pin", "map-fill", "circle-half", "graph-down", "lightning-charge", "satellite", "journal-text", "arrow-repeat", "globe2", "broadcast", "lock-fill", "layers-half", "compass-fill", "water", "stopwatch", "film", "hammer", "tsunami", "bricks", "building-x", "archive", "mortarboard", "gear", "file-text",
 ]
 with st.container(key="sticky_nav"):
     active_menu = option_menu(
@@ -10061,6 +10062,227 @@ def _render_vs30_zemin():
 
 if active_menu == "🏔️ Vs30 Zemin":
     _render_vs30_zemin()
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# 🏚️ HAZUS KAYIP — F-65 / v1.40 — HAZUS + Fragility Curves
+# ────────────────────────────────────────────────────────────────────────────
+# Bilimsel temel:
+#   • FEMA (2003). HAZUS-MH Technical Manual. Washington, DC.
+#       fema.gov/sites/default/files/2020-09/fema_hazus_earthquake-model
+#   • Erdik, M. et al. (2003). Earthquake risk assessment for Istanbul
+#       metropolitan area. Earthq. Eng. Eng. Vibr. 2(1), 1-23.
+#       DOI:10.1007/BF02857534
+#   • Lagomarsino, S. & Giovinazzi, S. (2006). Macroseismic and mechanical
+#       models for vulnerability and damage assessment of current buildings.
+#       Bull. Earthq. Eng. 4(4), 415-443.
+#       DOI:10.1007/s10518-006-9024-z
+#   • Silva, V. et al. (2019). Current challenges in fragility modeling.
+#       Earthq. Spectra 35(4), 1927-1952.
+# ════════════════════════════════════════════════════════════════════════════
+
+# Yapı tipi × hasar seviyesi median PGA + β (Lagomarsino 2006 Tablo 4-7 türevi)
+_FRAGILITY = {
+    "Yığma (1970 öncesi)": {
+        "median_pga": {"slight": 0.10, "moderate": 0.20, "extensive": 0.35, "complete": 0.55},
+        "beta": 0.65, "renk": "#A32D2D",
+        "ref": "Lagomarsino 2006 Tablo 4 — yığma yüksek kırılganlık"},
+    "Yığma (1975-1998)": {
+        "median_pga": {"slight": 0.12, "moderate": 0.25, "extensive": 0.45, "complete": 0.70},
+        "beta": 0.60, "renk": "#E24B4A",
+        "ref": "Lagomarsino 2006; 1975 yönetmeliği sonrası"},
+    "Betonarme (1975 öncesi)": {
+        "median_pga": {"slight": 0.15, "moderate": 0.28, "extensive": 0.50, "complete": 0.80},
+        "beta": 0.62, "renk": "#EF9F27",
+        "ref": "Erdik 2003 İstanbul senaryo"},
+    "Betonarme (1975-1998)": {
+        "median_pga": {"slight": 0.18, "moderate": 0.35, "extensive": 0.65, "complete": 1.00},
+        "beta": 0.58, "renk": "#FAC775",
+        "ref": "1975 ABYYHY yönetmeliği"},
+    "Betonarme (1998-2018, DBYBHY)": {
+        "median_pga": {"slight": 0.25, "moderate": 0.50, "extensive": 0.85, "complete": 1.30},
+        "beta": 0.55, "renk": "#C0DD97",
+        "ref": "DBYBHY 1998 yönetmeliği"},
+    "Betonarme (2018+, TBDY-2018)": {
+        "median_pga": {"slight": 0.32, "moderate": 0.65, "extensive": 1.10, "complete": 1.70},
+        "beta": 0.50, "renk": "#1D9E75",
+        "ref": "TBDY-2018, performansa dayalı tasarım"},
+}
+
+# HAZUS hasar oranı → can kaybı (FEMA 2003 Tablo 13.4 türevi)
+# Complete damage'da: gündüz %0.25, gece %1.0 ölüm oranı (bina kullanım yoğunluğu)
+_HAZUS_OLUM_ORANI = {"slight": 0.0001, "moderate": 0.001, "extensive": 0.01, "complete": 0.10}
+_HAZUS_AGIR_YARALI = {"slight": 0.0005, "moderate": 0.005, "extensive": 0.03, "complete": 0.20}
+
+
+def _fragility_prob(pga: float, median: float, beta: float) -> float:
+    """Lognormal CDF (Lagomarsino 2006): P(hasar ≥ seviye | PGA)."""
+    if pga <= 0 or median <= 0:
+        return 0.0
+    z = math.log(pga / median) / beta
+    return 0.5 * (1 + math.erf(z / math.sqrt(2)))
+
+
+@st.fragment
+def _render_hazus_kayip():
+    st.markdown(
+        '<div class="chart-title">🏚️ HAZUS Kayıp Tahmini — Fragility Curves (F-65 / v1.40)</div>',
+        unsafe_allow_html=True,
+    )
+    st.info(
+        "🏚️ **HAZUS Metodolojisi:** FEMA'nın 2003'ten beri kullandığı kayıp tahmini "
+        "çerçevesi. Yapı tipi × PGA × **lognormal kırılganlık eğrisi** → hasar "
+        "olasılığı → can kaybı tahmini. Türkiye uygulaması: **Erdik et al. (2003) "
+        "Earthq. Eng. Eng. Vibr. 2(1)** (İstanbul senaryosu); fragility parametreleri: "
+        "**Lagomarsino & Giovinazzi (2006) Bull. Earthq. Eng. 4(4)**."
+    )
+
+    # ── Kontroller ─────────────────────────────────────────────────────────
+    col_pga, col_yapi, col_nufus = st.columns([1, 2, 1])
+    with col_pga:
+        pga = st.slider("Beklenen PGA (g)",
+                        min_value=0.05, max_value=1.50, value=0.40, step=0.05,
+                        key="hazus_pga")
+    with col_yapi:
+        sec_yapi = st.selectbox(
+            "Yapı tipi",
+            options=list(_FRAGILITY.keys()),
+            index=2,  # Default: Betonarme (1975 öncesi)
+            key="hazus_yapi",
+        )
+    with col_nufus:
+        nufus = st.number_input(
+            "Etkilenen nüfus (bin)",
+            min_value=10, max_value=10000, value=500, step=50,
+            key="hazus_nufus",
+        )
+
+    frag = _FRAGILITY[sec_yapi]
+
+    # ── Hasar olasılıkları (kümülatif → bant) ──────────────────────────────
+    p_cum = {seviye: _fragility_prob(pga, frag["median_pga"][seviye], frag["beta"])
+             for seviye in ["slight", "moderate", "extensive", "complete"]}
+    # Bant olasılıkları: P(slight only) = P(>slight) - P(>moderate), vb.
+    p_band = {
+        "no_damage": 1 - p_cum["slight"],
+        "slight":    p_cum["slight"] - p_cum["moderate"],
+        "moderate":  p_cum["moderate"] - p_cum["extensive"],
+        "extensive": p_cum["extensive"] - p_cum["complete"],
+        "complete":  p_cum["complete"],
+    }
+    # Negatif düzeltme (numerik)
+    for k in p_band:
+        p_band[k] = max(0.0, p_band[k])
+
+    # ── Fragility eğrileri grafiği ─────────────────────────────────────────
+    st.markdown('<div class="chart-title">📈 Kırılganlık Eğrileri (Fragility Curves)</div>',
+                unsafe_allow_html=True)
+    pga_range = np.linspace(0.01, 2.0, 100)
+    fig_frag = go.Figure()
+    renkler_seviye = {"slight": "#1D9E75", "moderate": "#FAC775",
+                      "extensive": "#EF9F27", "complete": "#A32D2D"}
+    etiketler_seviye = {"slight": "Hafif (slight)", "moderate": "Orta (moderate)",
+                        "extensive": "Ağır (extensive)", "complete": "Çöküş (complete)"}
+    for seviye, etiket in etiketler_seviye.items():
+        med = frag["median_pga"][seviye]
+        probs = [100 * _fragility_prob(p, med, frag["beta"]) for p in pga_range]
+        fig_frag.add_trace(go.Scatter(
+            x=pga_range, y=probs,
+            mode="lines",
+            line=dict(color=renkler_seviye[seviye], width=2.5),
+            name=f"≥ {etiket} (median PGA={med:.2f}g)",
+            hovertemplate="PGA = %{x:.2f} g<br>P(≥hasar) = %{y:.1f}%<extra></extra>",
+        ))
+
+    # Seçili PGA dikey çizgisi
+    fig_frag.add_vline(x=pga, line=dict(color="#FFD700", width=2.5, dash="dash"),
+                       annotation_text=f"Seçili: {pga:.2f} g",
+                       annotation_font_color="#FFD700")
+
+    fig_frag.update_layout(
+        title=dict(text=f"Fragility — {sec_yapi}", font=dict(color=TEXT, size=13)),
+        xaxis=dict(title="PGA (g)", color=TEXT, gridcolor=BORDER, range=[0, 2]),
+        yaxis=dict(title="P(hasar ≥ seviye) %", color=TEXT, gridcolor=BORDER, range=[0, 105]),
+        height=380,
+        margin=dict(l=10, r=10, t=40, b=40),
+        paper_bgcolor=BG2, plot_bgcolor=BG2,
+        legend=dict(font=dict(color=TEXT, size=10), bgcolor="rgba(0,0,0,0.3)"),
+    )
+    st.plotly_chart(fig_frag, use_container_width=True, config={"displayModeBar": False})
+
+    # ── Bant dağılımı pie ──────────────────────────────────────────────────
+    st.markdown('<div class="chart-title">🥧 Hasar Dağılımı (Verilen PGA için)</div>',
+                unsafe_allow_html=True)
+    fig_pie = go.Figure()
+    fig_pie.add_trace(go.Pie(
+        labels=["Hasarsız", "Hafif", "Orta", "Ağır", "Çöküş"],
+        values=[100 * p_band["no_damage"], 100 * p_band["slight"],
+                100 * p_band["moderate"], 100 * p_band["extensive"],
+                100 * p_band["complete"]],
+        marker=dict(colors=["#1D9E75", "#C0DD97", "#FAC775", "#EF9F27", "#A32D2D"]),
+        textinfo="label+percent",
+        textfont=dict(color="#fff", size=11),
+        hoverinfo="label+value",
+    ))
+    fig_pie.update_layout(
+        height=380,
+        paper_bgcolor=BG2,
+        margin=dict(l=10, r=10, t=10, b=10),
+        legend=dict(font=dict(color=TEXT, size=10)),
+    )
+    st.plotly_chart(fig_pie, use_container_width=True, config={"displayModeBar": False})
+
+    # ── Can kaybı tahmini ──────────────────────────────────────────────────
+    nufus_full = nufus * 1000
+    olum_tahmin = sum(p_band[s] * _HAZUS_OLUM_ORANI[s] * nufus_full
+                      for s in ["slight", "moderate", "extensive", "complete"])
+    yarali_tahmin = sum(p_band[s] * _HAZUS_AGIR_YARALI[s] * nufus_full
+                        for s in ["slight", "moderate", "extensive", "complete"])
+    hasarsiz_bina_pct = 100 * p_band["no_damage"]
+    cokus_bina_pct = 100 * p_band["complete"]
+
+    c1, c2, c3, c4 = st.columns(4)
+    kartlar = [
+        (c1, f"%{cokus_bina_pct:.1f}",     "#A32D2D", "Çöküş olasılığı (bina)"),
+        (c2, f"%{hasarsiz_bina_pct:.1f}",  "#1D9E75", "Hasarsız kalma olasılığı"),
+        (c3, f"~{int(olum_tahmin):,}",      "#E24B4A", f"Tahmini can kaybı ({nufus} bin nüfus)"),
+        (c4, f"~{int(yarali_tahmin):,}",   "#EF9F27", "Tahmini ağır yaralı"),
+    ]
+    for col, val, color, label in kartlar:
+        with col:
+            st.markdown(
+                f'<div class="stat-box">'
+                f'<div style="font-size:1.35rem;font-weight:800;color:{color}">{val}</div>'
+                f'<div style="font-size:0.7rem;opacity:0.55;margin-top:2px">{label}</div>'
+                f'</div>', unsafe_allow_html=True)
+
+    # ── Yapı tipleri karşılaştırma tablosu ────────────────────────────────
+    st.markdown('<div class="chart-title">📋 Yapı Tipleri × Çöküş Olasılığı (PGA = '
+                f'{pga:.2f} g)</div>', unsafe_allow_html=True)
+    df_comp = pd.DataFrame([
+        {"Yapı Tipi": yapi,
+         "Çöküş Median PGA (g)": params["median_pga"]["complete"],
+         "β": params["beta"],
+         f"P(Çöküş) @ {pga:.2f}g %": round(100 * _fragility_prob(pga, params["median_pga"]["complete"], params["beta"]), 1),
+         "Kaynak": params["ref"]}
+        for yapi, params in _FRAGILITY.items()
+    ])
+    st.dataframe(df_comp, use_container_width=True, hide_index=True)
+
+    st.caption(
+        "📚 **FEMA (2003)** *HAZUS-MH Technical Manual* (kayıp tahmini standardı) | "
+        "**Erdik et al. (2003)** *Earthq. Eng. Eng. Vibr.* 2(1), 1-23 — "
+        "DOI:10.1007/BF02857534 (İstanbul senaryosu) | "
+        "**Lagomarsino & Giovinazzi (2006)** *Bull. Earthq. Eng.* 4(4) — "
+        "DOI:10.1007/s10518-006-9024-z (fragility eğrileri) | "
+        "**Silva et al. (2019)** *Earthq. Spectra* 35(4) (modern challenges). "
+        "⚠️ Sonuçlar yaklaşık. Tam HAZUS uygulaması bina envanteri (TÜİK), zemin tipi "
+        "(Vs30 — F-64), saatlik nüfus dağılımı gerektirir."
+    )
+
+
+if active_menu == "🏚️ HAZUS Kayıp":
+    _render_hazus_kayip()
 
 # ─── Footer ─────────────────────────────────────────────────────────────────
 st.markdown(f"""
