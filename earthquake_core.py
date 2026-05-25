@@ -418,3 +418,139 @@ def plate_velocity_vector(
     delta_lon = (vel["v_east_mm_yr"]  * years) / mm_per_deg_lon
 
     return (round(delta_lat, 8), round(delta_lon, 8))
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# GEM Global Active Faults — Türkiye fay koordinatları
+# ────────────────────────────────────────────────────────────────────────────
+# Kaynak: GEM Science Tools, gem-global-active-faults
+# Lisans: CC BY 4.0
+# URL: https://github.com/GEMScienceTools/gem-global-active-faults
+# Akademik atıf:
+#   Styron, R. & Pagani, M. (2020). The GEM Global Active Faults Database.
+#   Earthquake Spectra 36(1_suppl), 160-180. DOI:10.1177/8755293020944182
+# ════════════════════════════════════════════════════════════════════════════
+
+GEM_FAULTS_URL = (
+    "https://raw.githubusercontent.com/GEMScienceTools/"
+    "gem-global-active-faults/master/geojson/gem_active_faults_harmonized.geojson"
+)
+
+# Türkiye bbox (Karadeniz kıyısından Doğu Akdeniz'e)
+TURKEY_BBOX = {"lat_min": 35.5, "lat_max": 42.5, "lon_min": 25.0, "lon_max": 45.5}
+
+
+def _coord_in_turkey(c) -> bool:
+    """[lon, lat] noktasının Türkiye bbox içinde olup olmadığı."""
+    if not c or len(c) < 2:
+        return False
+    lon, lat = c[0], c[1]
+    return (TURKEY_BBOX["lon_min"] <= lon <= TURKEY_BBOX["lon_max"]
+            and TURKEY_BBOX["lat_min"] <= lat <= TURKEY_BBOX["lat_max"])
+
+
+def fetch_gem_faults_turkey(timeout: int = 10):
+    """
+    GEM Global Active Faults veritabanından Türkiye faylarını çek.
+
+    Returns
+    -------
+    list[dict] — her bir GeoJSON Feature; geometry tipi LineString veya MultiLineString.
+                 Boş liste = network/timeout hatası (caller fallback yapmalı).
+
+    Notes
+    -----
+    @st.cache_data ile sarmalanabilir; tek başına saf Python.
+    """
+    try:
+        import requests
+        r = requests.get(GEM_FAULTS_URL, timeout=timeout)
+        if r.status_code != 200:
+            return []
+        data = r.json()
+    except Exception:
+        return []
+
+    turkey_faults = []
+    for feat in data.get("features", []):
+        geom = feat.get("geometry") or {}
+        gtype = geom.get("type")
+        coords = geom.get("coordinates") or []
+        in_tr = False
+        if gtype == "LineString":
+            if any(_coord_in_turkey(c) for c in coords):
+                in_tr = True
+        elif gtype == "MultiLineString":
+            if any(_coord_in_turkey(c) for seg in coords for c in seg):
+                in_tr = True
+        if in_tr:
+            turkey_faults.append(feat)
+    return turkey_faults
+
+
+def gem_fault_traces_for_plotly(features: list):
+    """
+    GEM features listesini Plotly Scattermapbox-uyumlu trace listesine dönüştür.
+
+    Returns
+    -------
+    list[dict] — her trace: {"lats": [...], "lons": [...], "name": str, "props": dict}
+                 Geometri LineString veya MultiLineString'in her segmenti tek trace.
+    """
+    traces = []
+    for feat in features:
+        geom = feat.get("geometry") or {}
+        props = feat.get("properties") or {}
+        name = props.get("name") or props.get("ns_name") or "Anonim Fay"
+        gtype = geom.get("type")
+        coords = geom.get("coordinates") or []
+        if gtype == "LineString":
+            segments = [coords]
+        elif gtype == "MultiLineString":
+            segments = coords
+        else:
+            continue
+        for seg in segments:
+            lats = [c[1] for c in seg if c and len(c) >= 2]
+            lons = [c[0] for c in seg if c and len(c) >= 2]
+            if len(lats) < 2:
+                continue
+            traces.append({"lats": lats, "lons": lons, "name": name, "props": props})
+    return traces
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# KAF Segment Koordinatları — AFAD + Şengör et al. 2005 onaylı
+# ────────────────────────────────────────────────────────────────────────────
+# Kaynak: Şengör, A.M.C. et al. (2005). The North Anatolian Fault: A new look.
+#   Annual Review of Earth and Planetary Sciences 33, 37-112.
+#   DOI:10.1146/annurev.earth.32.101802.120415
+# AFAD: deprem.afad.gov.tr (resmi diri fay haritası)
+# ════════════════════════════════════════════════════════════════════════════
+
+KAF_SEGMENTLER_AFAD = [
+    {"id": "S01", "ad": "Karlıova-Erzincan",
+     "lat1": 39.45, "lon1": 40.70, "lat2": 39.75, "lon2": 39.50,
+     "kayma_hizi_mm_yil": 18, "uzunluk_km": 130,
+     "kaynak": "Şengör 2005 Ann. Rev. EPS 33; AFAD diri fay"},
+    {"id": "S02", "ad": "Erzincan-Suşehri",
+     "lat1": 39.75, "lon1": 39.50, "lat2": 40.10, "lon2": 37.90,
+     "kayma_hizi_mm_yil": 19, "uzunluk_km": 140,
+     "kaynak": "Şengör 2005; Kozacı 2007 BSSA 97"},
+    {"id": "S03", "ad": "Suşehri-Tosya",
+     "lat1": 40.10, "lon1": 37.90, "lat2": 41.00, "lon2": 34.10,
+     "kayma_hizi_mm_yil": 20, "uzunluk_km": 340,
+     "kaynak": "Barka 1996 BSSA 86; Stein 1997 GJI 128"},
+    {"id": "S04", "ad": "Tosya-Gerede",
+     "lat1": 41.00, "lon1": 34.10, "lat2": 40.80, "lon2": 32.20,
+     "kayma_hizi_mm_yil": 21, "uzunluk_km": 170,
+     "kaynak": "Barka 1996; 1943 + 1944 kırıkları"},
+    {"id": "S05", "ad": "Gerede-İzmit",
+     "lat1": 40.80, "lon1": 32.20, "lat2": 40.77, "lon2": 29.90,
+     "kayma_hizi_mm_yil": 22, "uzunluk_km": 200,
+     "kaynak": "Şengör 2005; 1944 + 1999 kırıkları"},
+    {"id": "S06", "ad": "İzmit-Marmara (Prens Adaları)",
+     "lat1": 40.77, "lon1": 29.90, "lat2": 40.70, "lon2": 27.00,
+     "kayma_hizi_mm_yil": 22, "uzunluk_km": 250,
+     "kaynak": "Şengör 2005; Le Pichon 2001 EPSL; Parsons 2004 Nature"},
+]

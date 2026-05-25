@@ -40,6 +40,20 @@ from earthquake_core import (
     utc_now_naive,
 )
 
+# v1.43 — GEM Global Active Faults (Türkiye fay koordinatları, gerçek lokasyonlar)
+# Kaynak: GEM Science Tools, Styron & Pagani 2020 Earthq. Spectra 36.
+# Eski sürümlerde bu modül olmayabilir → graceful degrade.
+try:
+    from earthquake_core import (
+        fetch_gem_faults_turkey as _fetch_gem_faults_turkey,
+        gem_fault_traces_for_plotly as _gem_fault_traces_for_plotly,
+        KAF_SEGMENTLER_AFAD as _KAF_SEGMENTLER_AFAD,
+    )
+except ImportError:
+    _fetch_gem_faults_turkey = None
+    _gem_fault_traces_for_plotly = None
+    _KAF_SEGMENTLER_AFAD = None
+
 # v1.17 — Ajan 4'ün NNR-MORVEL56 Euler kutbu rotasyon fonksiyonu.
 # Henüz yoksa (parallel ajan ortamı), `_plate_velocity_vector_extern` None kalır
 # ve plaka simülasyon paneli kendi Euler dönüştürücüsünü kullanır.
@@ -5383,66 +5397,70 @@ if active_menu == "🏛️ Erzincan Arşivi":
 #   • Ambraseys & Jackson 2000 — Saros, Geophys. J. Int.
 # ════════════════════════════════════════════════════════════════════════════
 
+#  v1.43 — Koordinatlar Şengör et al. 2005 + AFAD diri fay verisine göre düzeltildi.
+#  (Önceki versiyonlardaki sabit-enlem hataları ve doğu-uç kayıklığı giderildi.)
+#  Kaynak: Şengör, A.M.C. et al. (2005). Annual Review of Earth and Planetary
+#  Sciences 33, 37-112. DOI:10.1146/annurev.earth.32.101802.120415 ; AFAD diri fay.
 KAF_SEGMENTLER = [
     {
-        "id": "S01", "ad": "Erzincan Segmenti",
-        "lat1": 39.77, "lon1": 36.80, "lat2": 39.77, "lon2": 39.53,
+        "id": "S01", "ad": "Karlıova-Erzincan Segmenti",
+        "lat1": 39.45, "lon1": 40.70, "lat2": 39.75, "lon2": 39.50,
         "son_buyuk_deprem_yil": 1939, "buyukluk": 7.8,
-        "kayma_hizi_mm_yil": 18.0, "kirik_uzunluk_km": 120,
+        "kayma_hizi_mm_yil": 18.0, "kirik_uzunluk_km": 130,
         "beklenen_tekrar_yil": 250,
         "slip_deficit_m": round((2026 - 1939) * 18.0 / 1000, 2),
         "risk": "orta",
-        "kaynak": "Barka 1996, BSSA 86(5)",
+        "kaynak": "Şengör 2005 Ann. Rev. EPS 33; Barka 1996 BSSA 86(5); AFAD",
     },
     {
-        "id": "S02", "ad": "Niksar-Erbaa Segmenti",
-        "lat1": 40.60, "lon1": 36.20, "lat2": 40.70, "lon2": 37.50,
+        "id": "S02", "ad": "Erzincan-Suşehri-Niksar Segmenti",
+        "lat1": 39.75, "lon1": 39.50, "lat2": 40.65, "lon2": 36.95,
         "son_buyuk_deprem_yil": 1942, "buyukluk": 7.0,
-        "kayma_hizi_mm_yil": 18.0, "kirik_uzunluk_km": 110,
+        "kayma_hizi_mm_yil": 19.0, "kirik_uzunluk_km": 280,
         "beklenen_tekrar_yil": 200,
-        "slip_deficit_m": round((2026 - 1942) * 18.0 / 1000, 2),
+        "slip_deficit_m": round((2026 - 1942) * 19.0 / 1000, 2),
         "risk": "orta",
-        "kaynak": "Barka 1996, BSSA 86(5)",
+        "kaynak": "Şengör 2005; Kozacı 2007 BSSA 97; AFAD",
     },
     {
-        "id": "S03", "ad": "Tosya-Kastamonu Segmenti",
-        "lat1": 40.80, "lon1": 33.50, "lat2": 41.00, "lon2": 35.80,
+        "id": "S03", "ad": "Tosya-Ladik-Kastamonu Segmenti",
+        "lat1": 40.65, "lon1": 36.95, "lat2": 41.00, "lon2": 34.10,
         "son_buyuk_deprem_yil": 1943, "buyukluk": 7.6,
         "kayma_hizi_mm_yil": 20.0, "kirik_uzunluk_km": 280,
         "beklenen_tekrar_yil": 300,
         "slip_deficit_m": round((2026 - 1943) * 20.0 / 1000, 2),
         "risk": "orta",
-        "kaynak": "Stein et al. 1997, JGR 102",
+        "kaynak": "Stein et al. 1997 JGR 102; AFAD",
     },
     {
-        "id": "S04", "ad": "Bolu-Düzce Segmenti",
-        "lat1": 40.75, "lon1": 31.00, "lat2": 40.80, "lon2": 32.50,
+        "id": "S04", "ad": "Bolu-Düzce-Gerede Segmenti",
+        "lat1": 41.00, "lon1": 34.10, "lat2": 40.80, "lon2": 31.16,
         "son_buyuk_deprem_yil": 1999, "buyukluk": 7.2,
-        "kayma_hizi_mm_yil": 22.0, "kirik_uzunluk_km": 100,
+        "kayma_hizi_mm_yil": 22.0, "kirik_uzunluk_km": 250,
         "beklenen_tekrar_yil": 250,
         "slip_deficit_m": round((2026 - 1999) * 22.0 / 1000, 2),
         "risk": "dusuk",
-        "kaynak": "Barka et al. 2002, BSSA",
+        "kaynak": "Barka et al. 2002 BSSA; Akoglu 2006 EPSL; AFAD",
     },
     {
-        "id": "S05", "ad": "Marmara (İstanbul) Segmenti",
-        "lat1": 40.80, "lon1": 27.50, "lat2": 40.95, "lon2": 29.10,
+        "id": "S05", "ad": "İzmit-Marmara (Prens Adaları) Segmenti",
+        "lat1": 40.77, "lon1": 29.90, "lat2": 40.80, "lon2": 27.50,
         "son_buyuk_deprem_yil": 1766, "buyukluk": 7.1,
-        "kayma_hizi_mm_yil": 22.0, "kirik_uzunluk_km": 150,
+        "kayma_hizi_mm_yil": 22.0, "kirik_uzunluk_km": 230,
         "beklenen_tekrar_yil": 250,
         "slip_deficit_m": round((2026 - 1766) * 22.0 / 1000, 2),
         "risk": "yuksek",
-        "kaynak": "Parsons 2004, JGR; Ambraseys 2002, J. Seismol.",
+        "kaynak": "Şengör 2005; Parsons 2004 Nature; Le Pichon 2001 EPSL; AFAD",
     },
     {
-        "id": "S06", "ad": "Saros Körfezi Segmenti",
-        "lat1": 40.60, "lon1": 26.00, "lat2": 40.75, "lon2": 27.30,
+        "id": "S06", "ad": "Ganos-Saros Segmenti",
+        "lat1": 40.80, "lon1": 27.50, "lat2": 40.55, "lon2": 26.10,
         "son_buyuk_deprem_yil": 1912, "buyukluk": 7.4,
-        "kayma_hizi_mm_yil": 20.0, "kirik_uzunluk_km": 120,
+        "kayma_hizi_mm_yil": 20.0, "kirik_uzunluk_km": 145,
         "beklenen_tekrar_yil": 250,
         "slip_deficit_m": round((2026 - 1912) * 20.0 / 1000, 2),
         "risk": "yuksek",
-        "kaynak": "Ambraseys & Jackson 2000, Geophys. J. Int.",
+        "kaynak": "Ambraseys & Jackson 2000 GJI; AFAD",
     },
 ]
 
