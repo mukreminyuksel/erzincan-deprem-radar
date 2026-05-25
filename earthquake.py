@@ -50,7 +50,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.27"
+APP_VERSION = "1.28"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -867,6 +867,7 @@ _MENU_LABELS = [
     "💥 Coulomb Stres",
     "🛰️ InSAR Deformasyon",
     "📜 Tarihsel Sismisite",
+    "🔄 Sismik Döngü",
     "🏛️ Erzincan Arşivi",
     "🎓 Bilgi Havuzu",
     "⚙️ Sistem & Veri",
@@ -875,7 +876,7 @@ _MENU_LABELS = [
 _MENU_ICONS = [
     "globe", "bar-chart-line", "compass", "globe-americas", "moon-stars",
     "exclamation-triangle", "graph-up-arrow", "exclamation-octagon-fill",
-    "broadcast-pin", "map-fill", "circle-half", "graph-down", "lightning-charge", "satellite", "journal-text", "archive", "mortarboard", "gear", "file-text",
+    "broadcast-pin", "map-fill", "circle-half", "graph-down", "lightning-charge", "satellite", "journal-text", "arrow-repeat", "archive", "mortarboard", "gear", "file-text",
 ]
 with st.container(key="sticky_nav"):
     active_menu = option_menu(
@@ -7411,6 +7412,258 @@ def _render_tarihsel_sismisite():
 
 if active_menu == "📜 Tarihsel Sismisite":
     _render_tarihsel_sismisite()
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# 🔄 SİSMİK DÖNGÜ — F-50 / v1.28 — Kayma Açığı + BPT Olasılık
+# ────────────────────────────────────────────────────────────────────────────
+# Bilimsel temel:
+#   • Reid, H.F. (1910). The mechanics of the earthquake. The California
+#       Earthquake of April 18, 1906, vol. 2. Carnegie Institution.
+#       (Klasik elastik rebound / sismik döngü teorisi)
+#   • Matthews, M.V., Ellsworth, W.L. & Reasenberg, P.A. (2002). A Brownian
+#       model for recurrent earthquakes. BSSA 92(6), 2233-2250.
+#       DOI:10.1785/0120010267
+#   • Reilinger, R. et al. (2006). GPS constraints on continental deformation.
+#       JGR 111, B05411. DOI:10.1029/2005JB004051
+#   • Ergintav, S. et al. (2014). Istanbul's earthquake hot spots. GRL 41,
+#       5783-5788. DOI:10.1002/2014GL060985
+#   • Field, E.H. et al. (2015). UCERF3. BSSA 105(2A), 511-543.
+# ════════════════════════════════════════════════════════════════════════════
+
+# Sismik döngü parametreleri: kaynaklar üstte listelendi
+# slip_per_event_m: tek depremde tipik yüzey kayması (m)
+# slip_rate_mm_yr:  uzun dönem kayma hızı (mm/yıl) — Reilinger 2006 GPS
+# recurrence_yr:    ortalama tekrar süresi (paleo+tarihsel)
+# alpha:            BPT aperiodicity (Matthews 2002) — UCERF3 değeri 0.4-0.5
+_DONGU_SEGMENTLER = [
+    {"id": "marmara",   "ad": "Marmara (Prens Adaları)",
+     "lat1": 40.80, "lon1": 27.50, "lat2": 40.95, "lon2": 29.10,
+     "son_yil": 1766, "son_mw": 7.1,
+     "slip_per_event_m": 4.0, "slip_rate_mm_yr": 22.0,
+     "recurrence_yr": 250, "alpha": 0.40,
+     "risk": "yuksek",
+     "kaynak": "Parsons 2004 JGR; Ergintav 2014 GRL"},
+    {"id": "izmit",     "ad": "İzmit-Sakarya",
+     "lat1": 40.65, "lon1": 29.50, "lat2": 40.85, "lon2": 30.40,
+     "son_yil": 1999, "son_mw": 7.6,
+     "slip_per_event_m": 5.0, "slip_rate_mm_yr": 22.0,
+     "recurrence_yr": 250, "alpha": 0.45,
+     "risk": "dusuk",
+     "kaynak": "Reilinger et al. 2000 Science"},
+    {"id": "duzce",     "ad": "Düzce-Bolu",
+     "lat1": 40.74, "lon1": 31.00, "lat2": 40.85, "lon2": 31.61,
+     "son_yil": 1999, "son_mw": 7.2,
+     "slip_per_event_m": 3.5, "slip_rate_mm_yr": 22.0,
+     "recurrence_yr": 250, "alpha": 0.45,
+     "risk": "dusuk",
+     "kaynak": "Akoglu et al. 2006 EPSL"},
+    {"id": "tosya",     "ad": "Tosya-Ladik",
+     "lat1": 40.80, "lon1": 33.50, "lat2": 41.00, "lon2": 35.80,
+     "son_yil": 1943, "son_mw": 7.6,
+     "slip_per_event_m": 4.5, "slip_rate_mm_yr": 20.0,
+     "recurrence_yr": 300, "alpha": 0.40,
+     "risk": "orta",
+     "kaynak": "Barka 1996 BSSA; Stein 1997 GJI"},
+    {"id": "niksar",    "ad": "Niksar-Erbaa",
+     "lat1": 40.60, "lon1": 36.20, "lat2": 40.70, "lon2": 37.50,
+     "son_yil": 1942, "son_mw": 7.0,
+     "slip_per_event_m": 3.5, "slip_rate_mm_yr": 18.0,
+     "recurrence_yr": 200, "alpha": 0.45,
+     "risk": "orta",
+     "kaynak": "Barka 1996 BSSA"},
+    {"id": "erzincan",  "ad": "Erzincan",
+     "lat1": 39.77, "lon1": 36.80, "lat2": 39.77, "lon2": 39.53,
+     "son_yil": 1939, "son_mw": 7.8,
+     "slip_per_event_m": 4.5, "slip_rate_mm_yr": 18.0,
+     "recurrence_yr": 320, "alpha": 0.40,
+     "risk": "orta",
+     "kaynak": "Barka 1996; Kozacı et al. 2007 BSSA"},
+    {"id": "daf-kuzey", "ad": "DAF Kuzey (Pazarcık-Sürgü)",
+     "lat1": 37.50, "lon1": 36.90, "lat2": 38.00, "lon2": 37.30,
+     "son_yil": 2023, "son_mw": 7.8,
+     "slip_per_event_m": 5.5, "slip_rate_mm_yr": 10.0,
+     "recurrence_yr": 500, "alpha": 0.50,
+     "risk": "dusuk",
+     "kaynak": "Melgar et al. 2023; Akoğlu et al. 2024"},
+    {"id": "saros",     "ad": "Saros-Ganos",
+     "lat1": 40.60, "lon1": 26.00, "lat2": 40.75, "lon2": 27.30,
+     "son_yil": 1912, "son_mw": 7.4,
+     "slip_per_event_m": 4.0, "slip_rate_mm_yr": 20.0,
+     "recurrence_yr": 250, "alpha": 0.45,
+     "risk": "yuksek",
+     "kaynak": "Ambraseys & Jackson 2000 GJI"},
+]
+
+
+def _bpt_probability(t_elapsed_yr: float, mu: float, alpha: float, dt_yr: float) -> float:
+    """
+    BPT (Brownian Passage Time) conditional probability.
+    Matthews et al. (2002) BSSA 92(6) — invers Gauss dağılımı.
+    P(geçmiş T_elapsed sonrasında dt_yr içinde kırılma | henüz kırılmadı)
+
+    Basit yaklaşım: P(elapsed < T ≤ elapsed+dt) / (1 - P(T ≤ elapsed))
+    """
+    if alpha <= 0 or mu <= 0 or dt_yr <= 0:
+        return 0.0
+
+    # Inverse Gaussian CDF: F(t; μ, λ=μ/α²)
+    def ig_cdf(t):
+        if t <= 0:
+            return 0.0
+        # Robust scipy alternative: erf yaklaşımı
+        lam = mu / (alpha * alpha)
+        try:
+            from scipy.stats import invgauss
+            return float(invgauss.cdf(t / mu, mu=alpha * alpha))
+        except Exception:
+            # numerical fallback (Owen 1965 approx)
+            arg1 = math.sqrt(lam / t) * (t / mu - 1)
+            arg2 = -math.sqrt(lam / t) * (t / mu + 1)
+            phi = lambda z: 0.5 * (1 + math.erf(z / math.sqrt(2)))
+            return phi(arg1) + math.exp(2 * lam / mu) * phi(arg2)
+
+    f_now = ig_cdf(t_elapsed_yr)
+    f_then = ig_cdf(t_elapsed_yr + dt_yr)
+    if f_now >= 1.0:
+        return 0.0
+    return max(0.0, min(1.0, (f_then - f_now) / (1.0 - f_now)))
+
+
+_DONGU_RISK_RENK = {"yuksek": "#E24B4A", "orta": "#EF9F27", "dusuk": "#1D9E75"}
+
+
+@st.fragment
+def _render_sismik_dongu():
+    st.markdown(
+        '<div class="chart-title">🔄 Sismik Döngü — Kayma Açığı + BPT Olasılık (F-50 / v1.28)</div>',
+        unsafe_allow_html=True,
+    )
+    st.info(
+        "🔄 **Elastik Rebound + BPT:** Bir fay segmenti sabit kayma hızıyla stres "
+        "biriktirir; biriken kayma açığı (slip deficit) bir eşiği geçince kırılır. "
+        "**Reid (1910)** klasik teorisi + **Matthews et al. (2002)** BPT stokastik "
+        "olasılık modeli (UCERF3 referansı). GPS hızı: **Reilinger et al. (2006) JGR 111**."
+    )
+
+    YIL_SIMDI = datetime.now().year
+
+    # ── Tablo: tüm segmentler için kayma açığı + BPT ───────────────────────
+    rows = []
+    for seg in _DONGU_SEGMENTLER:
+        elapsed = YIL_SIMDI - seg["son_yil"]
+        slip_def_m = elapsed * seg["slip_rate_mm_yr"] / 1000.0  # m
+        slip_pct = 100.0 * slip_def_m / seg["slip_per_event_m"]
+        p30 = 100.0 * _bpt_probability(elapsed, seg["recurrence_yr"], seg["alpha"], 30)
+        p50 = 100.0 * _bpt_probability(elapsed, seg["recurrence_yr"], seg["alpha"], 50)
+        p100 = 100.0 * _bpt_probability(elapsed, seg["recurrence_yr"], seg["alpha"], 100)
+        rows.append({
+            **seg,
+            "elapsed_yr": elapsed,
+            "slip_def_m": slip_def_m,
+            "slip_pct": slip_pct,
+            "p30": p30, "p50": p50, "p100": p100,
+        })
+
+    df_d = pd.DataFrame(rows)
+
+    # ── Segment seçici ────────────────────────────────────────────────────
+    sec_ad = st.selectbox(
+        "Segment seç (detay için)",
+        options=df_d["ad"].tolist(),
+        index=0,
+        key="dongu_segment_select",
+    )
+    seg = df_d[df_d["ad"] == sec_ad].iloc[0]
+
+    # ── Sismik döngü grafiği (testere dişi + BPT bulutu) ───────────────────
+    st.markdown(f'<div class="chart-title">📈 Stres Birikimi & BPT Olasılığı — {sec_ad}</div>',
+                unsafe_allow_html=True)
+    mu = seg["recurrence_yr"]
+    alpha = seg["alpha"]
+    t = np.arange(0, mu * 2 + 1, 1)
+    stres = (t / mu) * seg["slip_per_event_m"]  # m, linear birikim
+    stres = np.where(stres > seg["slip_per_event_m"],
+                     seg["slip_per_event_m"] - (stres - seg["slip_per_event_m"]) * 4,
+                     stres)
+    stres = np.clip(stres, 0, seg["slip_per_event_m"])
+
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    fig.add_trace(go.Scatter(
+        x=t, y=stres,
+        mode="lines",
+        line=dict(color="#1976D2", width=2.5),
+        name="Birikmiş kayma (m)",
+        hovertemplate="t = %{x} yıl<br>Kayma: %{y:.2f} m<extra></extra>",
+    ), secondary_y=False)
+
+    # BPT olasılık zarfı (her yıl için 30-yıl koşullu olasılığı)
+    p_envelope = [100 * _bpt_probability(float(ti), mu, alpha, 30) for ti in t]
+    fig.add_trace(go.Scatter(
+        x=t, y=p_envelope,
+        mode="lines",
+        line=dict(color="#E24B4A", width=2, dash="dot"),
+        name="P(30 yıl) — BPT (%)",
+        hovertemplate="t = %{x} yıl<br>P30 = %{y:.1f}%<extra></extra>",
+    ), secondary_y=True)
+
+    # Şu anki konum
+    fig.add_vline(x=seg["elapsed_yr"], line=dict(color="#FFD700", width=2.5, dash="dash"),
+                  annotation_text=f"Şu an: {seg['elapsed_yr']} yıl",
+                  annotation_font_color="#FFD700",
+                  annotation_position="top")
+
+    fig.update_xaxes(title_text="Son depremden bu yana (yıl)", color=TEXT, gridcolor=BORDER)
+    fig.update_yaxes(title_text="Birikmiş kayma (m)", secondary_y=False, color="#1976D2", gridcolor=BORDER)
+    fig.update_yaxes(title_text="P(30 yıl içinde kırılma) %", secondary_y=True, color="#E24B4A")
+    fig.update_layout(
+        height=380,
+        margin=dict(l=10, r=10, t=10, b=40),
+        paper_bgcolor=BG2, plot_bgcolor=BG2,
+        legend=dict(font=dict(color=TEXT, size=10), bgcolor="rgba(0,0,0,0.3)"),
+    )
+    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+
+    # ── Bilgi kartları ─────────────────────────────────────────────────────
+    c1, c2, c3, c4 = st.columns(4)
+    kartlar = [
+        (c1, f"{seg['elapsed_yr']} yıl",  "#FFD700", f"Geçen süre ({seg['son_yil']} → {YIL_SIMDI})"),
+        (c2, f"{seg['slip_def_m']:.2f} m", "#EF9F27", f"Kayma açığı (max {seg['slip_per_event_m']:.1f} m)"),
+        (c3, f"%{seg['p30']:.0f}",         "#E24B4A", "P(30 yıl) BPT"),
+        (c4, f"%{seg['p50']:.0f}",         "#A32D2D", "P(50 yıl) BPT"),
+    ]
+    for col, val, color, label in kartlar:
+        with col:
+            st.markdown(
+                f'<div class="stat-box">'
+                f'<div style="font-size:1.35rem;font-weight:800;color:{color}">{val}</div>'
+                f'<div style="font-size:0.7rem;opacity:0.55;margin-top:2px">{label}</div>'
+                f'</div>', unsafe_allow_html=True)
+
+    # ── Tüm segmentler özet tablosu ───────────────────────────────────────
+    st.markdown('<div class="chart-title">📋 Tüm Segmentler — Kayma Açığı & BPT Olasılık</div>',
+                unsafe_allow_html=True)
+    df_view = df_d[["ad", "son_yil", "son_mw", "elapsed_yr", "slip_def_m", "slip_pct",
+                    "p30", "p50", "p100", "kaynak"]].copy()
+    df_view.columns = ["Segment", "Son Yıl", "Son Mw", "Geçen (yıl)",
+                       "Kayma Açığı (m)", "% Maks",
+                       "P30 yıl %", "P50 yıl %", "P100 yıl %", "Kaynak"]
+    df_view = df_view.round({"slip_def_m": 2, "slip_pct": 0, "p30": 0, "p50": 0, "p100": 0})
+    st.dataframe(df_view, use_container_width=True, hide_index=True)
+
+    st.caption(
+        "📚 **Reid (1910)** Carnegie Inst. (elastik rebound) | "
+        "**Matthews, Ellsworth & Reasenberg (2002)** *BSSA* 92(6), 2233-2250 — DOI:10.1785/0120010267 (BPT) | "
+        "**Reilinger et al. (2006)** *JGR* 111, B05411 — DOI:10.1029/2005JB004051 (GPS) | "
+        "**Ergintav et al. (2014)** *GRL* 41, 5783-5788 (Marmara) | "
+        "**Field et al. (2015)** *BSSA* 105(2A) (UCERF3 BPT uygulaması). "
+        "⚠️ BPT olasılıkları μ ve α parametrelerinin doğruluğuna duyarlıdır; "
+        "paleoseismik veri belirsizliği sonucu yansıtır."
+    )
+
+
+if active_menu == "🔄 Sismik Döngü":
+    _render_sismik_dongu()
 
 # ─── Footer ─────────────────────────────────────────────────────────────────
 st.markdown(f"""
