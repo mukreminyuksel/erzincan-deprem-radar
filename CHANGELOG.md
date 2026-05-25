@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.15b - 2026-05-25 — UI Uzmanı: Sidebar 3 expander reorganizasyonu
+- 🧭 Sidebar yeniden yapılandırıldı — Filtreler açıkta + 3 expander (Görünüm / Veri Kaynakları / Sistem).
+- **Filtreler (her zaman görünür):** Yarıçap (km), Min. Büyüklük, Zaman Aralığı, Otomatik Yenileme.
+  Bunlar kullanıcının en sık değiştirdiği parametreler — açıkta kalır.
+- **🎨 Görünüm expander (collapsed):** Tema toggle, Harita Stili, Fay Hatları toggle, Plaka Sınırları toggle.
+- **📡 Veri Kaynakları expander (collapsed):** 9 sismolojik ağ checkbox (USGS, EMSC, AFAD, Kandilli, GFZ, IRIS, INGV, USGS-Fast, AFAD-Web).
+- **ℹ️ Sistem & Sürüm Notları expander (collapsed):** Sürüm bilgisi + v1.12-v1.15b kazanım özeti.
+- Gerekçe: Sidebar kalabalık görünümünü temizler (önceden ~120 px görünür satır vardı), kullanıcının bilişsel yükünü azaltır.
+  Filtreler ana karar noktası olduğundan üstte tutuldu (BACKLOG.md F-31 ile uyumlu).
+
 ## v1.15a - 2026-05-25 — UI Uzmanı: ANA MENÜ üst horizontal pill
 - 🎨 UI Uzmanı kararı (PLAN_v2.md): ANA MENÜ sidebar altından **ana içerik üstündeki horizontal pill bar**'a taşındı.
 - `streamlit-option-menu>=0.3.13` bağımlılığı eklendi (`requirements.txt`).

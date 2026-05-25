@@ -38,7 +38,7 @@ from earthquake_core import (
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.15a"
+APP_VERSION = "1.15b"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -645,20 +645,15 @@ st.markdown(f"""
 </style>
 """, unsafe_allow_html=True)
 
-# ─── Sidebar ────────────────────────────────────────────────────────────────
+# ─── Sidebar — v1.15b: Filtreler açıkta + 3 expander grup ──────────────────
+# Mimari: Sık değişen filtreler en üstte açık, daha az değişenler expander içinde.
+# Görünüm/Veri Kaynakları/Sistem expanded=False ile başlar — kullanıcı tıklayınca açılır.
 with st.sidebar:
-    st.markdown("### Ayarlar")
+    st.markdown("### 🎯 Ayarlar")
 
-    # Tema toggle
-    tema_secim = st.radio("Tema", ["Karanlik", "Aydinlik"],
-                           index=0 if DARK else 1, horizontal=True)
-    if (tema_secim == "Karanlik") != DARK:
-        st.session_state.tema = "dark" if tema_secim == "Karanlik" else "light"
-        st.rerun()
-
-    st.markdown("---")
-    radius_km = st.slider("Yaricap (km)", 50, 600, 100, 10)
-    min_mag   = st.slider("Min. Buyukluk", 0.5, 5.0, 1.0, 0.5)
+    # ─── FİLTRELER (her zaman görünür — kullanıcının ana etkileşim noktası) ──
+    radius_km = st.slider("Yarıçap (km)", 50, 600, 100, 10)
+    min_mag   = st.slider("Min. Büyüklük", 0.5, 5.0, 1.0, 0.5)
 
     zaman_secenekleri = list(QUICK_WINDOWS.keys()) + ["Özel gün sayısı", "Özel Tarih Aralığı"]
     zaman_secim = st.selectbox("Zaman Aralığı", zaman_secenekleri, index=6)
@@ -718,38 +713,58 @@ with st.sidebar:
                               [60, 30,60,120,180,240,300],
                               format_func=lambda x: f"Her {x} saniye")
 
-    st.markdown("---")
-    harita_stil = st.selectbox("Harita Stili", ["Uydu", "Uydu+Yol", "Koyu", "Acik"], index=0)
-    show_faults = st.checkbox("Fay Hatlarini Goster", value=True)
-    show_plates = st.checkbox("Kıta / Plaka Sınırlarını Göster", value=True)
+    # ─── 🎨 GÖRÜNÜM (expander — kapalı başla) ──────────────────────────────
+    with st.expander("🎨 Görünüm", expanded=False):
+        tema_secim = st.radio("Tema", ["Karanlik", "Aydinlik"],
+                              index=0 if DARK else 1, horizontal=True)
+        if (tema_secim == "Karanlik") != DARK:
+            st.session_state.tema = "dark" if tema_secim == "Karanlik" else "light"
+            st.rerun()
+        harita_stil = st.selectbox("Harita Stili", ["Uydu", "Uydu+Yol", "Koyu", "Acik"], index=0)
+        show_faults = st.checkbox("Fay Hatlarını Göster", value=True)
+        show_plates = st.checkbox("Kıta / Plaka Sınırlarını Göster", value=True)
 
-    st.markdown("---")
-    st.markdown("**Veri Kaynakları** (tıkla aç/kapat)")
-    SRC_LABELS = {
-        "USGS-Fast": "USGS Fast Feed (1 dk)",
-        "USGS":     "USGS (ABD)",
-        "EMSC":     "EMSC (Avrupa)",
-        "AFAD":     "AFAD API (Türkiye)",
-        "AFAD-Web": "AFAD Web — son 100 + ML/MW tipi",
-        "Kandilli": "Kandilli Rasathanesi",
-        "GFZ":      "GFZ Potsdam",
-        "IRIS":     "IRIS/SAGE (ABD)",
-        "INGV":     "INGV (İtalya/Akdeniz)",
-    }
-    if "active_sources" not in st.session_state:
-        st.session_state.active_sources = list(SRC_LABELS.keys())
-    active_sources = []
-    for src, label in SRC_LABELS.items():
-        if st.checkbox(label, value=src in st.session_state.active_sources, key=f"src_{src}"):
-            active_sources.append(src)
-    st.session_state.active_sources = active_sources
+    # ─── 📡 VERİ KAYNAKLARI (expander — kapalı başla, 9 checkbox) ──────────
+    with st.expander("📡 Veri Kaynakları (9 ağ)", expanded=False):
+        SRC_LABELS = {
+            "USGS-Fast": "USGS Fast Feed (1 dk)",
+            "USGS":     "USGS (ABD)",
+            "EMSC":     "EMSC (Avrupa)",
+            "AFAD":     "AFAD API (Türkiye)",
+            "AFAD-Web": "AFAD Web — son 100 + ML/MW tipi",
+            "Kandilli": "Kandilli Rasathanesi",
+            "GFZ":      "GFZ Potsdam",
+            "IRIS":     "IRIS/SAGE (ABD)",
+            "INGV":     "INGV (İtalya/Akdeniz)",
+        }
+        if "active_sources" not in st.session_state:
+            st.session_state.active_sources = list(SRC_LABELS.keys())
+        active_sources = []
+        for src, label in SRC_LABELS.items():
+            if st.checkbox(label, value=src in st.session_state.active_sources, key=f"src_{src}"):
+                active_sources.append(src)
+        st.session_state.active_sources = active_sources
+
+    # Veri kaynağı doğrulama — expander dışında ki st.stop() net görünsün
     if not has_active_sources(active_sources):
-        st.warning("En az bir kaynak seç!")
+        st.warning("En az bir kaynak seçilmeli!")
         st.stop()
-        
-    st.markdown("---")
-    st.markdown("<div style='font-size:0.85rem;font-weight:600;margin-bottom:0.3rem'>🚀 v1.8 Yenilikleri</div>", unsafe_allow_html=True)
-    st.markdown("<div style='font-size:0.75rem;opacity:0.8;line-height:1.3'>• Analizler <b>'Çalıştır'</b> butonu ile manuel tetiklenerek CPU kilitlenmeleri önlendi.<br>• API zaman aşımları agresif şekilde 4 saniyeye düşürülerek donmalar giderildi.<br>• Performans optimizasyonları yapıldı.</div>", unsafe_allow_html=True)
+
+    # ─── ℹ️ SİSTEM & SÜRÜM NOTLARI (expander — kapalı başla) ───────────────
+    with st.expander("ℹ️ Sistem & Sürüm Notları", expanded=False):
+        st.markdown(f"**Sürüm:** v{APP_VERSION}")
+        st.markdown(
+            "<div style='font-size:0.78rem;opacity:0.85;line-height:1.45'>"
+            "• 🎨 ANA MENÜ üst horizontal pill bar'a taşındı (v1.15a).<br>"
+            "• 🧭 Sidebar 3 expander grubuna düzenlendi (v1.15b).<br>"
+            "• ⚡ Her panel @st.fragment ile izole — etkileşimler diğer panel state'ini bozmaz.<br>"
+            "• 🚀 Haversine NumPy vektörleştirilmiş + sliding-window dedup.<br>"
+            "• 🗺️ Plaka sınırları PB2002 tipine göre renkli: 🔴 yaklaşan / 🔵 ayrılan / 🟡 yanal.<br>"
+            "• 🛡️ Ağır analizler 'Çalıştır' butonu ile manuel tetiklenir.<br>"
+            "• ⏱️ API timeout 4 sn, fetch_all cache TTL 600 sn."
+            "</div>",
+            unsafe_allow_html=True,
+        )
 
 # ─── Otomatik yenileme ──────────────────────────────────────────────────────
 st_autorefresh(interval=refresh_s * 1000, key="eq_ref")
