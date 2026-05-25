@@ -793,14 +793,21 @@ for col, val, color, label in boxes:
             f'<div style="font-size:0.7rem;opacity:0.55;margin-top:2px">{label}</div>'
             f'</div>', unsafe_allow_html=True)
 
-radar_tab, stats_tab, fault_tab, education_tab, system_tab, report_tab = st.tabs([
-    "Canlı Radar",
-    "İstatistik & Analiz",
-    "Fay Sistemleri",
-    "Bilgi Havuzu",
-    "Sistem & Veri",
-    "Raporlar",
-])
+# Main navigation on the sidebar (Arayüz Mimarı & Hız Uzmanı)
+st.sidebar.markdown("---")
+st.sidebar.markdown('<div style="font-weight:700;font-size:0.85rem;color:#90caf9;margin-bottom:8px;letter-spacing:1px">🧭 ANA MENÜ</div>', unsafe_allow_html=True)
+active_menu = st.sidebar.radio(
+    "Menü Seçin",
+    [
+        "🌍 Canlı Radar",
+        "📊 İstatistik & Analiz",
+        "🧭 Fay Sistemleri",
+        "🎓 Bilgi Havuzu",
+        "⚙️ Sistem & Veri",
+        "📝 Raporlar",
+    ],
+    label_visibility="collapsed"
+)
 
 # ─── Harita stili ───────────────────────────────────────────────────────────
 ESRI_SAT    = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
@@ -842,14 +849,20 @@ def load_fault_lines():
         for coords in segments:
             if len(coords) < 2:
                 continue
+            lats = [c[1] for c in coords]
+            lons = [c[0] for c in coords]
             lines.append({
                 "fay_adi":   props.get("fay_adi") or "Adlandırılmamış",
                 "segment":   props.get("segment") or "",
                 "kayma":     props.get("kayma_aciklama") or "Bilinmiyor",
                 "uzunluk":   props.get("uzunluk_km") or 0,
                 "color":     color,
-                "lats":      [c[1] for c in coords],
-                "lons":      [c[0] for c in coords],
+                "lats":      lats,
+                "lons":      lons,
+                "min_lat":   min(lats),
+                "max_lat":   max(lats),
+                "min_lon":   min(lons),
+                "max_lon":   max(lons),
             })
     return lines
 
@@ -1028,12 +1041,20 @@ def calc_b_grid_cache(df_mc_dict, bg_n, bg_sr, bg_min, radius_km, ERZ_LAT, ERZ_L
 
     b_grid  = np.full((bg_n, bg_n), np.nan)
     n_grid  = np.zeros((bg_n, bg_n), dtype=int)
+    
+    lats = df_mc["lat"].values
+    lons = df_mc["lon"].values
 
     for i, lat_g in enumerate(lats_g):
         for j, lon_g in enumerate(lons_g):
-            dists = df_mc.apply(
-                lambda r, lat=lat_g, lon=lon_g: haversine(lat, lon, r["lat"], r["lon"]), axis=1
-            )
+            # Vectorized haversine distance calculation using NumPy (100x faster than df.apply)
+            lat1_rad, lon1_rad = np.radians(lat_g), np.radians(lon_g)
+            lat2_rad, lon2_rad = np.radians(lats), np.radians(lons)
+            dlat = lat2_rad - lat1_rad
+            dlon = lon2_rad - lon1_rad
+            a = np.sin(dlat/2)**2 + np.cos(lat1_rad) * np.cos(lat2_rad) * np.sin(dlon/2)**2
+            dists = 6371 * 2 * np.arcsin(np.sqrt(a))
+            
             sub_g = df_mc[dists <= bg_sr]
             if len(sub_g) < bg_min:
                 continue
@@ -1045,7 +1066,7 @@ def calc_b_grid_cache(df_mc_dict, bg_n, bg_sr, bg_min, radius_km, ERZ_LAT, ERZ_L
             n_grid[i, j] = len(sub_g)
     return b_grid, lats_g, lons_g
 
-with radar_tab:
+if active_menu == "🌍 Canlı Radar":
     # ─── Harita + Kayan Liste ───────────────────────────────────────────────────
     col_map, col_list = st.columns([2.8, 1])
 
@@ -1535,7 +1556,7 @@ with radar_tab:
         st.plotly_chart(fig_h2, use_container_width=True,
                         config={"displayModeBar": False, "displaylogo": False})
 
-with system_tab:
+if active_menu == "⚙️ Sistem & Veri":
     st.markdown('<div class="chart-title">⚙️ 1. Kaynak Sağlığı</div>', unsafe_allow_html=True)
     status_rows = []
     for name in active_sources:
@@ -1591,7 +1612,7 @@ with system_tab:
         "Kaynak bazlı farklı büyüklük/konum raporları bilimsel belirsizliktir; kesin hüküm değil, ölçüm ve kataloglama farkı olarak ele alınmalıdır."
     )
 
-with fault_tab:
+if active_menu == "🧭 Fay Sistemleri":
     st.markdown('<div class="chart-title">🧭 Fay Analizi</div>', unsafe_allow_html=True)
     fault_sample = df.head(250).copy()
     nearest_rows = []
@@ -1633,7 +1654,7 @@ with fault_tab:
         st.plotly_chart(fig_top_faults, use_container_width=True, config={"displayModeBar": False, "displaylogo": False})
     st.dataframe(fault_df.head(100), use_container_width=True, hide_index=True)
 
-with stats_tab:
+if active_menu == "📊 İstatistik & Analiz":
     st.markdown('<div class="chart-title">🤖 Sistem Yorumu (Uzman İçgörüsü)</div>', unsafe_allow_html=True)
     total_eq = len(df)
     mag_max = df["buyukluk"].max() if not df.empty else 0
@@ -1677,7 +1698,7 @@ with stats_tab:
     st.plotly_chart(fig_score, use_container_width=True, config={"displayModeBar": False, "displaylogo": False})
     st.info("Bu skor deprem tahmini değildir; sadece seçilen veri penceresindeki aktiviteyi özetleyen karar destek göstergesidir.")
 
-with report_tab:
+if active_menu == "📝 Raporlar":
     st.markdown('<div class="chart-title">🧾 Radar Raporu</div>', unsafe_allow_html=True)
     report_lines = [
         f"**Sürüm:** v {APP_VERSION}",
@@ -1697,7 +1718,7 @@ with report_tab:
         mime="text/plain",
     )
 
-with education_tab:
+if active_menu == "🎓 Bilgi Havuzu":
     @st.fragment
     def _render_edu():
         st.markdown('<div class="chart-title">📚 Temel Deprem Mühendisliği Bilgi Havuzu</div>', unsafe_allow_html=True)
@@ -2192,7 +2213,7 @@ def compute_environmental_features(row, full_df):
         "haftalik_aktivite": haftalik_aktivite
     })
 
-with stats_tab:
+if active_menu == "📊 İstatistik & Analiz":
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown('<div class="chart-title">🔬 Bilimsel Analizler (Derinlik, G-R & B-Value)</div>', unsafe_allow_html=True)
 
@@ -2789,9 +2810,15 @@ with stats_tab:
             "Bu analizler peer-reviewed seismoloji literatüründen alınan yöntemlerdir."
         )
 
-        exp_tab1, exp_tab2, exp_tab3, exp_tab4 = st.tabs([
-            "η Kümeleme (Zaliapin-BZ)", "RTL Sessizlik (Sobolev)", "AMR Güç Yasası (Bowman)", "Uzamsal b-Haritası"
-        ])
+        active_sub_tab = st.selectbox(
+            "🔬 İleri Düzey Sismolojik Analiz Modeli Seçin",
+            [
+                "η Kümeleme Analizi (Zaliapin & Ben-Zion 2013)",
+                "RTL Sismik Sessizlik Algoritması (Sobolev & Tyupkin 1997)",
+                "AMR Güç Yasası Hızlanma Modeli (Bowman 1998)",
+                "Uzamsal b-Değeri Haritası (Fay Kilitlenme Analizi)",
+            ]
+        )
 
         exp_df = df.dropna(subset=["buyukluk","lat","lon","derinlik"]).copy()
         exp_df = exp_df.sort_values("zaman").reset_index(drop=True)
@@ -2814,7 +2841,7 @@ with stats_tab:
         # Normalize uzay-zaman nearest-neighbor mesafesi
         # η_ij = t_ij × r_ij^(d/b) × 10^(-b×m_i/2)
         # ─────────────────────────────────────────────────────────────────
-        with exp_tab1:
+        if active_sub_tab == "η Kümeleme Analizi (Zaliapin & Ben-Zion 2013)":
             st.markdown("**Zaliapin & Ben-Zion (2013) — Deprem Kümeleme Analizi**")
             st.markdown(
                 "Her deprem için en yakın 'ebeveyn' deprem hesaplanır: "
@@ -2921,7 +2948,7 @@ with stats_tab:
         # TAB 2 — RTL (Sobolev & Tyupkin 1997)
         # Sismik sessizlik anomali tespiti
         # ─────────────────────────────────────────────────────────────────
-        with exp_tab2:
+        if active_sub_tab == "RTL Sismik Sessizlik Algoritması (Sobolev & Tyupkin 1997)":
             st.markdown("**Sobolev & Tyupkin (1997) — RTL Sismik Sessizlik Algoritması**")
             st.markdown(
                 "Bölge-Zaman-Uzunluk ağırlıklı sismisiyet oranı hesaplanır. "
@@ -3015,7 +3042,7 @@ with stats_tab:
         # Accelerating Moment Release — güç yasası fit
         # C(t) = A + B·(tf − t)^m  →  m < 1 ivcelenme
         # ─────────────────────────────────────────────────────────────────
-        with exp_tab3:
+        if active_sub_tab == "AMR Güç Yasası Hızlanma Modeli (Bowman 1998)":
             st.markdown("**Bowman et al. (1998) — Accelerating Moment Release (AMR)**")
             st.markdown(
                 "Kümülatif Benioff zorlanmasına `C(t) = A + B·(tₓ − t)^m` güç yasası fit edilir. "
@@ -3090,7 +3117,7 @@ with stats_tab:
         # ─────────────────────────────────────────────────────────────────
         # TAB 4 — Uzamsal b-Değeri Haritası
         # ─────────────────────────────────────────────────────────────────
-        with exp_tab4:
+        if active_sub_tab == "Uzamsal b-Değeri Haritası (Fay Kilitlenme Analizi)":
             st.markdown("**Uzamsal b-Değeri Haritası — Stres Zonları**")
             st.markdown(
                 "Bölge grid'e bölünür, her hücrede Gutenberg-Richter b-değeri MLE ile hesaplanır. "
@@ -3180,7 +3207,7 @@ with stats_tab:
             else:
                 st.info("Uzamsal b-haritası için en az 25 deprem gerekli.")
 
-with system_tab:
+if active_menu == "⚙️ Sistem & Veri":
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown('<div class="chart-title">📋 3. Ham Veri Tablosu</div>', unsafe_allow_html=True)
     # ─── Tam tablo ──────────────────────────────────────────────────────────────

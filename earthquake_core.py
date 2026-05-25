@@ -136,9 +136,42 @@ def activity_level(score):
 
 def nearest_fault_vertex_distance(lat, lon, faults):
     nearest = {"fault_name": "", "distance_km": None}
+    
+    # 1 derece enlem yaklasik 111 km'dir.
+    # 1 derece boylam Turkiye enlemlerinde (~39-40 N) yaklasik 85 km'dir.
+    # En muhafazakar (safe-margin) degerleri kullanarak hizli bounding-box kontrolu yapacagiz.
+    
     for fault in faults:
         lats = fault.get("lats") or []
         lons = fault.get("lons") or []
+        if not lats or not lons:
+            continue
+            
+        # Precomputed bounding box yoksa dinamik olarak al
+        min_lat = fault.get("min_lat")
+        if min_lat is None:
+            min_lat = min(lats)
+            max_lat = max(lats)
+            min_lon = min(lons)
+            max_lon = max(lons)
+        else:
+            max_lat = fault["max_lat"]
+            min_lon = fault["min_lon"]
+            max_lon = fault["max_lon"]
+            
+        current_min = nearest["distance_km"]
+        if current_min is not None:
+            # Enlem bazli min/max farki (111 km/derece)
+            lat_margin = current_min / 111.0
+            # Boylam bazli min/max farki (Turkiye enlemlerinde en guvenli pay 80 km/derece)
+            lon_margin = current_min / 80.0
+            
+            if lat < min_lat - lat_margin or lat > max_lat + lat_margin:
+                continue
+            if lon < min_lon - lon_margin or lon > max_lon + lon_margin:
+                continue
+                
+        # Bounding box icindeyse veya daha yakin olma ihtimali varsa detayli tarama yap
         for fault_lat, fault_lon in zip(lats, lons):
             dist = distance_km(lat, lon, fault_lat, fault_lon)
             if nearest["distance_km"] is None or dist < nearest["distance_km"]:
