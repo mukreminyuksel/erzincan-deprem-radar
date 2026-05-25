@@ -36,6 +36,14 @@ from earthquake_core import (
     utc_now_naive,
 )
 
+# v1.17 — Ajan 4'ün NNR-MORVEL56 Euler kutbu rotasyon fonksiyonu.
+# Henüz yoksa (parallel ajan ortamı), `_plate_velocity_vector_extern` None kalır
+# ve plaka simülasyon paneli kendi Euler dönüştürücüsünü kullanır.
+try:
+    from earthquake_core import plate_velocity_vector as _plate_velocity_vector_extern
+except ImportError:
+    _plate_velocity_vector_extern = None
+
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
 APP_VERSION = "1.17"
@@ -3860,6 +3868,9 @@ if active_menu == "🔭 Astronomik Analiz":
 
 # ════════════════════════════════════════════════════════════════════════════
 # 🌍 TEKTONİK PLAKA HAREKETİ SİMÜLASYONU — v1.17 (Ajan 5 / F-43)
+# Genişletilmiş: jeodezik mod (-1.000 → +10.000 yıl) + paleografik mod
+# (-1.000.000 → +10.000.000 yıl), ESRI World Imagery uydu zemini, Erzincan
+# trailing path, log-spaced 20-frame animasyon, bilimsel uyarı bandı.
 # ════════════════════════════════════════════════════════════════════════════
 _PLAKA_CITIES = {
     "Erzincan":   (39.7333, 39.4917),
@@ -3868,149 +3879,281 @@ _PLAKA_CITIES = {
     "Van":        (38.4942, 43.3805),
 }
 
-@st.cache_data(show_spinner=False)
-def _plaka_build_figure(years_total: int, focus_lat: float, focus_lon: float,
-                        city: str, plate_code: str = "AN"):
-    """Pre-compute Plotly animation: 20 frames of plate displacement.
+# 20 log-spaced frame stops per mode. Negatif = geçmiş, pozitif = gelecek.
+_PLAKA_MODES = {
+    "geo": {
+        "label":   "🌐 Jeodezik — Bilimsel (-1.000 → +10.000 yıl)",
+        "short":   "Jeodezik",
+        "stops":   [-1000, -700, -500, -300, -200, -100, -50, -30, -10, -3,
+                    0, 3, 10, 30, 100, 300, 1000, 3000, 7000, 10_000],
+        "default_idx": 10,  # 0
+        "visual_scale_factor": 1000.0,
+    },
+    "pal": {
+        "label":   "🪨 Paleografik — Spekülatif (-1.000.000 → +10.000.000 yıl)",
+        "short":   "Paleografik",
+        "stops":   [-1_000_000, -500_000, -200_000, -100_000, -50_000, -20_000,
+                    -10_000, -3_000, -1_000, -300, 0, 300, 1_000, 3_000,
+                    10_000, 100_000, 1_000_000, 3_000_000, 7_000_000, 10_000_000],
+        "default_idx": 10,  # 0
+        "visual_scale_factor": 1.0,
+    },
+}
 
-    Slider değeri (years_total) → 20 frame linear interpolation. Her frame'de
-    PLATE_LINES geometrisi `plate_code`'un hız vektörüyle ötelenir; Erzincan
-    pini sabit kalır; bir ok vektörü kümülatif yer değiştirmeyi gösterir.
-    """
-    N_FRAMES = 20
-    vels = load_plate_velocities(focus_lat, focus_lon)
+def _plaka_warning(years_abs: int):
+    """0..10K = yeşil bilimsel · 10K..1M = sarı soyutlama · 1M+ = kırmızı spekülatif."""
+    if years_abs <= 10_000:
+        return ("🟢", "Bilimsel", "#43a047", "Lineer GNSS-türevli ekstrapolasyon — doğrudan ölçüm rejimi.")
+    if years_abs <= 1_000_000:
+        return ("🟡", "Soyutlama", "#fbc02d", "Fay döngüleri ve viskoelastik relaksasyon ihmal edilmiştir; "
+                                              "tek başına lineer model ~10⁵ yıl ufkunda paleosismik kayıtla "
+                                              "kalibre edilmelidir.")
+    return ("🔴", "Spekülatif Senaryo", "#e53935",
+            "Milyon yıl ölçeği lineer ekstrapolasyon yetmez — paleomanyetik / PALEOMAP "
+            "(Scotese 2016) rekonstrüksiyonları gerekir. Bu görüntü yalnızca eğitsel "
+            "sezgi içindir; bilimsel öngörü değildir.")
+
+def _format_years_tr(y: int) -> str:
+    """+500.000 yıl, -1.2 milyon yıl, bugün, +300 yıl gibi etiketler."""
+    if y == 0:
+        return "bugün (0 yıl)"
+    s   = "−" if y < 0 else "+"
+    a   = abs(y)
+    if a >= 1_000_000:
+        val = a / 1_000_000
+        return f"{s}{val:g} milyon yıl"
+    if a >= 1_000:
+        val = a / 1_000
+        return f"{s}{val:g} bin yıl"
+    return f"{s}{a} yıl"
+
+def _plaka_displacement_deg(plate_code: str, lat: float, lon: float, years: int):
+    """Δφ, Δλ derece olarak. Önce Ajan 4'ün `plate_velocity_vector()` fonksiyonunu
+    dener; başarısız olursa kendi Euler dönüştürücüsü `load_plate_velocities()` ile."""
+    if _plate_velocity_vector_extern is not None:
+        try:
+            return _plate_velocity_vector_extern(plate_code, lat, lon, years)
+        except Exception:
+            pass
+    vels = load_plate_velocities(lat, lon)
     vel  = vels.get(plate_code) or vels.get("AN") or {**_PLAKA_FALLBACK_AN, "is_euler_derived": False}
-    dlat_yr = vel["delta_lat_per_year"]
-    dlon_yr = vel["delta_lon_per_year"]
+    return (vel["delta_lat_per_year"] * years,
+            vel["delta_lon_per_year"] * years)
 
-    # Görsel ölçek: Euler-türevli (gerçek ~mm-cm/yr) değerler büyük zoom'da
-    # görünmez → ×1000. Hardcode delta formatı (önceden şişirilmiş) için ×1.
-    visual_scale = 1000.0 if vel.get("is_euler_derived") else 1.0
+@st.cache_data(show_spinner=False)
+def _plaka_build_figure(mode_key: str, focus_lat: float, focus_lon: float,
+                        city: str, plate_code: str = "AN",
+                        active_idx: int = 0, visual_scale_override: float | None = None):
+    """20 frame Plotly animasyonu — uydu zemin, log-spaced zaman, AN trail."""
+    mode      = _PLAKA_MODES[mode_key]
+    stops     = mode["stops"]
+    vis_scale = visual_scale_override if visual_scale_override is not None \
+                else mode["visual_scale_factor"]
 
-    # Statik gri "bugünkü plaka sınırları" tabanı (her frame'de aynı)
+    # Statik gri "bugünkü plaka sınırları" (tüm frame'lerde sabit)
     base_lats, base_lons = [], []
     for plate in PLATE_LINES:
         base_lats.extend(plate["lats"] + [None])
         base_lons.extend(plate["lons"] + [None])
-    base_trace = go.Scattermapbox(
+    # Glow + ana çizgi → 2 trace
+    base_glow = go.Scattermapbox(
         lat=base_lats, lon=base_lons, mode="lines",
-        line=dict(color="rgba(170,170,180,0.40)", width=1.1),
+        line=dict(color="rgba(255,255,255,0.18)", width=4.5),
+        name="", hoverinfo="skip", showlegend=False,
+    )
+    base_line = go.Scattermapbox(
+        lat=base_lats, lon=base_lons, mode="lines",
+        line=dict(color="rgba(220,225,240,0.55)", width=1.4),
         name="Bugünkü Plaka Sınırları", hoverinfo="skip",
     )
 
-    # Plaka tip rengi (kayan sınır için)
+    # Plaka tip rengi — kayan sınır için, tip bazında glow için ayrı trace listesi
     type_color = {
-        "convergent": "#ff5252", "divergent": "#42a5f5",
-        "transform":  "#ffd54f", "unknown":   "#bdbdbd",
+        "convergent": "#ff5252",  # Yaklaşan — kırmızı
+        "divergent":  "#42a5f5",  # Ayrılan — mavi
+        "transform":  "#ffeb3b",  # Yanal — sarı
+        "unknown":    "#bbbbbb",
     }
+    plates_by_type = {k: [] for k in type_color}
+    for plate in PLATE_LINES:
+        plates_by_type.setdefault(plate.get("type", "unknown"), []).append(plate)
+
+    # Erzincan trail için tüm frame'lerin (lat, lon) sırasını önceden hesapla
+    trail_positions = []
+    for y in stops:
+        dlat, dlon = _plaka_displacement_deg(plate_code, focus_lat, focus_lon, y)
+        trail_positions.append((focus_lat + dlat * vis_scale,
+                                focus_lon + dlon * vis_scale, y, dlat, dlon))
 
     frames = []
-    for i in range(N_FRAMES + 1):
-        frac    = i / N_FRAMES
-        year_at = years_total * frac
-        dlat    = dlat_yr * year_at * visual_scale
-        dlon    = dlon_yr * year_at * visual_scale
+    for i, (cur_lat, cur_lon, cur_year, dlat_real, dlon_real) in enumerate(trail_positions):
+        # Kayan plaka sınırları (her tip ayrı trace + glow)
+        shifted_traces = []
+        for b_type, plate_list in plates_by_type.items():
+            if not plate_list:
+                continue
+            color = type_color[b_type]
+            lats_t, lons_t = [], []
+            for plate in plate_list:
+                lats_t.extend([la + (cur_lat - focus_lat) for la in plate["lats"]] + [None])
+                lons_t.extend([lo + (cur_lon - focus_lon) for lo in plate["lons"]] + [None])
+            # Geniş yarı-saydam glow
+            shifted_traces.append(go.Scattermapbox(
+                lat=lats_t, lon=lons_t, mode="lines",
+                line=dict(color=color, width=6),
+                opacity=0.28, hoverinfo="skip", showlegend=False, name="",
+            ))
+            # Parlak ana hat
+            shifted_traces.append(go.Scattermapbox(
+                lat=lats_t, lon=lons_t, mode="lines",
+                line=dict(color=color, width=2.2),
+                opacity=0.95, name={
+                    "convergent": "🔺 Yaklaşan Sınır",
+                    "divergent":  "🔻 Ayrılan Sınır",
+                    "transform":  "↔ Yanal Kayan",
+                    "unknown":    "Sınır",
+                }[b_type], hoverinfo="skip",
+            ))
 
-        # Kayan plaka geometrisi — tip bazında ayrı trace yapma yerine tek trace
-        # (animasyon performansı için)
-        shifted_lats, shifted_lons = [], []
-        for plate in PLATE_LINES:
-            shifted_lats.extend([la + dlat for la in plate["lats"]] + [None])
-            shifted_lons.extend([lo + dlon for lo in plate["lons"]] + [None])
-        shifted_trace = go.Scattermapbox(
-            lat=shifted_lats, lon=shifted_lons, mode="lines",
-            line=dict(color="#ff6d00", width=2.2),
-            name=f"{int(year_at)} yıl sonra", hoverinfo="skip",
+        # Erzincan trail — frame 0..i arası kümülatif yol
+        trail_lats = [p[0] for p in trail_positions[:i+1]]
+        trail_lons = [p[1] for p in trail_positions[:i+1]]
+        trail_glow = go.Scattermapbox(
+            lat=trail_lats, lon=trail_lons, mode="lines",
+            line=dict(color="rgba(255,64,129,0.30)", width=10),
+            hoverinfo="skip", showlegend=False, name="",
+        )
+        trail_line = go.Scattermapbox(
+            lat=trail_lats, lon=trail_lons, mode="lines+markers",
+            line=dict(color="#ff4081", width=3),
+            marker=dict(size=6, color="#ffd1dc", opacity=0.85),
+            name=f"{city} izi", hoverinfo="skip",
         )
 
-        # Hız vektörü — focus şehirden, görsel ölçek uygulanmış
-        arrow_lat_end = focus_lat + dlat
-        arrow_lon_end = focus_lon + dlon
-        arrow_trace = go.Scattermapbox(
-            lat=[focus_lat, arrow_lat_end],
-            lon=[focus_lon, arrow_lon_end],
-            mode="lines",
-            line=dict(color="#fff176", width=3),
-            name="Plaka hız vektörü", hoverinfo="skip",
-        )
-        # Ok ucu (basit nokta)
-        arrow_head = go.Scattermapbox(
-            lat=[arrow_lat_end], lon=[arrow_lon_end],
-            mode="markers",
-            marker=dict(size=10, color="#fff176"),
-            name="", hoverinfo="skip", showlegend=False,
-        )
-
-        # Gerçek (görsel olmayan) yer değiştirme — info hover için
-        real_dlat_m = dlat_yr * year_at * 111_320.0
-        real_dlon_m = dlon_yr * year_at * 111_320.0 * math.cos(math.radians(focus_lat))
-        real_disp_m = math.sqrt(real_dlat_m**2 + real_dlon_m**2)
-        if real_disp_m < 1.0:
-            disp_str = f"{real_disp_m*1000:.1f} mm"
-        elif real_disp_m < 1000.0:
-            disp_str = f"{real_disp_m:.2f} m"
+        # Gerçek (görsel ölçeksiz) kümülatif yer değiştirme
+        real_m_lat = dlat_real * 111_320.0
+        real_m_lon = dlon_real * 111_320.0 * math.cos(math.radians(focus_lat))
+        real_disp  = math.sqrt(real_m_lat**2 + real_m_lon**2)
+        if real_disp < 1.0:
+            disp_str = f"{real_disp*1000:.1f} mm"
+        elif real_disp < 1000.0:
+            disp_str = f"{real_disp:.2f} m"
+        elif real_disp < 1_000_000:
+            disp_str = f"{real_disp/1000:.2f} km"
         else:
-            disp_str = f"{real_disp_m/1000:.2f} km"
+            disp_str = f"{real_disp/1000:.0f} km"
 
-        pin_trace = go.Scattermapbox(
+        # Sabit referans (bugünkü Erzincan)
+        ref_pin = go.Scattermapbox(
             lat=[focus_lat], lon=[focus_lon],
+            mode="markers", marker=dict(size=9, color="rgba(255,255,255,0.45)"),
+            name=f"{city} (bugün)", hoverinfo="skip", showlegend=False,
+        )
+        # Parlak şu-anki pin (büyük halo + nokta)
+        pin_halo = go.Scattermapbox(
+            lat=[cur_lat], lon=[cur_lon],
+            mode="markers",
+            marker=dict(size=28, color="rgba(255,64,129,0.40)"),
+            hoverinfo="skip", showlegend=False, name="",
+        )
+        pin = go.Scattermapbox(
+            lat=[cur_lat], lon=[cur_lon],
             mode="markers+text",
-            marker=dict(size=14, color="#ff4136"),
+            marker=dict(size=15, color="#ff4081"),
             text=[f"★ {city}"],
             textposition="top right",
-            textfont=dict(color="#ffffff", size=12),
+            textfont=dict(color="#ffffff", size=14),
             name=city,
-            hovertemplate=(f"<b>{city}</b><br>{int(year_at)} yıl sonra<br>"
+            hovertemplate=(f"<b>{city}</b><br>{_format_years_tr(cur_year)}<br>"
                            f"Gerçek kayma: {disp_str}<extra></extra>"),
         )
 
+        # Frame içeriği: glow taban + statik taban + kayan plakalar + trail + pinler
+        frame_data = [base_glow, base_line, *shifted_traces, trail_glow, trail_line, ref_pin, pin_halo, pin]
+
+        # Frame layout: büyük zaman etiketi annotation + uyarı bandı
+        emoji, severity_label, severity_color, _ = _plaka_warning(abs(cur_year))
+        title_txt = (f"🌍 {city} · {_format_years_tr(cur_year)} · "
+                     f"{emoji} {severity_label} · kayma: {disp_str}")
+        annotations = [
+            dict(text=f"<b>📅 {_format_years_tr(cur_year)}</b>",
+                 xref="paper", yref="paper", x=0.02, y=0.98,
+                 xanchor="left", yanchor="top",
+                 showarrow=False, align="left",
+                 font=dict(size=26, color="#ffffff", family="Inter, system-ui"),
+                 bgcolor="rgba(0,0,0,0.55)", bordercolor=severity_color,
+                 borderwidth=2, borderpad=8),
+            dict(text=(f"<b>{emoji} {severity_label}</b><br>"
+                       f"<span style='font-size:11px'>Kayma: {disp_str}</span>"),
+                 xref="paper", yref="paper", x=0.98, y=0.98,
+                 xanchor="right", yanchor="top",
+                 showarrow=False, align="right",
+                 font=dict(size=13, color="#ffffff", family="Inter, system-ui"),
+                 bgcolor=severity_color, bordercolor="#000",
+                 borderwidth=1, borderpad=6, opacity=0.92),
+        ]
         frames.append(go.Frame(
-            data=[base_trace, shifted_trace, arrow_trace, arrow_head, pin_trace],
-            name=str(i),
+            data=frame_data, name=str(i),
             layout=go.Layout(
-                title=dict(text=(f"🌍 Tektonik Plaka Hareketi — {city} · "
-                                 f"{int(year_at)} yıl · gerçek kayma {disp_str}"),
-                           font=dict(color="#eceff1", size=14)),
+                title=dict(text=title_txt, font=dict(color="#eceff1", size=14)),
+                annotations=annotations,
             ),
         ))
 
-    # Slider stepleri
+    # Slider stepleri — her stop için label = formatlanmış yıl
     slider_steps = []
-    for i in range(N_FRAMES + 1):
-        year_at = int(years_total * i / N_FRAMES)
+    for i, y in enumerate(stops):
         slider_steps.append({
-            "args": [[str(i)], {"frame": {"duration": 250, "redraw": True},
+            "args": [[str(i)], {"frame": {"duration": 200, "redraw": True},
                                 "mode": "immediate",
                                 "transition": {"duration": 0}}],
-            "label": str(year_at),
+            "label": _format_years_tr(y),
             "method": "animate",
         })
 
-    initial = frames[0].data
+    # Aktif frame seçimi
+    active = max(0, min(active_idx, len(frames) - 1))
+    initial = frames[active].data
+    initial_anno = frames[active].layout.annotations
+    initial_title = frames[active].layout.title.text
+
+    # ESRI World Imagery uydu zemin tile'ları (Mapbox token gerektirmez)
+    satellite_layers = [
+        {"below": "traces", "sourcetype": "raster",
+         "source": [ESRI_SAT], "sourceattribution": "ESRI World Imagery"},
+        {"below": "traces", "sourcetype": "raster",
+         "source": [ESRI_LABELS], "opacity": 0.70},
+    ]
+
     fig = go.Figure(
         data=list(initial),
         frames=frames,
         layout=go.Layout(
             mapbox=dict(
-                style="carto-darkmatter",
+                style="white-bg",
+                layers=satellite_layers,
                 center=dict(lat=focus_lat, lon=focus_lon),
-                zoom=4.2,
+                zoom=3.4 if mode_key == "pal" else 4.4,
             ),
-            margin=dict(l=0, r=0, t=42, b=0),
-            height=600,
+            margin=dict(l=0, r=0, t=46, b=4),
+            height=680,
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
             font=dict(color="#eceff1"),
             showlegend=False,
+            title=dict(text=initial_title, font=dict(color="#eceff1", size=14)),
+            annotations=list(initial_anno) if initial_anno else [],
             updatemenus=[{
                 "type": "buttons",
                 "showactive": False,
-                "y": -0.02, "x": 0.0,
+                "y": -0.04, "x": 0.0,
                 "xanchor": "left", "yanchor": "top",
                 "pad": {"t": 4, "r": 4},
+                "bgcolor": "#263238",
+                "font": {"color": "#eceff1", "size": 12},
                 "buttons": [
                     {"label": "▶ Oynat", "method": "animate",
-                     "args": [None, {"frame": {"duration": 300, "redraw": True},
+                     "args": [None, {"frame": {"duration": 200, "redraw": True},
                                      "fromcurrent": True,
                                      "transition": {"duration": 0}}]},
                     {"label": "⏸ Dur", "method": "animate",
@@ -4020,10 +4163,11 @@ def _plaka_build_figure(years_total: int, focus_lat: float, focus_lon: float,
                 ],
             }],
             sliders=[{
-                "active": 0,
-                "currentvalue": {"prefix": "Simüle yıl: ", "suffix": " yıl",
-                                 "font": {"size": 13, "color": "#eceff1"}},
-                "x": 0.10, "y": -0.02, "len": 0.85,
+                "active": active,
+                "currentvalue": {"prefix": "📅 ", "font": {"size": 13, "color": "#eceff1"}},
+                "x": 0.10, "y": -0.04, "len": 0.85,
+                "bgcolor": "rgba(60,60,80,0.55)",
+                "font": {"color": "#eceff1", "size": 11},
                 "steps": slider_steps,
                 "transition": {"duration": 0},
             }],
@@ -4034,17 +4178,31 @@ def _plaka_build_figure(years_total: int, focus_lat: float, focus_lon: float,
 @st.fragment
 def _render_plaka_simulasyon():
     st.subheader("🌍 Tektonik Plaka Hareketi Simülasyonu")
-    st.caption("⚠️ Bu bir eğitim simülasyonudur — bilimsel tahmin değildir. "
-               "Lineer hız ekstrapolasyonu; fay kilitleme, viskoelastik relaksasyon "
-               "ve büyük deprem atlamaları ihmal edilmiştir.")
+    st.caption("Geçmişe ve geleceğe doğru plaka hareketini simüle eder. Negatif yıl = geçmiş, "
+               "pozitif yıl = gelecek. **Uyarı bandı** yıl ölçeğinin bilimsel kalitesini gösterir.")
+
+    # Mod seçimi (radio)
+    mode_keys = list(_PLAKA_MODES.keys())
+    mode_label_map = {k: _PLAKA_MODES[k]["label"] for k in mode_keys}
+    mode_key = st.radio(
+        "🔬 Zaman ölçeği modu",
+        options=mode_keys,
+        format_func=lambda k: mode_label_map[k],
+        horizontal=True,
+        index=0,
+        key="plaka_sim_mode",
+    )
+    mode  = _PLAKA_MODES[mode_key]
+    stops = mode["stops"]
 
     col_y, col_c, col_p = st.columns([1.4, 1, 1])
     with col_y:
         years_total = st.select_slider(
             "Simülasyon ufku (yıl)",
-            options=[10, 100, 1000, 10000],
-            value=1000,
-            key="plaka_sim_years",
+            options=stops,
+            value=stops[mode["default_idx"]],
+            format_func=_format_years_tr,
+            key=f"plaka_sim_years_{mode_key}",
         )
     with col_c:
         city = st.selectbox(
@@ -4058,7 +4216,7 @@ def _render_plaka_simulasyon():
     default_plate = "AN" if "AN" in plate_options else plate_options[0]
     with col_p:
         plate_code = st.selectbox(
-            "Hız vektörü plakası",
+            "Plaka (hız vektörü kaynağı)",
             options=plate_options,
             index=plate_options.index(default_plate),
             format_func=lambda c: f"{c} — {vels_for_select[c].get('name', c)}",
@@ -4066,38 +4224,60 @@ def _render_plaka_simulasyon():
         )
 
     focus_lat, focus_lon = _PLAKA_CITIES[city]
-    vels_focus = load_plate_velocities(focus_lat, focus_lon)
-    vel_focus  = vels_focus.get(plate_code) or vels_focus.get("AN") or {
-        **_PLAKA_FALLBACK_AN, "is_euler_derived": False}
+    active_idx = stops.index(years_total)
 
-    fig = _plaka_build_figure(years_total, focus_lat, focus_lon, city, plate_code)
-    st.plotly_chart(fig, use_container_width=True, key=f"plaka_sim_{city}_{years_total}_{plate_code}")
+    # Uyarı bandı
+    emoji, severity_label, severity_color, severity_desc = _plaka_warning(abs(years_total))
+    band_bg = {"🟢": "#1b5e20", "🟡": "#f57f17", "🔴": "#b71c1c"}[emoji]
+    st.markdown(
+        f"""<div style="background:{band_bg};border-left:6px solid {severity_color};
+                       border-radius:6px;padding:10px 14px;margin:8px 0">
+            <div style="color:#fff;font-size:0.95rem;font-weight:700">
+                {emoji} {severity_label} — {_format_years_tr(years_total)}</div>
+            <div style="color:#fff;opacity:0.95;font-size:0.82rem;margin-top:4px">
+                {severity_desc}</div>
+        </div>""",
+        unsafe_allow_html=True,
+    )
 
-    # Bilgi kutusu — gerçek (görsel ölçekten bağımsız) kümülatif yer değiştirme
-    dlat_total_m = vel_focus["delta_lat_per_year"] * years_total * 111_320.0
-    dlon_total_m = vel_focus["delta_lon_per_year"] * years_total * 111_320.0 \
-                   * math.cos(math.radians(focus_lat))
-    disp_m = math.sqrt(dlat_total_m**2 + dlon_total_m**2)
+    fig = _plaka_build_figure(mode_key, focus_lat, focus_lon, city, plate_code,
+                              active_idx=active_idx)
+    st.plotly_chart(fig, use_container_width=True,
+                    key=f"plaka_sim_{mode_key}_{city}_{years_total}_{plate_code}")
+
+    # Gerçek (görsel ölçekten bağımsız) kümülatif yer değiştirme
+    dlat_real, dlon_real = _plaka_displacement_deg(plate_code, focus_lat, focus_lon, years_total)
+    real_m_lat = dlat_real * 111_320.0
+    real_m_lon = dlon_real * 111_320.0 * math.cos(math.radians(focus_lat))
+    disp_m = math.sqrt(real_m_lat**2 + real_m_lon**2)
     if disp_m < 1.0:
         disp_str = f"{disp_m*1000:.1f} mm"
     elif disp_m < 1000.0:
         disp_str = f"{disp_m:.2f} m"
-    else:
+    elif disp_m < 1_000_000:
         disp_str = f"{disp_m/1000:.2f} km"
+    else:
+        disp_str = f"{disp_m/1000:,.0f} km"
 
-    plate_name  = vel_focus.get("name", plate_code)
-    is_euler    = vel_focus.get("is_euler_derived", False)
-    speed_anno  = vel_focus.get("approx_speed_mm_yr")
-    speed_str   = f" (~{speed_anno} mm/yıl)" if speed_anno else ""
+    vel_meta = vels_for_select.get(plate_code, {})
+    plate_name = vel_meta.get("name", plate_code)
+    speed_anno = vel_meta.get("approx_speed_mm_yr")
+    speed_str  = f" (~{speed_anno} mm/yıl)" if speed_anno else ""
 
-    st.info(
-        f"📍 **{city}** çevresinde **{plate_name}{speed_str}** plakası "
-        f"**{years_total} yılda** lineer ekstrapolasyonla **~{disp_str}** kayar."
-    )
-    if is_euler:
-        st.caption("ℹ️ Harita üzerindeki kayma görseli ×1000 ölçekle büyütülmüştür "
-                   "(gerçek NNR-MORVEL56 mm/yr hızları binom büyük zoomlarda görünmez). "
-                   "Yukarıdaki **kayma değeri gerçek değerdir.**")
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.metric("📅 Seçili ufuk", _format_years_tr(years_total))
+    with c2:
+        st.metric(f"📍 {city} kayması", disp_str,
+                  help="NNR-MORVEL56 absolute frame, lineer ekstrapolasyon")
+    with c3:
+        st.metric("🪨 Plaka", f"{plate_code}{speed_str}",
+                  help=plate_name)
+
+    if mode["visual_scale_factor"] > 1:
+        st.caption(f"ℹ️ Harita görseli **×{int(mode['visual_scale_factor'])}** ölçekle "
+                   f"büyütülmüştür — gerçek kayma değeri yukarıdaki metrik kartında. "
+                   f"Paleografik moda geçerek gerçek ölçekli görsel için 1.000.000+ yıl seçin.")
 
     with st.expander("📚 Bilimsel Not & Kaynaklar"):
         st.markdown(
@@ -4105,15 +4285,20 @@ def _render_plaka_simulasyon():
             "NNR-MORVEL56 mutlak plaka hareketi Euler kutupları "
             "(Argus, Gordon & DeMets 2011, *Geochem. Geophys. Geosyst.*, "
             "doi:10.1029/2011GC003751).\n\n"
-            "**Hesap:** Her frame'de plaka sınırı vertex'leri `Δφ = vN × t / 111.32 km` "
-            "ve `Δλ = vE × t / (111.32 km × cos φ)` ile ötelenir.\n\n"
-            "**Sınırlamalar:**\n"
-            "- Lineer ekstrapolasyon; deprem döngüleri (interseismik birikim → koseismik atlama) yok sayılır.\n"
-            "- Fay kilitleme ve viskoelastik relaksasyon modellenmedi.\n"
-            "- Düzlemsel Δlat/Δlon (küçük açı yaklaşımı); >1 My ufukta küresel hata baskın olur.\n"
-            "- Tüm plaka sınırları odak plakanın hızıyla ötelenir — bu komşu plakalar için fiziksel olarak yanlıştır; görsel referans amaçlıdır.\n\n"
-            "**Doğrulama (Erzincan, NAFZ kesiti):** 1939 Ms 7.8 ~4–7 m yatay kayma; "
-            "interseismik birikim 87 yıl × ~22 mm/yıl ≈ ~1.9 m — paleoseismik kayıtla tutarlı."
+            "**Mod sınırları:**\n"
+            "- **🟢 Bilimsel (≤10.000 yıl):** GNSS-türevli lineer ekstrapolasyon doğrudan ölçüm rejiminde. "
+            "1939 Erzincan Ms 7.8 ~4–7 m kayma; interseismik birikim 87 yıl × ~22 mm/yıl ≈ ~1.9 m "
+            "— paleoseismik kayıtla tutarlı.\n"
+            "- **🟡 Soyutlama (10.000–1.000.000 yıl):** Fay döngüleri ve viskoelastik relaksasyon "
+            "modellenmedi. Bu aralıkta paleomanyetik korelasyon ve büyük deprem atlama istatistikleri "
+            "(Wallace, Schwartz & Coppersmith 1984) baskındır.\n"
+            "- **🔴 Spekülatif (>1.000.000 yıl):** Lineer ekstrapolasyon yetmez. Gerçek rekonstrüksiyon "
+            "için PALEOMAP (Scotese 2016), GPlates (Müller et al. 2018) ve manto akışı tomografisi "
+            "(Bunge et al. 2003) gerekir.\n\n"
+            "**Hesap:** Plaka her vertex'i ve Erzincan pini, seçili plaka için "
+            "`(Δφ, Δλ) = plate_velocity_vector(plate_id, φ, λ, years)` (Ajan 4, NNR-MORVEL56 "
+            "Ω×P kartezyen rotasyonu) ile ötelenir.\n\n"
+            "**Uydu zemin:** ESRI World Imagery (raster tile, MapBox token gerektirmez)."
         )
 
 if active_menu == "🌍 Plaka Simülasyonu":
