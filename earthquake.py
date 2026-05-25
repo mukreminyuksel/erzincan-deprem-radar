@@ -50,7 +50,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.19"
+APP_VERSION = "1.19.1"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -3937,16 +3937,19 @@ _PLAKA_MODES = {
         # 🔴 SPEKÜLATİF — kıta sürüklenmesi eğitsel sezgi; lineer ekstrapolasyon
         # bilimsel geçerliliğini tamamen yitirir, PALEOMAP/Scotese rekonstrüksiyonları gerek
         # _plaka_warning() >1M = "🔴 Spekülatif Senaryo"
-        # 1B × 2.25e-7°/yıl × 0.005 ≈ 1.1° görsel kayma — küçük stop'larda etki minimal
+        # v1.18.3 düzeltme: stops sadece anlamlı görsel kaymanın olduğu yıllara odaklı
+        # (1M+ aralık) + visual_scale 0.005 → 0.012 → küçük yıllar artık "aynı tekrar"
+        # değil, log-orantılı kayma görünür: 1B × 0.012 = 2.7°, 1M × 0.012 = 0.0027° (≈0,
+        # bu mod paleotektonik için).
         "label":   "🔴 Spekülatif — Eğitsel Sezgi (-1 milyar → +1 milyar yıl)",
         "short":   "Spekülatif",
-        "stops":   [-1_000_000_000, -300_000_000, -100_000_000, -30_000_000, -10_000_000,
-                    -3_000_000, -1_000_000, -300_000, -100_000, -10_000,
+        "stops":   [-1_000_000_000, -500_000_000, -200_000_000, -100_000_000, -50_000_000,
+                    -20_000_000, -10_000_000, -5_000_000, -2_000_000, -1_000_000,
                     0,
-                    10_000, 100_000, 300_000, 1_000_000, 3_000_000, 10_000_000,
-                    30_000_000, 100_000_000, 300_000_000, 1_000_000_000],
+                    1_000_000, 2_000_000, 5_000_000, 10_000_000, 20_000_000,
+                    50_000_000, 100_000_000, 200_000_000, 500_000_000, 1_000_000_000],
         "default_idx": 10,  # 0
-        "visual_scale_factor": 0.005,
+        "visual_scale_factor": 0.012,
     },
 }
 
@@ -4084,9 +4087,20 @@ def _plaka_build_figure(mode_key: str, focus_lat: float, focus_lon: float,
     vis_scale = visual_scale_override if visual_scale_override is not None \
                 else mode["visual_scale_factor"]
 
+    # v1.18.3 PERF — Sadece hız vektörü tanımlı plakalara ait sınırları render et.
+    # Global 241 PB2002 sınırından ~10-15 Türkiye/Mediterranean sınırına düşer.
+    # Diğer plakalar (NA/SA/PA/IN/AU/...) hız vektörü yoktu ve zaten kayma=0
+    # olarak render ediliyordu — sadece görsel kirlilik yapıyorlardı.
+    _RELEVANT_PLATE_CODES = set(_PB2002_TO_VELOCITY_CODE.keys())  # {AT, AS, EU, AF, AR}
+    plates_in_scope = [
+        p for p in PLATE_LINES
+        if (p.get("plate_a") in _RELEVANT_PLATE_CODES
+            or p.get("plate_b") in _RELEVANT_PLATE_CODES)
+    ]
+
     # Statik gri "bugünkü plaka sınırları" (tüm frame'lerde sabit)
     base_lats, base_lons = [], []
-    for plate in PLATE_LINES:
+    for plate in plates_in_scope:
         base_lats.extend(plate["lats"] + [None])
         base_lons.extend(plate["lons"] + [None])
     # Glow + ana çizgi → 2 trace
@@ -4109,7 +4123,7 @@ def _plaka_build_figure(mode_key: str, focus_lat: float, focus_lon: float,
         "unknown":    "#bbbbbb",
     }
     plates_by_type = {k: [] for k in type_color}
-    for plate in PLATE_LINES:
+    for plate in plates_in_scope:
         plates_by_type.setdefault(plate.get("type", "unknown"), []).append(plate)
 
     # v1.17.3 TOPLU HAREKET — her sınırın kendi hız ortalaması (frame-dışı pre-compute)
@@ -4119,7 +4133,7 @@ def _plaka_build_figure(mode_key: str, focus_lat: float, focus_lon: float,
     vels_dict = load_plate_velocities(focus_lat, focus_lon)
     border_dlat_yr = {}  # id(plate) → derece/yıl
     border_dlon_yr = {}
-    for plate in PLATE_LINES:
+    for plate in plates_in_scope:
         p_a_code = _PB2002_TO_VELOCITY_CODE.get(plate.get("plate_a", ""))
         p_b_code = _PB2002_TO_VELOCITY_CODE.get(plate.get("plate_b", ""))
         v_a = vels_dict.get(p_a_code) if p_a_code else None

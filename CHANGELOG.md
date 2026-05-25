@@ -1,5 +1,29 @@
 # Changelog
 
+## v1.19.1 - 2026-05-26 — Plaka Simülasyonu PERF + Spekülatif mode kayma düzeltmesi
+
+İki kullanıcı bildirimi:
+1. "Simülasyon ve kaydırma çubuğu düzgün çalışmıyor" (slider yavaş)
+2. "Milyar yıl hesabını yapamıyor, aynı mesafeleri tekrarlıyor" (Spekülatif mode'da küçük yıllarda hep aynı görsel)
+
+**🚀 Performans düzeltmesi (slider yavaşlığı):**
+- `_plaka_build_figure()` artık PLATE_LINES (global 241 sınır) yerine `plates_in_scope` (sadece hız vektörü tanımlı plakaların sınırları, ~10-15) üzerinde çalışır
+- _PB2002_TO_VELOCITY_CODE mapping'de olan plakalar (AT/AS/EU/AF/AR) — diğer global plakalar (NA/SA/PA/IN/AU vb.) zaten hız vektörü yok, render edilse bile sabit kalır
+- 241 sınır × 21 frame × 2 trace = ~10K render → ~15 × 21 × 2 = ~630 render (~16× hızlanma)
+- 3 lokasyonda güncelleme: `base_lats`, `plates_by_type`, `border_dlat_yr` lookup
+- Yan etki yok: önceden render edilen ama hareket etmeyen sınırlar zaten "görünmez işsizdi" → temizlik
+
+**🔴 Spekülatif (pal) mod kayma düzeltmesi:**
+- Eski stops asimetrik ve küçük yıllar (10K, 100K, 1M) içeriyordu — bu yıllarda 1B-ölçek visual_scale=0.005 ile görsel kayma ≈ 0 → "aynı tekrar" hissi
+- Yeni stops 21 frame log-spaced, **sadece anlamlı görsel kayma aralığında**: ±1B, ±500M, ±200M, ±100M, ±50M, ±20M, ±10M, ±5M, ±2M, ±1M, 0
+- visual_scale_factor: 0.005 → 0.012 (1B yıl 2.7° görsel kayma, daha net)
+- Küçük yıllar için Bilimsel/Genişletilmiş mode kullanılmalı (label'da zaten "Eğitsel Sezgi" diyor)
+
+APP_VERSION 1.19 → 1.19.1
+
+## v1.19 - 2026-05-26 — F-51 Artçı Tahmin (Reasenberg-Jones + Omori-Utsu) [Antigravity Ajan 8]
+- Bilim Profesörü tarafından implementasyon: Reasenberg & Jones (Science 1989) artçı olasılık + Omori-Utsu (1995) güç yasası fit.
+
 ## v1.18.2 - 2026-05-26 — Plaka Simülasyonu 3 kademe mod (kullanıcı talebi)
 
 Kullanıcı talebi: "3 bölüm olsun, gerçek verilere dayanan kısım + diğer iki kısım"
