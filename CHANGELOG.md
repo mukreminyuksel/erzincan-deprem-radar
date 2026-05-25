@@ -1,5 +1,27 @@
 # Changelog
 
+## v1.18.2 - 2026-05-26 — Plaka Simülasyonu 3 kademe mod (kullanıcı talebi)
+
+Kullanıcı talebi: "3 bölüm olsun, gerçek verilere dayanan kısım + diğer iki kısım"
+
+`_PLAKA_MODES` artık 3 mod (renk-kodlu hiyerarşi, `_plaka_warning()` eşikleriyle birebir uyumlu):
+
+| Mod | Etiket | Aralık | Stops | visual_scale | Warning rengi |
+|---|---|---|---|---|---|
+| **`sci`** (default) | 🟢 Bilimsel — Doğrudan Ölçüm | ±10.000 yıl | 21 frame log [-10K..+10K] | 1000 | 🟢 Bilimsel |
+| `geo` | 🟡 Genişletilmiş — Paleosismik Ufuk | ±1.000.000 yıl | 21 frame log [-1M..+1M] | 10 | 🟡 Soyutlama |
+| `pal` | 🔴 Spekülatif — Eğitsel Sezgi | ±1.000.000.000 yıl | 21 frame log [-1B..+1B] | 0.005 | 🔴 Spekülatif Senaryo |
+
+- **🟢 Bilimsel (default, ilk gelir):** Lineer GNSS ekstrapolasyonu doğrudan geçerli — Reilinger 2006 GPS hız alanı tam ölçüm rejiminde. Erzincan 10K yıl × 25 mm/yıl = 250 m gerçek kayma; visual_scale=1000 ile harita üzerinde 2.25° görünür hareket.
+- **🟡 Genişletilmiş:** Paleosismik kalibrasyon zonu — lineer model fay döngülerini ve viskoelastik relaksasyonu ihmal eder. 1M yıl × 2.25e-7°/yıl × 10 ≈ 2.25° görsel kayma (Bilimsel ile aynı görsel etki, farklı zaman çözünürlüğü).
+- **🔴 Spekülatif:** Eğitsel sezgi — kıta sürüklenmesi non-lineer; gerçek paleotektonik için PALEOMAP/Scotese 2016 rekonstrüksiyonları gerek. Bu mode "büyük zaman ölçeğinde plakalar nereye gider" görseli.
+
+Python dict insertion order korunur (3.7+) → "sci" en başta tanımlı = default mod. Kullanıcı uygulamayı ilk açtığında **bilimsel namus** ile başlar; sonra isterse 🟡/🔴 mod'a geçer.
+
+Render kodunda hiçbir değişiklik yok — mode_keys = list(_PLAKA_MODES.keys()) otomatik 3 mod gelir.
+
+APP_VERSION 1.18.1 → 1.18.2
+
 ## v1.18.1 - 2026-05-26 — Paleografik mode ±1 milyar yıl (kullanıcı talebi)
 
 Kullanıcı talebi: "🪨 Paleografik — Spekülatif (-1.000.000 → +10.000.000 yıl), -1 milyar + 1 milyar olsun"

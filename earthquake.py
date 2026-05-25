@@ -30,7 +30,9 @@ from earthquake_core import (
     event_signature,
     has_active_sources,
     nearest_fault_vertex_distance,
+    omori_utsu_rate,
     parse_usgs_feed_features,
+    reasenberg_jones_probability,
     safe_html,
     source_agreement_summary,
     to_utc_naive,
@@ -48,7 +50,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.18.1"
+APP_VERSION = "1.19"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -856,6 +858,7 @@ _MENU_LABELS = [
     "🌍 Plaka Simülasyonu",
     "🔭 Astronomik Analiz",
     "🚨 Erken Uyarı",
+    "📈 Artçı Tahmin",
     "🏛️ Erzincan Arşivi",
     "🎓 Bilgi Havuzu",
     "⚙️ Sistem & Veri",
@@ -863,7 +866,7 @@ _MENU_LABELS = [
 ]
 _MENU_ICONS = [
     "globe", "bar-chart-line", "compass", "globe-americas", "moon-stars",
-    "exclamation-triangle", "archive", "mortarboard", "gear", "file-text",
+    "exclamation-triangle", "graph-up-arrow", "archive", "mortarboard", "gear", "file-text",
 ]
 with st.container(key="sticky_nav"):
     active_menu = option_menu(
@@ -3900,15 +3903,30 @@ _PLAKA_CITIES = {
     "Van":        (38.4942, 43.3805),
 }
 
-# 20 log-spaced frame stops per mode. Negatif = geçmiş, pozitif = gelecek.
+# 21 log-spaced frame stops per mode. Negatif = geçmiş, pozitif = gelecek.
+# Üç kademe (kullanıcı talebi v1.18.2): 🟢 Bilimsel → 🟡 Genişletilmiş → 🔴 Spekülatif
+# Dict insertion order korunur (Python 3.7+) → ilk mode default; "sci" en başta = bilimsel namus.
 _PLAKA_MODES = {
+    "sci": {
+        # 🟢 BİLİMSEL — gerçek GNSS ölçüm rejimi, lineer ekstrapolasyon doğrudan geçerli
+        # _plaka_warning() ≤10K = "🟢 Bilimsel" otomatik gösterir
+        # 10K × 2.25e-7°/yıl × 1000 ≈ 2.25° görsel kayma — geo modu ile aynı görsel
+        # (gerçek hareket küçük: 10K × 25 mm/yıl = 250 m, görselleştirme için ölçek)
+        "label":   "🟢 Bilimsel — Doğrudan Ölçüm (-10.000 → +10.000 yıl)",
+        "short":   "Bilimsel",
+        "stops":   [-10_000, -3_000, -1_000, -500, -200, -100, -50, -20, -10, -3,
+                    0,
+                    3, 10, 20, 50, 100, 200, 500, 1_000, 3_000, 10_000],
+        "default_idx": 10,  # 0
+        "visual_scale_factor": 1000.0,
+    },
     "geo": {
-        "label":   "🌐 Jeodezik — Genişletilmiş (-1.000.000 → +1.000.000 yıl)",
-        "short":   "Jeodezik",
-        # 21 frame log-spaced — 0..10K bilimsel (yeşil), 10K..1M soyutlama (sarı).
-        # Aralık 1M'a kadar (1M dahil _plaka_warning eşiğinde "Soyutlama" zonu).
-        # Görsel ölçek orantılı küçültüldü (önce 100x → şimdi 10x) ki Erzincan
-        # harita dışına çıkmasın: 1M yıl × ~2.25e-7°/yıl × 10 ≈ 2.25° görsel kayma.
+        # 🟡 GENİŞLETİLMİŞ — paleosismik kalibrasyon zonu, lineer GNSS yaklaşımı
+        # fay döngülerini ve viskoelastik relaksasyonu ihmal eder
+        # _plaka_warning() 10K..1M = "🟡 Soyutlama"
+        # 1M × 2.25e-7°/yıl × 10 ≈ 2.25° görsel kayma
+        "label":   "🟡 Genişletilmiş — Paleosismik Ufuk (-1 milyon → +1 milyon yıl)",
+        "short":   "Genişletilmiş",
         "stops":   [-1_000_000, -300_000, -100_000, -30_000, -10_000, -3_000, -1_000, -300, -100, -10,
                     0,
                     10, 100, 300, 1_000, 3_000, 10_000, 30_000, 100_000, 300_000, 1_000_000],
@@ -3916,16 +3934,12 @@ _PLAKA_MODES = {
         "visual_scale_factor": 10.0,
     },
     "pal": {
-        "label":   "🪨 Paleografik — Hiper-Spekülatif (-1 milyar → +1 milyar yıl)",
-        "short":   "Paleografik",
-        # 21 frame log-spaced — milyar yıl ölçeğinde lineer GNSS-türevli
-        # ekstrapolasyon BİLİMSEL GEÇERLİLİĞİNİ tamamen yitirir; kıta sürüklenmesi
-        # (continental drift) Pangaea'dan beri non-lineer döngülerle yürür.
-        # _plaka_warning() 1M+ zaten "🔴 Spekülatif Senaryo" çıkarır; bu mode sadece
-        # eğitsel-sezgisel "büyük zaman ölçeğinde plakalar nereye gider" görselidir.
-        # visual_scale_factor=0.005: 1B × ~2.25e-7°/yıl × 0.005 ≈ 1.1° görsel kayma
-        # (ölçek küçük olduğundan <1M stop'larda görsel etki minimal kalır — kabul:
-        # Paleografik mode küçük yıl için değil, Jeodezik (±1M) daha hassas).
+        # 🔴 SPEKÜLATİF — kıta sürüklenmesi eğitsel sezgi; lineer ekstrapolasyon
+        # bilimsel geçerliliğini tamamen yitirir, PALEOMAP/Scotese rekonstrüksiyonları gerek
+        # _plaka_warning() >1M = "🔴 Spekülatif Senaryo"
+        # 1B × 2.25e-7°/yıl × 0.005 ≈ 1.1° görsel kayma — küçük stop'larda etki minimal
+        "label":   "🔴 Spekülatif — Eğitsel Sezgi (-1 milyar → +1 milyar yıl)",
+        "short":   "Spekülatif",
         "stops":   [-1_000_000_000, -300_000_000, -100_000_000, -30_000_000, -10_000_000,
                     -3_000_000, -1_000_000, -300_000, -100_000, -10_000,
                     0,
