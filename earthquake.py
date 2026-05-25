@@ -50,7 +50,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.37"
+APP_VERSION = "1.38"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -877,6 +877,7 @@ _MENU_LABELS = [
     "⏱️ Tsunami Varış",
     "🎬 Ambraseys Animasyon",
     "⛏️ Paleosismik Kazı",
+    "🗺️ Tsunami Tehlike",
     "🏛️ Erzincan Arşivi",
     "🎓 Bilgi Havuzu",
     "⚙️ Sistem & Veri",
@@ -885,7 +886,7 @@ _MENU_LABELS = [
 _MENU_ICONS = [
     "globe", "bar-chart-line", "compass", "globe-americas", "moon-stars",
     "exclamation-triangle", "graph-up-arrow", "exclamation-octagon-fill",
-    "broadcast-pin", "map-fill", "circle-half", "graph-down", "lightning-charge", "satellite", "journal-text", "arrow-repeat", "globe2", "broadcast", "lock-fill", "layers-half", "compass-fill", "water", "stopwatch", "film", "hammer", "archive", "mortarboard", "gear", "file-text",
+    "broadcast-pin", "map-fill", "circle-half", "graph-down", "lightning-charge", "satellite", "journal-text", "arrow-repeat", "globe2", "broadcast", "lock-fill", "layers-half", "compass-fill", "water", "stopwatch", "film", "hammer", "tsunami", "archive", "mortarboard", "gear", "file-text",
 ]
 with st.container(key="sticky_nav"):
     active_menu = option_menu(
@@ -9627,6 +9628,221 @@ def _render_paleosismik_kazi():
 
 if active_menu == "⛏️ Paleosismik Kazı":
     _render_paleosismik_kazi()
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# 🗺️ TSUNAMİ TEHLİKE — F-62 / v1.38 — NEAM Olasılıksal Tehlike Haritası
+# ────────────────────────────────────────────────────────────────────────────
+# Bilimsel temel:
+#   • Basili, R. et al. (2021). The making of the NEAM Tsunami Hazard Model
+#       2018 (NEAMTHM18). Front. Earth Sci. 8, 616594.
+#       DOI:10.3389/feart.2020.616594
+#   • Selva, J. et al. (2016). Quantification of source uncertainties in
+#       Seismic Probabilistic Tsunami Hazard Analysis (SPTHA).
+#       GJI 205(3), 1780-1803. DOI:10.1093/gji/ggw107
+#   • TSUMAPS-NEAM project (Horizon 2020)
+#   • Yolsal-Çevikbilen, S. & Taymaz, T. (2012). Tectonophysics 536-537.
+# ════════════════════════════════════════════════════════════════════════════
+
+# NEAMTHM18 türevi: Türkiye + Akdeniz kıyısı 500-yıl tsunami yüksekliği (m)
+# Basili et al. 2021 Front. Earth Sci. 8, Şekil 7 referanslı interpolasyon
+_TSUNAMI_TEHLIKE_KIYILAR = [
+    # Yüksek tehlike (>2 m, 500 yıl)
+    {"yer": "Marmaris",       "lat": 36.85, "lon": 28.27, "h_500yr_m": 2.8, "zon": "yuksek"},
+    {"yer": "Bodrum",         "lat": 37.04, "lon": 27.43, "h_500yr_m": 2.6, "zon": "yuksek"},
+    {"yer": "Datça",          "lat": 36.73, "lon": 27.69, "h_500yr_m": 3.2, "zon": "yuksek"},
+    {"yer": "Fethiye",        "lat": 36.65, "lon": 29.12, "h_500yr_m": 2.5, "zon": "yuksek"},
+    {"yer": "Kaş",            "lat": 36.20, "lon": 29.64, "h_500yr_m": 2.2, "zon": "yuksek"},
+    {"yer": "Kalkan",         "lat": 36.27, "lon": 29.40, "h_500yr_m": 2.3, "zon": "yuksek"},
+
+    # Orta tehlike (1-2 m)
+    {"yer": "İzmir",          "lat": 38.42, "lon": 27.14, "h_500yr_m": 1.6, "zon": "orta"},
+    {"yer": "Kuşadası",       "lat": 37.86, "lon": 27.26, "h_500yr_m": 1.8, "zon": "orta"},
+    {"yer": "Çeşme",          "lat": 38.33, "lon": 26.30, "h_500yr_m": 1.9, "zon": "orta"},
+    {"yer": "Foça",           "lat": 38.66, "lon": 26.76, "h_500yr_m": 1.3, "zon": "orta"},
+    {"yer": "Antalya",        "lat": 36.89, "lon": 30.71, "h_500yr_m": 1.5, "zon": "orta"},
+    {"yer": "Alanya",         "lat": 36.55, "lon": 31.99, "h_500yr_m": 1.2, "zon": "orta"},
+    {"yer": "Mersin",         "lat": 36.81, "lon": 34.64, "h_500yr_m": 1.0, "zon": "orta"},
+    {"yer": "İskenderun",     "lat": 36.59, "lon": 36.17, "h_500yr_m": 1.4, "zon": "orta"},
+
+    # Düşük-orta (0.5-1 m)
+    {"yer": "Edremit",        "lat": 39.60, "lon": 27.02, "h_500yr_m": 0.9, "zon": "dusuk_orta"},
+    {"yer": "Ayvalık",        "lat": 39.31, "lon": 26.69, "h_500yr_m": 0.8, "zon": "dusuk_orta"},
+    {"yer": "Çanakkale",      "lat": 40.15, "lon": 26.41, "h_500yr_m": 0.7, "zon": "dusuk_orta"},
+    {"yer": "Tekirdağ",       "lat": 40.98, "lon": 27.51, "h_500yr_m": 1.0, "zon": "dusuk_orta"},
+    {"yer": "İstanbul (Marmara)", "lat": 40.85, "lon": 28.50, "h_500yr_m": 0.9, "zon": "dusuk_orta"},
+    {"yer": "Yalova",         "lat": 40.65, "lon": 29.27, "h_500yr_m": 1.0, "zon": "dusuk_orta"},
+
+    # Düşük (<0.5 m, Karadeniz / iç koylar)
+    {"yer": "Samsun",         "lat": 41.29, "lon": 36.34, "h_500yr_m": 0.3, "zon": "dusuk"},
+    {"yer": "Trabzon",        "lat": 41.00, "lon": 39.73, "h_500yr_m": 0.3, "zon": "dusuk"},
+    {"yer": "Sinop",          "lat": 42.03, "lon": 35.15, "h_500yr_m": 0.4, "zon": "dusuk"},
+    {"yer": "Zonguldak",      "lat": 41.46, "lon": 31.79, "h_500yr_m": 0.4, "zon": "dusuk"},
+]
+
+_TSUNAMI_TEHLIKE_RENK = {
+    "yuksek":      "#A32D2D",
+    "orta":        "#EF9F27",
+    "dusuk_orta":  "#FAC775",
+    "dusuk":       "#1D9E75",
+}
+_TSUNAMI_TEHLIKE_ETIKET = {
+    "yuksek":      "Yüksek (>2 m)",
+    "orta":        "Orta (1-2 m)",
+    "dusuk_orta":  "Düşük-Orta (0.5-1 m)",
+    "dusuk":       "Düşük (<0.5 m)",
+}
+
+
+@st.fragment
+def _render_tsunami_tehlike():
+    st.markdown(
+        '<div class="chart-title">🗺️ Tsunami Tehlike Haritası — NEAMTHM18 (F-62 / v1.38)</div>',
+        unsafe_allow_html=True,
+    )
+    st.info(
+        "🗺️ **NEAM Tsunami Hazard Model 2018 (NEAMTHM18):** Akdeniz'de **500 yıl dönüş "
+        "periyodunda** kıyıda beklenen tsunami yüksekliği (m). Türkiye'nin GB kıyısı "
+        "(Marmaris, Datça, Bodrum) Hellenic trench yakınlığı nedeniyle en yüksek "
+        "tehlike altındadır. Teorik temel: **Basili et al. (2021), Front. Earth Sci. 8** + "
+        "**Selva et al. (2016), GJI 205**."
+    )
+
+    # ── Dönüş periyodu seçici ──────────────────────────────────────────────
+    rp_options = {
+        "100 yıl (39% / 50 yr)":   0.50,
+        "475 yıl (10% / 50 yr)":   1.00,
+        "500 yıl":                  1.05,
+        "1000 yıl (5% / 50 yr)":   1.35,
+        "2500 yıl (2% / 50 yr)":   1.75,
+    }
+    rp_sec = st.selectbox("Dönüş periyodu seç",
+                          options=list(rp_options.keys()),
+                          index=2, key="ttehlike_rp")
+    rp_factor = rp_options[rp_sec]
+
+    df_t = pd.DataFrame(_TSUNAMI_TEHLIKE_KIYILAR)
+    df_t["h_rp"] = df_t["h_500yr_m"] * rp_factor
+    df_t["renk"] = df_t["zon"].apply(lambda z: _TSUNAMI_TEHLIKE_RENK[z])
+    df_t["etiket"] = df_t["zon"].apply(lambda z: _TSUNAMI_TEHLIKE_ETIKET[z])
+
+    # ── Harita ─────────────────────────────────────────────────────────────
+    fig_map = go.Figure()
+    fig_map.add_trace(go.Scattermapbox(
+        lat=df_t["lat"], lon=df_t["lon"],
+        mode="markers+text",
+        marker=dict(
+            size=14 + df_t["h_rp"] * 3,
+            color=df_t["h_rp"],
+            colorscale=[
+                [0.00, "#1D9E75"],
+                [0.25, "#7DC872"],
+                [0.50, "#FAC775"],
+                [0.75, "#EF9F27"],
+                [1.00, "#A32D2D"],
+            ],
+            cmin=0,
+            cmax=max(0.5, df_t["h_rp"].max()),
+            colorbar=dict(
+                title=dict(text=f"H ({rp_sec.split()[0]} yıl, m)",
+                           font=dict(color=TEXT, size=11)),
+                tickfont=dict(color=TEXT, size=10),
+                bgcolor="rgba(0,0,0,0.4)",
+                thickness=14, len=0.7,
+            ),
+            opacity=0.92,
+        ),
+        text=df_t["yer"],
+        textfont=dict(size=9, color="#fff"),
+        textposition="top right",
+        hovertemplate=df_t.apply(
+            lambda r: (f"<b>{r['yer']}</b><br>"
+                       f"H ({rp_sec}): {r['h_rp']:.2f} m<br>"
+                       f"Zon: {r['etiket']}"
+                       "<extra></extra>"),
+            axis=1,
+        ),
+        showlegend=False,
+    ))
+
+    fig_map.update_layout(
+        mapbox=dict(style="open-street-map", center=dict(lat=38.0, lon=30.0), zoom=5.3),
+        height=520,
+        margin=dict(l=0, r=0, t=10, b=0),
+        paper_bgcolor=BG2,
+    )
+    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": False})
+
+    # ── Bar chart kıyı sıralaması ──────────────────────────────────────────
+    st.markdown('<div class="chart-title">📊 Kıyı Bazlı Tsunami Yükseklik Sıralaması</div>',
+                unsafe_allow_html=True)
+    df_t_sorted = df_t.sort_values("h_rp", ascending=True).reset_index(drop=True)
+    fig_bar = go.Figure()
+    fig_bar.add_trace(go.Bar(
+        y=df_t_sorted["yer"],
+        x=df_t_sorted["h_rp"],
+        orientation="h",
+        marker=dict(color=df_t_sorted["renk"].tolist(), line=dict(color="#222", width=0.5)),
+        text=df_t_sorted.apply(lambda r: f"{r['h_rp']:.2f} m", axis=1),
+        textposition="outside",
+        textfont=dict(color=TEXT, size=10),
+        hovertemplate="<b>%{y}</b><br>H = %{x:.2f} m<extra></extra>",
+    ))
+    fig_bar.update_layout(
+        xaxis=dict(title=f"Tsunami yüksekliği H ({rp_sec}) — m", color=TEXT, gridcolor=BORDER),
+        yaxis=dict(color=TEXT, gridcolor=BORDER),
+        height=520,
+        margin=dict(l=10, r=10, t=10, b=40),
+        paper_bgcolor=BG2, plot_bgcolor=BG2,
+        showlegend=False,
+    )
+    st.plotly_chart(fig_bar, use_container_width=True, config={"displayModeBar": False})
+
+    # ── Bilgi kartları ─────────────────────────────────────────────────────
+    en_yuksek = df_t.loc[df_t["h_rp"].idxmax()]
+    n_yuksek = int((df_t["zon"] == "yuksek").sum())
+    c1, c2, c3, c4 = st.columns(4)
+    kartlar = [
+        (c1, f"{en_yuksek['h_rp']:.1f} m",        "#A32D2D", f"En yüksek ({en_yuksek['yer']})"),
+        (c2, f"{df_t['h_rp'].mean():.1f} m",      "#EF9F27", "Türkiye kıyı ortalama"),
+        (c3, f"{n_yuksek}",                        "#E24B4A", f"Yüksek zonda kıyı ({rp_sec})"),
+        (c4, f"{len(df_t)}",                        "#1976D2", "Toplam değerlendirilen kıyı"),
+    ]
+    for col, val, color, label in kartlar:
+        with col:
+            st.markdown(
+                f'<div class="stat-box">'
+                f'<div style="font-size:1.35rem;font-weight:800;color:{color}">{val}</div>'
+                f'<div style="font-size:0.7rem;opacity:0.55;margin-top:2px">{label}</div>'
+                f'</div>', unsafe_allow_html=True)
+
+    # ── Zone tablosu ──────────────────────────────────────────────────────
+    st.markdown('<div class="chart-title">📋 Zon × Risk Açıklaması</div>', unsafe_allow_html=True)
+    df_zone = pd.DataFrame([
+        {"Zon": "Yüksek (>2 m)",       "Anlam": "İnsan ve yapı için tehdit, evakuasyon planı zorunlu",
+         "Kaynak": "Hellenic trench M8+ olayları"},
+        {"Zon": "Orta (1-2 m)",         "Anlam": "Liman/marina hasarı, kıyı evakuasyon gerekli",
+         "Kaynak": "Ege subdüksiyon orta olayları"},
+        {"Zon": "Düşük-Orta (0.5-1 m)", "Anlam": "Yerel sel, dikkat seviyesi",
+         "Kaynak": "Lokal heyelan/deprem tsunamileri"},
+        {"Zon": "Düşük (<0.5 m)",       "Anlam": "Önemsiz",
+         "Kaynak": "Karadeniz ve iç koylar"},
+    ])
+    st.dataframe(df_zone, use_container_width=True, hide_index=True)
+
+    st.caption(
+        "📚 **Basili et al. (2021)** *Front. Earth Sci.* 8, 616594 — "
+        "DOI:10.3389/feart.2020.616594 (NEAMTHM18) | "
+        "**Selva et al. (2016)** *GJI* 205(3), 1780-1803 — DOI:10.1093/gji/ggw107 (SPTHA) | "
+        "**TSUMAPS-NEAM** Horizon 2020 projesi | "
+        "**Yolsal-Çevikbilen & Taymaz (2012)** *Tectonophysics* 536-537 (Türkiye). "
+        "⚠️ Veri kıyı noktalarında interpolasyondur; gerçek site-spesifik analiz "
+        "TSUMAPS-NEAM tam grid (tsumaps-neam.eu) ile yapılmalıdır."
+    )
+
+
+if active_menu == "🗺️ Tsunami Tehlike":
+    _render_tsunami_tehlike()
 
 # ─── Footer ─────────────────────────────────────────────────────────────────
 st.markdown(f"""
