@@ -48,7 +48,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.17.2"
+APP_VERSION = "1.17.3"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -1042,16 +1042,31 @@ def load_tectonic_plates():
                 "unknown":    "Tip: Sınıflandırılmamış",
             }[b_type])
             lines.append({
-                "isim":  " — ".join(label_parts),
-                "lats":  [c[1] for c in coords],
-                "lons":  [c[0] for c in coords],
-                "type":  b_type,
-                "color": style["color"],
-                "width": style["width"],
+                "isim":    " — ".join(label_parts),
+                "lats":    [c[1] for c in coords],
+                "lons":    [c[0] for c in coords],
+                "type":    b_type,
+                "color":   style["color"],
+                "width":   style["width"],
+                "plate_a": plate_a,  # PB2002 code (örn. "AT", "EU") — v1.17.3 toplu hareket için
+                "plate_b": plate_b,
             })
     return lines
 
 PLATE_LINES = load_tectonic_plates()
+
+# PB2002 (Bird 2003) sınır plaka kodları ↔ data/plate_velocities.json hız kodları
+# PB2002'de Anadolu "AT"; hız dosyasında "AN" — eşleme zorunlu.
+# Aegean Sea (AS) MORVEL56'da ayrı çözülmüyor, Anadolu'yla benzer hızda → AN.
+_PB2002_TO_VELOCITY_CODE = {
+    "AT": "AN",   # Anatolian   → Anadolu
+    "AS": "AN",   # Aegean Sea  ≈ Anadolu (NNR-MORVEL56'da AS yok)
+    "EU": "EU",   # Eurasian
+    "AF": "AF",   # African (Nubia)
+    "AR": "AR",   # Arabian
+    # Diğer global plakalar (NA, SA, PA, IN, AU, ...) hız dosyasında yok →
+    # ilgili sınırlar v1.17.3 toplu simülasyonda sabit kalır (kayma 0).
+}
 
 # ════════════════════════════════════════════════════════════════════════════
 # 🌍 Plaka Hız Vektörleri — v1.17 (Ajan 5)
@@ -4067,7 +4082,31 @@ def _plaka_build_figure(mode_key: str, focus_lat: float, focus_lon: float,
     for plate in PLATE_LINES:
         plates_by_type.setdefault(plate.get("type", "unknown"), []).append(plate)
 
-    # Erzincan trail için tüm frame'lerin (lat, lon) sırasını önceden hesapla
+    # v1.17.3 TOPLU HAREKET — her sınırın kendi hız ortalaması (frame-dışı pre-compute)
+    # PB2002 sınırı iki plakanın arasındadır → sınırın hızı = iki plakanın hız ORTALAMASI
+    # (gerçek tektonik approximation; tek-plaka deltası "tüm dünya AN ile kayıyor"
+    # yanılsamasını ortadan kaldırır).
+    vels_dict = load_plate_velocities(focus_lat, focus_lon)
+    border_dlat_yr = {}  # id(plate) → derece/yıl
+    border_dlon_yr = {}
+    for plate in PLATE_LINES:
+        p_a_code = _PB2002_TO_VELOCITY_CODE.get(plate.get("plate_a", ""))
+        p_b_code = _PB2002_TO_VELOCITY_CODE.get(plate.get("plate_b", ""))
+        v_a = vels_dict.get(p_a_code) if p_a_code else None
+        v_b = vels_dict.get(p_b_code) if p_b_code else None
+        if v_a and v_b:
+            dlat = (v_a["delta_lat_per_year"] + v_b["delta_lat_per_year"]) / 2.0
+            dlon = (v_a["delta_lon_per_year"] + v_b["delta_lon_per_year"]) / 2.0
+        elif v_a:
+            dlat, dlon = v_a["delta_lat_per_year"], v_a["delta_lon_per_year"]
+        elif v_b:
+            dlat, dlon = v_b["delta_lat_per_year"], v_b["delta_lon_per_year"]
+        else:
+            dlat, dlon = 0.0, 0.0  # hız bilinmeyen sınır → sabit kalır
+        border_dlat_yr[id(plate)] = dlat
+        border_dlon_yr[id(plate)] = dlon
+
+    # Erzincan trail — focus plakası (varsayılan AN) hızıyla kayar
     trail_positions = []
     for y in stops:
         dlat, dlon = _plaka_displacement_deg(plate_code, focus_lat, focus_lon, y)
@@ -4076,7 +4115,7 @@ def _plaka_build_figure(mode_key: str, focus_lat: float, focus_lon: float,
 
     frames = []
     for i, (cur_lat, cur_lon, cur_year, dlat_real, dlon_real) in enumerate(trail_positions):
-        # Kayan plaka sınırları (her tip ayrı trace + glow)
+        # Kayan plaka sınırları — her sınır KENDİ hızı × yıl × ölçek ile kaydırılır
         shifted_traces = []
         for b_type, plate_list in plates_by_type.items():
             if not plate_list:
@@ -4084,8 +4123,11 @@ def _plaka_build_figure(mode_key: str, focus_lat: float, focus_lon: float,
             color = type_color[b_type]
             lats_t, lons_t = [], []
             for plate in plate_list:
-                lats_t.extend([la + (cur_lat - focus_lat) for la in plate["lats"]] + [None])
-                lons_t.extend([lo + (cur_lon - focus_lon) for lo in plate["lons"]] + [None])
+                # Bu sınırın kümülatif kayması (v1.17.3 — toplu hareket)
+                bd_lat = border_dlat_yr[id(plate)] * cur_year * vis_scale
+                bd_lon = border_dlon_yr[id(plate)] * cur_year * vis_scale
+                lats_t.extend([la + bd_lat for la in plate["lats"]] + [None])
+                lons_t.extend([lo + bd_lon for lo in plate["lons"]] + [None])
             # Geniş yarı-saydam glow
             shifted_traces.append(go.Scattermapbox(
                 lat=lats_t, lon=lons_t, mode="lines",

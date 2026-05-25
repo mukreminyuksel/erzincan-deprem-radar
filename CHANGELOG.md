@@ -1,5 +1,43 @@
 # Changelog
 
+## v1.17.3 - 2026-05-26 — Plaka Simülasyonu: TOPLU HAREKET (kullanıcı bildirimi)
+
+**🌍 Bug fix — Plaka Simülasyonu artık çoklu plaka hareketini doğru gösteriyor:**
+
+Önceki davranış (yanlış):
+- Tek plaka (varsayılan Anadolu/AN) seçiliyor
+- Tüm PLATE_LINES (241 sınır) o tek plakanın delta'sıyla kayıyor
+- Görsel olarak: "Anadolu hızıyla bütün dünya kayıyor" yanılsaması
+
+Yeni davranış (v1.17.3 toplu hareket):
+- Tüm plakalar (AN/EU/AF/AR) AYNI ANDA, her biri kendi NNR-MORVEL56 hızıyla kayar
+- Her sınır iki plakanın (PlateA + PlateB) hız ortalamasıyla deforme olur
+  (sınır iki plakanın arasında olduğu için ortalama tektonik approximation'dır)
+- Erzincan (focus pin) bulunduğu plakanın (AN) hızıyla kayar — sabit kaldığı
+  yanılsama yok, kümülatif kayma gerçek değer
+- Görsel artık gerçek plaka tektoniğine uygun: NAFZ boyunca AT-EU farkı,
+  Bitlis-Zagros'ta AR-AT yaklaşması, Helenik Yay'da AF-AS subduction görünür
+
+Teknik değişiklikler:
+- `load_tectonic_plates()`: her sınır dict'ine `plate_a`, `plate_b` PB2002 kodları eklendi
+- `_PB2002_TO_VELOCITY_CODE`: PB2002 ↔ hız dosyası kodu eşleme tablosu
+  (AT → AN Anadolu, AS → AN Ege ≈ Anadolu, EU/AF/AR aynı)
+- `_plaka_build_figure()`: frame-dışı pre-compute, her sınır için
+  `border_dlat_yr[id(plate)]` ortalama hız lookup; frame'de
+  `bd_lat = border_dlat_yr × cur_year × vis_scale` her sınıra ayrı uygulanır
+- Performans: 241 plaka × 20 frame = 4820 hız hesabı yerine 241 pre-compute +
+  4820 lookup → çok daha hızlı
+
+Eşleme tablosu kapsamadığı global plakalar (NA, SA, PA, IN, AU vb.) için
+sınırlar sabit kalır (kayma 0) — bilimsel namus: hız bilgisi yoksa hareket yok.
+
+APP_VERSION 1.17.2 -> 1.17.3
+
+## v1.17.2 - 2026-05-26 — Özel gün sayısı sınırı kaldırıldı
+- Slider 1-365 → 1-3650 gün (≈10 yıl), number input sınırsız.
+- Sync mantığı clamp ile: input slider üst sınırını aşarsa slider 3650'de durur, state gerçek değeri tutar.
+- Paleoseismik 100+ yıl dönem analizleri için artık kısıt yok.
+
 ## v1.17.1 - 2026-05-26 — HOT-FIX: Python 3.9 uyumu + scroll bozulma rollback
 
 **🚨 İki kritik sorun düzeltildi (kullanıcı bildirdi):**
