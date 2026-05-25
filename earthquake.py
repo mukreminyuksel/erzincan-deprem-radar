@@ -48,7 +48,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.17.5"
+APP_VERSION = "1.18.1"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -856,13 +856,14 @@ _MENU_LABELS = [
     "🌍 Plaka Simülasyonu",
     "🔭 Astronomik Analiz",
     "🚨 Erken Uyarı",
+    "🏛️ Erzincan Arşivi",
     "🎓 Bilgi Havuzu",
     "⚙️ Sistem & Veri",
     "📝 Raporlar",
 ]
 _MENU_ICONS = [
     "globe", "bar-chart-line", "compass", "globe-americas", "moon-stars",
-    "exclamation-triangle", "mortarboard", "gear", "file-text",
+    "exclamation-triangle", "archive", "mortarboard", "gear", "file-text",
 ]
 with st.container(key="sticky_nav"):
     active_menu = option_menu(
@@ -3915,13 +3916,23 @@ _PLAKA_MODES = {
         "visual_scale_factor": 10.0,
     },
     "pal": {
-        "label":   "🪨 Paleografik — Spekülatif (-1.000.000 → +10.000.000 yıl)",
+        "label":   "🪨 Paleografik — Hiper-Spekülatif (-1 milyar → +1 milyar yıl)",
         "short":   "Paleografik",
-        "stops":   [-1_000_000, -500_000, -200_000, -100_000, -50_000, -20_000,
-                    -10_000, -3_000, -1_000, -300, 0, 300, 1_000, 3_000,
-                    10_000, 100_000, 1_000_000, 3_000_000, 7_000_000, 10_000_000],
+        # 21 frame log-spaced — milyar yıl ölçeğinde lineer GNSS-türevli
+        # ekstrapolasyon BİLİMSEL GEÇERLİLİĞİNİ tamamen yitirir; kıta sürüklenmesi
+        # (continental drift) Pangaea'dan beri non-lineer döngülerle yürür.
+        # _plaka_warning() 1M+ zaten "🔴 Spekülatif Senaryo" çıkarır; bu mode sadece
+        # eğitsel-sezgisel "büyük zaman ölçeğinde plakalar nereye gider" görselidir.
+        # visual_scale_factor=0.005: 1B × ~2.25e-7°/yıl × 0.005 ≈ 1.1° görsel kayma
+        # (ölçek küçük olduğundan <1M stop'larda görsel etki minimal kalır — kabul:
+        # Paleografik mode küçük yıl için değil, Jeodezik (±1M) daha hassas).
+        "stops":   [-1_000_000_000, -300_000_000, -100_000_000, -30_000_000, -10_000_000,
+                    -3_000_000, -1_000_000, -300_000, -100_000, -10_000,
+                    0,
+                    10_000, 100_000, 300_000, 1_000_000, 3_000_000, 10_000_000,
+                    30_000_000, 100_000_000, 300_000_000, 1_000_000_000],
         "default_idx": 10,  # 0
-        "visual_scale_factor": 1.0,
+        "visual_scale_factor": 0.005,
     },
 }
 
@@ -4766,6 +4777,295 @@ if active_menu == "🚨 Erken Uyarı":
             "Tipik kabuk hızları: vp=6.0 km/s, vs=3.5 km/s, vr=2.5 km/s. "
             "MMI yaklaşımı: `I = 1.5·M − 1.5·log₁₀(R) − 3.5` (ham GMPE, bölgesel kalibrasyon yapılmamış)."
         )
+
+# ════════════════════════════════════════════════════════════════════════════
+# 🏛️ ERZİNCAN ARŞİVİ — F-66 / v1.18 — Tarihi Depremler Analiz Paneli
+# Kaynaklar: Ambraseys & Finkel 1995, Barka 1996, Özalaybey 1993, Grosser 1998,
+#            Reilinger 2006 (GPS), Wallace-Schwartz-Coppersmith 1984 (paleoseismik)
+# ════════════════════════════════════════════════════════════════════════════
+ERZINCAN_TARIHI = [
+    {
+        "yil": 1939, "tarih": "26 Aralık 1939", "mw": 7.8, "ms": 7.8,
+        "lat": 39.77, "lon": 39.53, "derinlik_km": 20,
+        "kirik_uzunluk_km": 360, "kirik_yon": "KD-GB (N60E doğrultu atımlı)",
+        "can_kaybi": 32962, "yarali": 100000, "hasarli_koy": 116,
+        "etki_alani_km2": 45000,
+        "kaynak": "Barka, A. (1996). Slip distribution along the North Anatolian Fault. Bull. Seismol. Soc. Am., 86(5), 1238-1254.",
+        "kaynak2": "Ambraseys, N.N. & Finkel, C.F. (1995). The Seismicity of Turkey. Muhittin Salih Eren, İstanbul.",
+        "bilgi": "20. yüzyılın en yıkıcı Türkiye depremlerinden biri. 360 km'lik KAF segmenti kırıldı.",
+        "vay_be": "O gece saat 01:57'de uyku sırasında gerçekleşti. Yapılar 8-10 saniye içinde yıkıldı.",
+    },
+    {
+        "yil": 1992, "tarih": "13 Mart 1992", "mw": 6.8, "ms": 6.8,
+        "lat": 39.71, "lon": 39.60, "derinlik_km": 10,
+        "kirik_uzunluk_km": 55, "kirik_yon": "KD-GB sağ yanal atımlı",
+        "can_kaybi": 653, "yarali": 3850, "hasarli_koy": 52,
+        "etki_alani_km2": 5000,
+        "kaynak": "Özalaybey, S. et al. (1993). An analysis of the 1992 Erzincan earthquake sequence. Bull. Seismol. Soc. Am., 83(6), 1883-1893.",
+        "kaynak2": "Grosser, H. et al. (1998). The Erzincan (Turkey) earthquake sequence of March 1992. Geophys. J. Int., 134, 669-700.",
+        "bilgi": "55 km'lik segmentte kırılma. Artçı deprem dizisi 6 ay sürdü. Saat 18:17'de oldu.",
+        "vay_be": "Deprem tam akşam yemeği saatinde geldi. Şehrin eski taş binaları yıkılırken yeni yapılar ayakta kaldı — zemin etkisinin en çarpıcı kanıtı.",
+    },
+    {
+        "yil": 1784, "tarih": "1784 (kesin tarih belirsiz)", "mw": 7.0, "ms": None,
+        "lat": 39.75, "lon": 39.50, "derinlik_km": None,
+        "kirik_uzunluk_km": None, "kirik_yon": "KAF Erzincan segmenti",
+        "can_kaybi": None, "yarali": None, "hasarli_koy": None,
+        "etki_alani_km2": None,
+        "kaynak": "Ambraseys, N.N. & Finkel, C.F. (1995). The Seismicity of Turkey. Muhittin Salih Eren, İstanbul. s.182-185.",
+        "kaynak2": None,
+        "bilgi": "Osmanlı dönemi tarihi kayıtlardan derlendi. KAF Erzincan segmentinin periyodik kırılmasını destekler.",
+        "vay_be": "Yazılı tarih bu depremi kaydetti — fay 1939'dan 155 yıl önce de aynı yerde kırılmıştı.",
+    },
+    {
+        "yil": 1901, "tarih": "9 Mayıs 1901", "mw": 6.5, "ms": None,
+        "lat": 39.8, "lon": 39.4, "derinlik_km": None,
+        "kirik_uzunluk_km": None, "kirik_yon": "KAF",
+        "can_kaybi": None, "yarali": None, "hasarli_koy": None,
+        "etki_alani_km2": None,
+        "kaynak": "Ambraseys, N.N. & Finkel, C.F. (1995). The Seismicity of Turkey. s.187.",
+        "kaynak2": None,
+        "bilgi": "1939 öncesi bölgede kaydedilen orta büyüklükte deprem.",
+        "vay_be": None,
+    },
+]
+
+
+@st.fragment
+def _render_erzincan_arsivi():
+    st.markdown(
+        '<div class="chart-title">🏛️ Erzincan Arşivi — Tarihi Depremler Analiz Paneli (F-66 / v1.18)</div>',
+        unsafe_allow_html=True,
+    )
+    st.caption(
+        "1784–1992 arası Erzincan ve çevresinde Kuzey Anadolu Fayı (KAF) Erzincan segmentinde "
+        "gerçekleşen büyük depremlerin bilimsel arşivi. Kaynaklar: Ambraseys & Finkel 1995, "
+        "Barka 1996, Özalaybey 1993, Grosser 1998, Reilinger 2006."
+    )
+
+    df_e = pd.DataFrame(ERZINCAN_TARIHI)
+
+    # ── Bölüm A: Özet metrik kartları ──────────────────────────────────────
+    cA1, cA2, cA3, cA4 = st.columns(4)
+    cA1.metric("💀 Toplam Kayıp (1939 + 1992)", "33.615 can",
+               help="32.962 (1939) + 653 (1992) — Barka 1996 & Özalaybey 1993")
+    cA2.metric("📏 En Büyük Kırık", "360 km",
+               help="1939 Erzincan Ms 7.8 — Barka 1996, KAF segmenti")
+    cA3.metric("🔁 Ort. Tekrar Periyodu", "~155 yıl",
+               help="1784 → 1939 arası, Ambraseys & Finkel 1995")
+    cA4.metric("⏩ KAF Kayma Hızı", "18 mm/yıl",
+               help="Barka 1996; Reilinger et al. 2006 GPS")
+
+    # ── Bölüm B: İnteraktif zaman çizelgesi (Plotly scatter) ───────────────
+    st.markdown('<div class="chart-title">⏱️ Zaman Çizelgesi (1700–2026)</div>',
+                unsafe_allow_html=True)
+
+    casualty = df_e["can_kaybi"].fillna(0).astype(float).clip(lower=0)
+    bubble = np.where(casualty > 0, np.sqrt(casualty) / 3.0 + 12, 12)
+
+    fig_tl = go.Figure()
+    # Karakteristik Mw 7.8 eşik şeridi (arka plan)
+    fig_tl.add_shape(
+        type="rect", x0=1700, x1=2030, y0=7.7, y1=8.0,
+        fillcolor="rgba(200,200,200,0.12)", line=dict(width=0), layer="below",
+    )
+    fig_tl.add_annotation(
+        x=1710, y=7.85, text="Mw 7.8 karakteristik deprem eşiği",
+        showarrow=False, font=dict(color="#aaa", size=10), xanchor="left",
+    )
+
+    customdata = np.stack([
+        df_e["tarih"].fillna("?").astype(str).values,
+        df_e["can_kaybi"].fillna(-1).astype(float).values,
+        df_e["kaynak"].fillna("?").astype(str).values,
+    ], axis=-1)
+
+    fig_tl.add_trace(go.Scatter(
+        x=df_e["yil"], y=df_e["mw"],
+        mode="markers+text",
+        marker=dict(
+            size=bubble,
+            color=df_e["mw"],
+            colorscale="Reds", cmin=6.0, cmax=8.0,
+            showscale=True,
+            colorbar=dict(title="Mw", thickness=12, len=0.7),
+            line=dict(width=1, color="#fff"),
+        ),
+        text=df_e["yil"].astype(str),
+        textposition="top center",
+        textfont=dict(size=10, color="#fff"),
+        customdata=customdata,
+        hovertemplate=(
+            "<b>%{customdata[0]}</b><br>"
+            "Mw: %{y:.1f}<br>"
+            "Can kaybı: %{customdata[1]}<br>"
+            "<i>%{customdata[2]}</i><extra></extra>"
+        ),
+        name="Tarihi depremler",
+    ))
+    fig_tl.update_layout(
+        height=380,
+        plot_bgcolor=BG2, paper_bgcolor=BG2,
+        font=dict(color=TEXT, size=11),
+        xaxis=dict(title="Yıl", range=[1700, 2030], gridcolor="#222"),
+        yaxis=dict(title="Mw", range=[5.8, 8.3], gridcolor="#222"),
+        margin=dict(t=20, b=40, l=50, r=20),
+        showlegend=False,
+    )
+    st.plotly_chart(fig_tl, use_container_width=True, key="erz_arsiv_timeline")
+
+    # ── Bölüm C: Harita — kırık hatları ────────────────────────────────────
+    st.markdown('<div class="chart-title">🗺️ Tarihi Kırık Hatları & Konumlar</div>',
+                unsafe_allow_html=True)
+
+    fig_map = go.Figure()
+    # 1939 — 360 km KAF segmenti (39.77,39.53 → 39.50,42.00 yaklaşık)
+    fig_map.add_trace(go.Scattermapbox(
+        lon=[39.53, 42.00], lat=[39.77, 39.50],
+        mode="lines",
+        line=dict(width=6, color="#ff3333"),
+        name="1939 kırığı (360 km)",
+        hovertemplate="1939 Mw 7.8 — 360 km KAF segmenti<extra></extra>",
+    ))
+    # 1992 — 55 km kırık
+    fig_map.add_trace(go.Scattermapbox(
+        lon=[39.60, 40.20], lat=[39.71, 39.65],
+        mode="lines",
+        line=dict(width=4, color="#3399ff"),
+        name="1992 kırığı (55 km)",
+        hovertemplate="1992 Mw 6.8 — 55 km KAF segmenti<extra></extra>",
+    ))
+    # Depremler — boyut Mw ile orantılı
+    fig_map.add_trace(go.Scattermapbox(
+        lon=df_e["lon"], lat=df_e["lat"],
+        mode="markers",
+        marker=dict(size=df_e["mw"] * 4 + 4, color="#ffcc00",
+                    opacity=0.85),
+        text=[f"{r['tarih']} — Mw {r['mw']}" for r in ERZINCAN_TARIHI],
+        hovertemplate="<b>%{text}</b><extra></extra>",
+        name="Tarihi depremler",
+    ))
+    # Erzincan merkez
+    fig_map.add_trace(go.Scattermapbox(
+        lon=[ERZ_LON], lat=[ERZ_LAT],
+        mode="markers+text",
+        marker=dict(size=14, color="#00ff66"),
+        text=["📍 Erzincan"], textposition="top right",
+        textfont=dict(color="#fff", size=12),
+        name="Erzincan", hoverinfo="text",
+    ))
+    fig_map.update_layout(
+        height=480,
+        mapbox=dict(
+            style="open-street-map",
+            center=dict(lat=39.7, lon=40.6),
+            zoom=6.3,
+        ),
+        margin=dict(t=10, b=10, l=10, r=10),
+        legend=dict(bgcolor="rgba(0,0,0,0.55)",
+                    font=dict(color="#fff", size=11),
+                    x=0.01, y=0.99),
+    )
+    st.plotly_chart(fig_map, use_container_width=True, key="erz_arsiv_map")
+    st.caption(
+        "🛰️ **Not:** Mapbox satellite-streets stili token gerektirdiği için "
+        "ücretsiz **open-street-map** kullanıldı. Kırık koordinatları yaklaşık; "
+        "ana referanslar: Barka 1996 (1939) ve Özalaybey 1993 (1992)."
+    )
+
+    # ── Bölüm D: Detay kartı ───────────────────────────────────────────────
+    st.markdown('<div class="chart-title">📜 Detay Kartı — Seçili Deprem</div>',
+                unsafe_allow_html=True)
+
+    secim = st.selectbox(
+        "Bir deprem seç:",
+        options=[f"{e['yil']} — {e['tarih']} (Mw {e['mw']})" for e in ERZINCAN_TARIHI],
+        index=0, key="erz_arsiv_select",
+    )
+    secim_yil = int(secim.split(" — ")[0])
+    eq = next(e for e in ERZINCAN_TARIHI if e["yil"] == secim_yil)
+
+    cd1, cd2 = st.columns(2)
+    with cd1:
+        st.markdown(f"### {eq['tarih']} — Mw {eq['mw']}")
+        st.markdown(f"**📍 Konum:** {eq['lat']:.2f}°N {eq['lon']:.2f}°E")
+        if eq.get("ms"):
+            st.markdown(f"**📐 Yüzey büyüklüğü (Ms):** {eq['ms']}")
+        if eq.get("derinlik_km"):
+            st.markdown(f"**⬇️ Derinlik:** {eq['derinlik_km']} km")
+        if eq.get("kirik_uzunluk_km"):
+            st.markdown(f"**📏 Kırık uzunluğu:** {eq['kirik_uzunluk_km']} km")
+        if eq.get("kirik_yon"):
+            st.markdown(f"**🧭 Kırık yönelimi:** {eq['kirik_yon']}")
+    with cd2:
+        if eq.get("can_kaybi"):
+            st.markdown(f"**💀 Can kaybı:** {eq['can_kaybi']:,}")
+        else:
+            st.markdown("**💀 Can kaybı:** _kayıt yok_")
+        if eq.get("yarali"):
+            st.markdown(f"**🩹 Yaralı:** {eq['yarali']:,}")
+        if eq.get("hasarli_koy"):
+            st.markdown(f"**🏘️ Hasarlı köy:** {eq['hasarli_koy']}")
+        if eq.get("etki_alani_km2"):
+            st.markdown(f"**📐 Etki alanı:** {eq['etki_alani_km2']:,} km²")
+
+    st.markdown(f"_{eq['bilgi']}_")
+
+    if eq.get("vay_be"):
+        st.markdown(
+            f"""<div style="background:#1a1a2e;border-left:4px solid #ffcc00;
+                          border-radius:6px;padding:12px 16px;margin:10px 0;color:#ffe082">
+                <b>🤯 Vay be faktörü:</b> {eq['vay_be']}
+            </div>""",
+            unsafe_allow_html=True,
+        )
+
+    st.info(f"📚 **Birincil kaynak:** {eq['kaynak']}")
+    if eq.get("kaynak2"):
+        st.info(f"📚 **İkincil kaynak:** {eq['kaynak2']}")
+
+    # ── Bölüm E: Slip deficit hesabı ───────────────────────────────────────
+    st.markdown(
+        '<div class="chart-title">📉 Mevcut Slip Deficit — KAF Erzincan Segmenti (1939 sonrası)</div>',
+        unsafe_allow_html=True,
+    )
+
+    YIL_SON = 2026
+    YIL_1939 = 1939
+    KAYMA_HIZI_MM_YIL = 18.0
+    KARAKTERISTIK_KAYMA_M = 7.0  # 1939 co-seismik kayma yaklaşımı
+    gecen_yil = YIL_SON - YIL_1939
+    birikim_mm = gecen_yil * KAYMA_HIZI_MM_YIL
+    birikim_m = birikim_mm / 1000.0
+    progress_val = min(1.0, birikim_m / KARAKTERISTIK_KAYMA_M)
+
+    cE1, cE2, cE3 = st.columns(3)
+    cE1.metric("⌛ Son büyük depremden", f"{gecen_yil} yıl")
+    cE2.metric("📏 Birikimli kayma", f"{birikim_m:.2f} m",
+               help=f"{gecen_yil} yıl × {KAYMA_HIZI_MM_YIL:.0f} mm/yıl")
+    cE3.metric("🎯 Karakteristik kayma", f"~{KARAKTERISTIK_KAYMA_M:.0f} m",
+               help="1939 olayı co-seismik kayma — Barka 1996")
+
+    st.progress(
+        progress_val,
+        text=f"Mevcut Slip Deficit: %{progress_val*100:.0f} "
+             f"(karakteristik {KARAKTERISTIK_KAYMA_M:.0f} m'ye göre)",
+    )
+
+    st.caption(
+        f"📚 **Hesap:** {gecen_yil} × {KAYMA_HIZI_MM_YIL:.0f} mm = "
+        f"{birikim_mm:,.0f} mm ≈ {birikim_m:.2f} m. "
+        "**Kaynaklar:** Barka, A. (1996) *Bull. Seismol. Soc. Am.* 86(5), 1238-1254; "
+        "Reilinger, R. et al. (2006) GPS constraints on continental deformation in "
+        "the Africa-Arabia-Eurasia continental collision zone, *J. Geophys. Res.*, "
+        "111, B05411, doi:10.1029/2005JB004051. "
+        "⚠️ Lineer interseismik birikim modeli — viskoelastik gevşeme ve fay döngüsü modellenmedi; "
+        "gerçek deprem zamanlaması Wallace–Schwartz–Coppersmith 1984 paleoseismik dağılımına tabidir."
+    )
+
+
+if active_menu == "🏛️ Erzincan Arşivi":
+    _render_erzincan_arsivi()
 
 # ─── Footer ─────────────────────────────────────────────────────────────────
 st.markdown(f"""
