@@ -50,7 +50,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.19.1"
+APP_VERSION = "1.20"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -859,6 +859,7 @@ _MENU_LABELS = [
     "🔭 Astronomik Analiz",
     "🚨 Erken Uyarı",
     "📈 Artçı Tahmin",
+    "🔴 Sismik Açık",
     "🏛️ Erzincan Arşivi",
     "🎓 Bilgi Havuzu",
     "⚙️ Sistem & Veri",
@@ -866,7 +867,8 @@ _MENU_LABELS = [
 ]
 _MENU_ICONS = [
     "globe", "bar-chart-line", "compass", "globe-americas", "moon-stars",
-    "exclamation-triangle", "graph-up-arrow", "archive", "mortarboard", "gear", "file-text",
+    "exclamation-triangle", "graph-up-arrow", "exclamation-octagon-fill",
+    "archive", "mortarboard", "gear", "file-text",
 ]
 with st.container(key="sticky_nav"):
     active_menu = option_menu(
@@ -5311,6 +5313,270 @@ def _render_erzincan_arsivi():
 
 if active_menu == "🏛️ Erzincan Arşivi":
     _render_erzincan_arsivi()
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# 🔴 SİSMİK AÇIK — F-63 / v1.20 — KAF Seismic Gap Haritası
+# ────────────────────────────────────────────────────────────────────────────
+# Bilimsel temel:
+#   • Toksöz et al. 1979 — Seismicity & tectonics of Turkey
+#   • McCann et al. 1979 — Seismic gaps & plate tectonics, PAGEOPH 117
+#   • Barka 1996 — Slip distribution along NAF, BSSA 86(5), 1238-1254
+#   • Stein et al. 1997 — Progressive failure on NAF, JGR 102(B12), 27587-27601
+#   • Parsons 2004 — Marmara/Istanbul gap, JGR
+#   • Ambraseys & Jackson 2000 — Saros, Geophys. J. Int.
+# ════════════════════════════════════════════════════════════════════════════
+
+KAF_SEGMENTLER = [
+    {
+        "id": "S01", "ad": "Erzincan Segmenti",
+        "lat1": 39.77, "lon1": 36.80, "lat2": 39.77, "lon2": 39.53,
+        "son_buyuk_deprem_yil": 1939, "buyukluk": 7.8,
+        "kayma_hizi_mm_yil": 18.0, "kirik_uzunluk_km": 120,
+        "beklenen_tekrar_yil": 250,
+        "slip_deficit_m": round((2026 - 1939) * 18.0 / 1000, 2),
+        "risk": "orta",
+        "kaynak": "Barka 1996, BSSA 86(5)",
+    },
+    {
+        "id": "S02", "ad": "Niksar-Erbaa Segmenti",
+        "lat1": 40.60, "lon1": 36.20, "lat2": 40.70, "lon2": 37.50,
+        "son_buyuk_deprem_yil": 1942, "buyukluk": 7.0,
+        "kayma_hizi_mm_yil": 18.0, "kirik_uzunluk_km": 110,
+        "beklenen_tekrar_yil": 200,
+        "slip_deficit_m": round((2026 - 1942) * 18.0 / 1000, 2),
+        "risk": "orta",
+        "kaynak": "Barka 1996, BSSA 86(5)",
+    },
+    {
+        "id": "S03", "ad": "Tosya-Kastamonu Segmenti",
+        "lat1": 40.80, "lon1": 33.50, "lat2": 41.00, "lon2": 35.80,
+        "son_buyuk_deprem_yil": 1943, "buyukluk": 7.6,
+        "kayma_hizi_mm_yil": 20.0, "kirik_uzunluk_km": 280,
+        "beklenen_tekrar_yil": 300,
+        "slip_deficit_m": round((2026 - 1943) * 20.0 / 1000, 2),
+        "risk": "orta",
+        "kaynak": "Stein et al. 1997, JGR 102",
+    },
+    {
+        "id": "S04", "ad": "Bolu-Düzce Segmenti",
+        "lat1": 40.75, "lon1": 31.00, "lat2": 40.80, "lon2": 32.50,
+        "son_buyuk_deprem_yil": 1999, "buyukluk": 7.2,
+        "kayma_hizi_mm_yil": 22.0, "kirik_uzunluk_km": 100,
+        "beklenen_tekrar_yil": 250,
+        "slip_deficit_m": round((2026 - 1999) * 22.0 / 1000, 2),
+        "risk": "dusuk",
+        "kaynak": "Barka et al. 2002, BSSA",
+    },
+    {
+        "id": "S05", "ad": "Marmara (İstanbul) Segmenti",
+        "lat1": 40.80, "lon1": 27.50, "lat2": 40.95, "lon2": 29.10,
+        "son_buyuk_deprem_yil": 1766, "buyukluk": 7.1,
+        "kayma_hizi_mm_yil": 22.0, "kirik_uzunluk_km": 150,
+        "beklenen_tekrar_yil": 250,
+        "slip_deficit_m": round((2026 - 1766) * 22.0 / 1000, 2),
+        "risk": "yuksek",
+        "kaynak": "Parsons 2004, JGR; Ambraseys 2002, J. Seismol.",
+    },
+    {
+        "id": "S06", "ad": "Saros Körfezi Segmenti",
+        "lat1": 40.60, "lon1": 26.00, "lat2": 40.75, "lon2": 27.30,
+        "son_buyuk_deprem_yil": 1912, "buyukluk": 7.4,
+        "kayma_hizi_mm_yil": 20.0, "kirik_uzunluk_km": 120,
+        "beklenen_tekrar_yil": 250,
+        "slip_deficit_m": round((2026 - 1912) * 20.0 / 1000, 2),
+        "risk": "yuksek",
+        "kaynak": "Ambraseys & Jackson 2000, Geophys. J. Int.",
+    },
+]
+
+_KAF_RISK_RENK = {
+    "yuksek": "#E24B4A",
+    "orta":   "#EF9F27",
+    "dusuk":  "#1D9E75",
+}
+_KAF_RISK_KALINLIK = {"yuksek": 6, "orta": 4, "dusuk": 2}
+_KAF_RISK_ETIKET   = {"yuksek": "Yüksek", "orta": "Orta", "dusuk": "Düşük"}
+
+
+@st.fragment
+def _render_sismik_acik():
+    st.markdown(
+        '<div class="chart-title">🔴 Sismik Açık (Seismic Gap) — KAF Segmentleri (F-63 / v1.20)</div>',
+        unsafe_allow_html=True,
+    )
+    st.info(
+        "🔴 **Sismik Açık (Seismic Gap):** Uzun süredir kırılmamış ve stres biriktirmiş fay "
+        "segmentleri. Teorik temel: **McCann et al. (1979), PAGEOPH 117** — büyük depremlerin "
+        "uzun süre kırılmamış segmentlerde yoğunlaşma eğilimi."
+    )
+
+    YIL_SIMDI = 2026
+
+    # ── HARİTA: Plotly Scattermapbox lines + etiketler ─────────────────────
+    fig_map = go.Figure()
+    for seg in KAF_SEGMENTLER:
+        renk = _KAF_RISK_RENK[seg["risk"]]
+        kalinlik = _KAF_RISK_KALINLIK[seg["risk"]]
+        gecen = YIL_SIMDI - seg["son_buyuk_deprem_yil"]
+        hover = (
+            f"<b>{seg['ad']}</b><br>"
+            f"Son büyük deprem: {seg['son_buyuk_deprem_yil']} (Mw {seg['buyukluk']:.1f})<br>"
+            f"Geçen süre: {gecen} yıl<br>"
+            f"Slip deficit: {seg['slip_deficit_m']:.2f} m<br>"
+            f"Kayma hızı: {seg['kayma_hizi_mm_yil']:.0f} mm/yıl<br>"
+            f"Kırık uzunluğu: {seg['kirik_uzunluk_km']:.0f} km<br>"
+            f"Beklenen tekrar: ~{seg['beklenen_tekrar_yil']} yıl<br>"
+            f"Risk: {_KAF_RISK_ETIKET[seg['risk']]}<br>"
+            f"Kaynak: {seg['kaynak']}"
+            "<extra></extra>"
+        )
+        fig_map.add_trace(go.Scattermapbox(
+            lat=[seg["lat1"], seg["lat2"]],
+            lon=[seg["lon1"], seg["lon2"]],
+            mode="lines",
+            line=dict(width=kalinlik, color=renk),
+            name=f"{seg['id']} — {seg['ad']}",
+            hovertemplate=hover,
+            showlegend=False,
+        ))
+        # Segment ortasına etiket
+        mid_lat = (seg["lat1"] + seg["lat2"]) / 2
+        mid_lon = (seg["lon1"] + seg["lon2"]) / 2
+        fig_map.add_trace(go.Scattermapbox(
+            lat=[mid_lat], lon=[mid_lon],
+            mode="markers+text",
+            marker=dict(size=9, color=renk),
+            text=[f"{seg['ad'].split(' ')[0]} ({seg['son_buyuk_deprem_yil']})"],
+            textposition="top right",
+            textfont=dict(size=11, color="#ffffff"),
+            hoverinfo="skip",
+            showlegend=False,
+        ))
+
+    # Legend için 3 dummy trace (risk seviyeleri)
+    for risk_key in ("yuksek", "orta", "dusuk"):
+        fig_map.add_trace(go.Scattermapbox(
+            lat=[None], lon=[None],
+            mode="lines",
+            line=dict(width=_KAF_RISK_KALINLIK[risk_key], color=_KAF_RISK_RENK[risk_key]),
+            name=f"{_KAF_RISK_ETIKET[risk_key]} risk",
+            hoverinfo="skip",
+        ))
+
+    fig_map.update_layout(
+        mapbox=dict(style="open-street-map", center=dict(lat=39.5, lon=33.0), zoom=5),
+        height=520,
+        margin=dict(l=0, r=0, t=10, b=0),
+        paper_bgcolor=BG2,
+        legend=dict(
+            orientation="h", yanchor="bottom", y=1.0, xanchor="left", x=0.0,
+            bgcolor="rgba(0,0,0,0)", font=dict(color=TEXT, size=11),
+        ),
+    )
+    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": False})
+
+    # ── GANTT ŞERİDİ: Son depremden bugüne geçen süre ──────────────────────
+    st.markdown(
+        '<div class="chart-title">📊 Son Büyük Depremden Bu Yana Geçen Süre (Gantt)</div>',
+        unsafe_allow_html=True,
+    )
+    df_gantt = pd.DataFrame([
+        {
+            "Segment":  f"{seg['id']} — {seg['ad']}",
+            "Baslangic": seg["son_buyuk_deprem_yil"],
+            "Bitis":     YIL_SIMDI,
+            "Sure":      YIL_SIMDI - seg["son_buyuk_deprem_yil"],
+            "Risk":      seg["risk"],
+            "SonYil":    seg["son_buyuk_deprem_yil"],
+            "Mw":        seg["buyukluk"],
+        }
+        for seg in KAF_SEGMENTLER
+    ])
+    # Uzun bar = uzun süredir kırılmamış = tehlike (azalan sıra)
+    df_gantt = df_gantt.sort_values("Sure", ascending=True).reset_index(drop=True)
+
+    fig_gantt = go.Figure()
+    for _, row in df_gantt.iterrows():
+        renk = _KAF_RISK_RENK[row["Risk"]]
+        fig_gantt.add_trace(go.Bar(
+            y=[row["Segment"]],
+            x=[row["Sure"]],
+            base=row["Baslangic"],
+            orientation="h",
+            marker=dict(color=renk, line=dict(color="#222", width=0.5)),
+            text=f"{row['SonYil']} • Mw {row['Mw']:.1f}",
+            textposition="inside",
+            insidetextanchor="start",
+            textfont=dict(color="#ffffff", size=11),
+            hovertemplate=(
+                f"<b>{row['Segment']}</b><br>"
+                f"Son deprem: {row['SonYil']} (Mw {row['Mw']:.1f})<br>"
+                f"Geçen süre: {row['Sure']} yıl"
+                "<extra></extra>"
+            ),
+            showlegend=False,
+        ))
+
+    # "Şu an" dikey çizgisi
+    fig_gantt.add_vline(
+        x=YIL_SIMDI, line_width=2, line_dash="dash", line_color="#ffffff",
+        annotation_text=f"Şu an ({YIL_SIMDI})",
+        annotation_position="top right",
+        annotation_font_color="#ffffff",
+    )
+
+    fig_gantt.update_layout(
+        title=dict(
+            text="KAF Segmentleri — Son Büyük Depremden Bu Yana Geçen Süre",
+            font=dict(color=TEXT, size=14),
+        ),
+        xaxis=dict(
+            title="Yıl", range=[1700, YIL_SIMDI + 30],
+            color=TEXT, gridcolor=BORDER,
+        ),
+        yaxis=dict(color=TEXT, gridcolor=BORDER),
+        height=360,
+        margin=dict(l=10, r=10, t=50, b=40),
+        paper_bgcolor=BG2,
+        plot_bgcolor=BG2,
+        bargap=0.35,
+    )
+    st.plotly_chart(fig_gantt, use_container_width=True, config={"displayModeBar": False})
+
+    # ── ÖZET TABLO ─────────────────────────────────────────────────────────
+    st.markdown('<div class="chart-title">📋 Segment Özeti</div>', unsafe_allow_html=True)
+    df_tablo = pd.DataFrame([
+        {
+            "Segment":           f"{seg['id']} — {seg['ad']}",
+            "Son Deprem":        seg["son_buyuk_deprem_yil"],
+            "Mw":                seg["buyukluk"],
+            "Slip Deficit (m)":  seg["slip_deficit_m"],
+            "Kayma (mm/yıl)":    seg["kayma_hizi_mm_yil"],
+            "Kırık (km)":        seg["kirik_uzunluk_km"],
+            "Beklenen Tekrar (yıl)": seg["beklenen_tekrar_yil"],
+            "Risk":              _KAF_RISK_ETIKET[seg["risk"]],
+        }
+        for seg in KAF_SEGMENTLER
+    ])
+    st.dataframe(df_tablo, use_container_width=True, hide_index=True)
+
+    # ── KAYNAK ─────────────────────────────────────────────────────────────
+    st.caption(
+        "📚 **Kaynaklar:** Barka, A. (1996) *Bull. Seismol. Soc. Am.* 86(5), 1238-1254 | "
+        "Stein, R.S. et al. (1997) *J. Geophys. Res.* 102(B12), 27587-27601 | "
+        "Parsons, T. (2004) *J. Geophys. Res.* (Marmara/İstanbul gap) | "
+        "McCann, W.R. et al. (1979) *PAGEOPH* 117, 1082-1147 | "
+        "Toksöz, M.N. et al. (1979) Seismicity & tectonics of Turkey | "
+        "Ambraseys & Jackson (2000) *Geophys. J. Int.* (Saros). "
+        "⚠️ Slip deficit = (2026 − son deprem yılı) × kayma hızı; lineer interseismik birikim. "
+        "Gerçek deprem zamanlaması Wallace–Schwartz–Coppersmith 1984 paleoseismik "
+        "dağılımına ve viskoelastik gevşemeye bağlıdır."
+    )
+
+
+if active_menu == "🔴 Sismik Açık":
+    _render_sismik_acik()
 
 # ─── Footer ─────────────────────────────────────────────────────────────────
 st.markdown(f"""
