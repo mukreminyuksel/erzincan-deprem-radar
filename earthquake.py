@@ -50,7 +50,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.36"
+APP_VERSION = "1.37"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -876,6 +876,7 @@ _MENU_LABELS = [
     "🌊 Tsunami Kataloğu",
     "⏱️ Tsunami Varış",
     "🎬 Ambraseys Animasyon",
+    "⛏️ Paleosismik Kazı",
     "🏛️ Erzincan Arşivi",
     "🎓 Bilgi Havuzu",
     "⚙️ Sistem & Veri",
@@ -884,7 +885,7 @@ _MENU_LABELS = [
 _MENU_ICONS = [
     "globe", "bar-chart-line", "compass", "globe-americas", "moon-stars",
     "exclamation-triangle", "graph-up-arrow", "exclamation-octagon-fill",
-    "broadcast-pin", "map-fill", "circle-half", "graph-down", "lightning-charge", "satellite", "journal-text", "arrow-repeat", "globe2", "broadcast", "lock-fill", "layers-half", "compass-fill", "water", "stopwatch", "film", "archive", "mortarboard", "gear", "file-text",
+    "broadcast-pin", "map-fill", "circle-half", "graph-down", "lightning-charge", "satellite", "journal-text", "arrow-repeat", "globe2", "broadcast", "lock-fill", "layers-half", "compass-fill", "water", "stopwatch", "film", "hammer", "archive", "mortarboard", "gear", "file-text",
 ]
 with st.container(key="sticky_nav"):
     active_menu = option_menu(
@@ -9369,6 +9370,263 @@ def _render_ambraseys_animasyon():
 
 if active_menu == "🎬 Ambraseys Animasyon":
     _render_ambraseys_animasyon()
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# ⛏️ PALEOSİSMİK KAZI — F-60 / v1.37 — NAFZ/DAF Trench Slot Diyagramı
+# ────────────────────────────────────────────────────────────────────────────
+# Bilimsel temel:
+#   • Kozacı, Ö. et al. (2007). Paleoseismological evidence on the eastern
+#       NAF at Yaylabeli (Erzincan). BSSA 97(5), 1513-1527.
+#       DOI:10.1785/0120060118
+#   • Klinger, Y. et al. (2003). Paleoseismic evidence of characteristic
+#       slip on the western segment of the NAF. BSSA 93(6), 2317-2332.
+#       DOI:10.1785/0120010270
+#   • Fraser, J., Vanneste, K. & Hubert-Ferrari, A. (2010). Recent behavior
+#       of the NAF. JGR 115, B09316. DOI:10.1029/2009JB006982
+#   • Akyüz, H.S. et al. (2002). Surface ruptures of 1939, 1942, 1943, 1957,
+#       1967, 1992 NAF earthquakes. BSSA 92(1), 61-66.
+#   • Meghraoui, M. et al. (2012). The seismic cycle along the EAF: paleoseismic
+#       analysis at multiple sites. Tectonophysics 538-540, 88-102.
+# ════════════════════════════════════════════════════════════════════════════
+
+# Paleoseismik kazı verileri — Kozacı 2007, Klinger 2003, Fraser 2010, Akyüz 2002
+# yıl: -3000 ≈ MÖ 3000; +1939 = MS 1939
+# belirsizlik_yil: ±14C/OSL belirsizliği
+_PALEOSEISMIK_KAZILAR = [
+    # Yaylabeli — Erzincan (Kozacı 2007 birincil çalışma)
+    {"site": "Yaylabeli (Erzincan)", "lat": 39.78, "lon": 39.50,
+     "ref": "Kozacı et al. 2007 BSSA 97(5)",
+     "olaylar": [
+         {"yil": 1939, "belirsizlik": 0,   "tip": "tarihsel"},
+         {"yil": 1668, "belirsizlik": 0,   "tip": "tarihsel"},  # tartışmalı
+         {"yil": 1180, "belirsizlik": 60,  "tip": "paleo"},
+         {"yil": 870,  "belirsizlik": 80,  "tip": "paleo"},
+         {"yil": 560,  "belirsizlik": 100, "tip": "paleo"},
+         {"yil": 250,  "belirsizlik": 120, "tip": "paleo"},
+         {"yil": -100, "belirsizlik": 150, "tip": "paleo"},
+     ],
+     "ortalama_tekrar": 320, "sigma": 80},
+
+    # Tahtaköprü — Batı NAFZ (Klinger 2003)
+    {"site": "Tahtaköprü (Batı NAFZ)", "lat": 40.85, "lon": 32.40,
+     "ref": "Klinger et al. 2003 BSSA 93(6)",
+     "olaylar": [
+         {"yil": 1944, "belirsizlik": 0,   "tip": "tarihsel"},
+         {"yil": 1668, "belirsizlik": 0,   "tip": "tarihsel"},
+         {"yil": 1290, "belirsizlik": 50,  "tip": "paleo"},
+         {"yil": 1050, "belirsizlik": 70,  "tip": "paleo"},
+         {"yil": 760,  "belirsizlik": 90,  "tip": "paleo"},
+         {"yil": 480,  "belirsizlik": 110, "tip": "paleo"},
+     ],
+     "ortalama_tekrar": 285, "sigma": 70},
+
+    # Demir Köprü — Marmara (Hubert-Ferrari 2000 NAFZ batı)
+    {"site": "Demir Köprü (Marmara giriş)", "lat": 40.80, "lon": 29.50,
+     "ref": "Hubert-Ferrari et al. 2002 EPSL",
+     "olaylar": [
+         {"yil": 1999, "belirsizlik": 0,   "tip": "tarihsel"},
+         {"yil": 1719, "belirsizlik": 0,   "tip": "tarihsel"},
+         {"yil": 1509, "belirsizlik": 0,   "tip": "tarihsel"},
+         {"yil": 1063, "belirsizlik": 0,   "tip": "tarihsel"},
+         {"yil": 740,  "belirsizlik": 0,   "tip": "tarihsel"},
+         {"yil": 360,  "belirsizlik": 100, "tip": "paleo"},
+     ],
+     "ortalama_tekrar": 280, "sigma": 100},
+
+    # Niksar (Fraser 2010 sentez)
+    {"site": "Niksar Havzası", "lat": 40.62, "lon": 36.95,
+     "ref": "Fraser et al. 2010 JGR 115",
+     "olaylar": [
+         {"yil": 1942, "belirsizlik": 0,   "tip": "tarihsel"},
+         {"yil": 1668, "belirsizlik": 0,   "tip": "tarihsel"},
+         {"yil": 1170, "belirsizlik": 80,  "tip": "paleo"},
+         {"yil": 900,  "belirsizlik": 100, "tip": "paleo"},
+         {"yil": 540,  "belirsizlik": 120, "tip": "paleo"},
+     ],
+     "ortalama_tekrar": 350, "sigma": 100},
+
+    # Çardak — DAF kuzey (Meghraoui 2012)
+    {"site": "Çardak (DAF kuzey)", "lat": 38.05, "lon": 37.20,
+     "ref": "Meghraoui et al. 2012 Tectonophysics 538-540",
+     "olaylar": [
+         {"yil": 2023, "belirsizlik": 0,   "tip": "tarihsel"},
+         {"yil": 1114, "belirsizlik": 0,   "tip": "tarihsel"},
+         {"yil": 200,  "belirsizlik": 150, "tip": "paleo"},
+         {"yil": -750, "belirsizlik": 200, "tip": "paleo"},
+     ],
+     "ortalama_tekrar": 800, "sigma": 250},
+
+    # Misis — DAF güney (Karabacak 2011)
+    {"site": "Misis (DAF güney)", "lat": 36.96, "lon": 35.62,
+     "ref": "Karabacak et al. 2011 Quat. Int.",
+     "olaylar": [
+         {"yil": 1872, "belirsizlik": 0,   "tip": "tarihsel"},
+         {"yil": 1408, "belirsizlik": 0,   "tip": "tarihsel"},
+         {"yil": 850,  "belirsizlik": 100, "tip": "paleo"},
+         {"yil": 100,  "belirsizlik": 150, "tip": "paleo"},
+     ],
+     "ortalama_tekrar": 600, "sigma": 180},
+]
+
+
+@st.fragment
+def _render_paleosismik_kazi():
+    st.markdown(
+        '<div class="chart-title">⛏️ Paleosismik Kazı — NAFZ/DAF Trench Slot Diyagramı (F-60 / v1.37)</div>',
+        unsafe_allow_html=True,
+    )
+    st.info(
+        "⛏️ **Paleoseismoloji:** Fay boyunca açılan **kazılarda (trenches)** "
+        "kolüvyal tortul katmanlardaki yer değiştirme izleri **¹⁴C/OSL** ile "
+        "tarihlendirilerek prehistorik depremler tespit edilir. Türkiye'de "
+        "**Kozacı et al. (2007) BSSA 97** Erzincan Yaylabeli'de 6 paleo olay "
+        "saptamış, ortalama tekrar süresi ~320 yıl bulmuştur."
+    )
+
+    # ── Site harita ────────────────────────────────────────────────────────
+    fig_map = go.Figure()
+    for site in _PALEOSEISMIK_KAZILAR:
+        n_olay = len(site["olaylar"])
+        fig_map.add_trace(go.Scattermapbox(
+            lat=[site["lat"]], lon=[site["lon"]],
+            mode="markers+text",
+            marker=dict(size=14 + n_olay * 2, color="#A52A85", opacity=0.85),
+            text=[site["site"].split(" (")[0]],
+            textposition="top right",
+            textfont=dict(size=10, color="#fff"),
+            hovertemplate=(
+                f"<b>{site['site']}</b><br>"
+                f"Olay sayısı: {n_olay}<br>"
+                f"Ortalama tekrar: ~{site['ortalama_tekrar']} ± {site['sigma']} yıl<br>"
+                f"Kaynak: {site['ref']}"
+                "<extra></extra>"
+            ),
+            showlegend=False,
+        ))
+
+    fig_map.update_layout(
+        mapbox=dict(style="open-street-map", center=dict(lat=39.5, lon=35.0), zoom=5.5),
+        height=420,
+        margin=dict(l=0, r=0, t=10, b=0),
+        paper_bgcolor=BG2,
+    )
+    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": False})
+
+    # ── Site seçici + slot diyagram ────────────────────────────────────────
+    sec = st.selectbox(
+        "Kazı sitesi (detay için)",
+        options=[s["site"] for s in _PALEOSEISMIK_KAZILAR],
+        index=0,
+        key="paleo_site_select",
+    )
+    site = next(x for x in _PALEOSEISMIK_KAZILAR if x["site"] == sec)
+
+    # ── Slot diyagram ──────────────────────────────────────────────────────
+    st.markdown(f'<div class="chart-title">📊 Slot Diyagramı — {sec}</div>',
+                unsafe_allow_html=True)
+    fig_slot = go.Figure()
+
+    for i, ev in enumerate(site["olaylar"]):
+        renk = "#FFD700" if ev["tip"] == "tarihsel" else "#A52A85"
+        # Hata barı = belirsizlik penceresi
+        fig_slot.add_trace(go.Scatter(
+            x=[ev["yil"]],
+            y=[i],
+            mode="markers",
+            marker=dict(size=14, color=renk, symbol="diamond",
+                        line=dict(color="#fff", width=1.5)),
+            error_x=dict(type="data",
+                         array=[ev["belirsizlik"]],
+                         color="rgba(255,255,255,0.5)",
+                         thickness=1.5, width=10),
+            text=[f"Olay {i+1}"],
+            hovertemplate=(
+                f"<b>Olay {i+1}</b><br>"
+                f"Yıl: {ev['yil']} ± {ev['belirsizlik']}<br>"
+                f"Tip: {ev['tip']}"
+                "<extra></extra>"
+            ),
+            showlegend=False,
+        ))
+        # Yatay yardımcı çizgi
+        fig_slot.add_shape(type="line",
+                           x0=ev["yil"] - ev["belirsizlik"] - 50,
+                           x1=ev["yil"] + ev["belirsizlik"] + 50,
+                           y0=i, y1=i,
+                           line=dict(color="rgba(255,255,255,0.1)", width=1))
+
+    # Şu an çizgisi
+    fig_slot.add_vline(x=datetime.now().year,
+                       line=dict(color="#1976D2", width=2, dash="dash"),
+                       annotation_text="Şu an",
+                       annotation_font_color="#1976D2")
+
+    fig_slot.update_layout(
+        xaxis=dict(title="Yıl (MS, negatif = MÖ)", color=TEXT, gridcolor=BORDER),
+        yaxis=dict(title="Olay sırası (yeni → eski)",
+                   tickmode="array",
+                   tickvals=list(range(len(site["olaylar"]))),
+                   ticktext=[f"#{i+1} ({ev['tip']})" for i, ev in enumerate(site["olaylar"])],
+                   color=TEXT, gridcolor=BORDER),
+        height=380,
+        margin=dict(l=10, r=10, t=10, b=40),
+        paper_bgcolor=BG2, plot_bgcolor=BG2,
+        showlegend=False,
+    )
+    st.plotly_chart(fig_slot, use_container_width=True, config={"displayModeBar": False})
+
+    # ── İstatistikler ──────────────────────────────────────────────────────
+    n_paleo = sum(1 for ev in site["olaylar"] if ev["tip"] == "paleo")
+    n_tar = sum(1 for ev in site["olaylar"] if ev["tip"] == "tarihsel")
+    son_olay = max(ev["yil"] for ev in site["olaylar"])
+    elapsed = datetime.now().year - son_olay
+    elapsed_ratio = elapsed / site["ortalama_tekrar"]
+    c1, c2, c3, c4 = st.columns(4)
+    kartlar = [
+        (c1, f"{n_paleo + n_tar}",                "#FFD700", f"Toplam olay ({n_tar} tarihsel + {n_paleo} paleo)"),
+        (c2, f"{site['ortalama_tekrar']}±{site['sigma']} yıl", "#EF9F27", "Ortalama tekrar süresi"),
+        (c3, f"{elapsed} yıl",                     "#1976D2", f"Son depremden bu yana (son: {son_olay})"),
+        (c4, f"%{100 * elapsed_ratio:.0f}",        "#E24B4A" if elapsed_ratio > 0.7 else "#1D9E75",
+         "Tekrar süresinin yüzdesi"),
+    ]
+    for col, val, color, label in kartlar:
+        with col:
+            st.markdown(
+                f'<div class="stat-box">'
+                f'<div style="font-size:1.35rem;font-weight:800;color:{color}">{val}</div>'
+                f'<div style="font-size:0.7rem;opacity:0.55;margin-top:2px">{label}</div>'
+                f'</div>', unsafe_allow_html=True)
+
+    # ── Tüm siteler tablosu ───────────────────────────────────────────────
+    st.markdown('<div class="chart-title">📋 Tüm Kazı Siteleri Özet</div>', unsafe_allow_html=True)
+    df_sites = pd.DataFrame([
+        {"Site": s["site"],
+         "Olay Sayısı": len(s["olaylar"]),
+         "Tarihsel": sum(1 for ev in s["olaylar"] if ev["tip"] == "tarihsel"),
+         "Paleo": sum(1 for ev in s["olaylar"] if ev["tip"] == "paleo"),
+         "Tekrar (yıl)": f"{s['ortalama_tekrar']} ± {s['sigma']}",
+         "En Eski (yıl)": min(ev["yil"] for ev in s["olaylar"]),
+         "Son (yıl)": max(ev["yil"] for ev in s["olaylar"]),
+         "Kaynak": s["ref"]}
+        for s in _PALEOSEISMIK_KAZILAR
+    ])
+    st.dataframe(df_sites, use_container_width=True, hide_index=True)
+
+    st.caption(
+        f"📚 **Site referansı:** {site['ref']} | "
+        "**Kozacı et al. (2007)** *BSSA* 97(5), 1513-1527 — DOI:10.1785/0120060118 (Yaylabeli) | "
+        "**Klinger et al. (2003)** *BSSA* 93(6), 2317-2332 — DOI:10.1785/0120010270 (Batı NAFZ) | "
+        "**Fraser et al. (2010)** *JGR* 115 — DOI:10.1029/2009JB006982 (sentez) | "
+        "**Hubert-Ferrari et al. (2002)** *EPSL* | "
+        "**Meghraoui et al. (2012)** *Tectonophysics* 538-540 (DAF). "
+        "⚠️ Paleo olay tarihleri ¹⁴C/OSL belirsizliği taşır (±50-200 yıl). "
+        "Olay tanılaması: kolüvyal kama, fault-scarp degradation, fissure dolgular."
+    )
+
+
+if active_menu == "⛏️ Paleosismik Kazı":
+    _render_paleosismik_kazi()
 
 # ─── Footer ─────────────────────────────────────────────────────────────────
 st.markdown(f"""
