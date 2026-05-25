@@ -48,7 +48,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.17.3"
+APP_VERSION = "1.17.4"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -3902,12 +3902,16 @@ _PLAKA_CITIES = {
 # 20 log-spaced frame stops per mode. Negatif = geçmiş, pozitif = gelecek.
 _PLAKA_MODES = {
     "geo": {
-        "label":   "🌐 Jeodezik — Bilimsel (-1.000 → +10.000 yıl)",
+        "label":   "🌐 Jeodezik — Genişletilmiş (-100.000 → +100.000 yıl)",
         "short":   "Jeodezik",
-        "stops":   [-1000, -700, -500, -300, -200, -100, -50, -30, -10, -3,
-                    0, 3, 10, 30, 100, 300, 1000, 3000, 7000, 10_000],
+        # 21 frame log-spaced — 0..10K bilimsel, 10K..100K soyutlama (paleosismik
+        # kalibrasyon yapılmadan görselleştirme). Aralık 100K'ya genişledi; görsel
+        # ölçek orantılı küçültüldü (önce 1000x → şimdi 100x) ki Erzincan harita
+        # dışına çıkmasın: 100K yıl × 25 mm/yıl × 100 ≈ 2.5° görsel kayma.
+        "stops":   [-100_000, -30_000, -10_000, -3_000, -1_000, -300, -100, -30, -10, -3,
+                    0, 3, 10, 30, 100, 300, 1_000, 3_000, 10_000, 30_000, 100_000],
         "default_idx": 10,  # 0
-        "visual_scale_factor": 1000.0,
+        "visual_scale_factor": 100.0,
     },
     "pal": {
         "label":   "🪨 Paleografik — Spekülatif (-1.000.000 → +10.000.000 yıl)",

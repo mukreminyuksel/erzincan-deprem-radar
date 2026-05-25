@@ -1,5 +1,22 @@
 # Changelog
 
+## v1.17.4 - 2026-05-26 — Jeodezik mode zaman ufku genişletildi: ±100.000 yıl
+
+Kullanıcı talebi: "Jeodezik (-1.000 → +10.000 yıl) yerine -100.000 → +100.000 olsa uygun mu?"
+
+Değişiklikler:
+- `_PLAKA_MODES["geo"]`:
+  - Label: "🌐 Jeodezik — Bilimsel (-1.000 → +10.000)" → "🌐 Jeodezik — Genişletilmiş (-100.000 → +100.000 yıl)"
+  - Stops: 21 frame log-spaced [-100K, -30K, -10K, -3K, -1K, -300, -100, -30, -10, -3, 0, +3, ... +100K]
+  - visual_scale_factor: 1000 → 100 (zaman ufku 100x genişledi, görsel ölçek 1/100 azaltıldı,
+    net görsel etki ~aynı: 100K yıl × 25 mm/yıl × 100x ≈ 2.5° kayma)
+- `_plaka_warning()` eşikleri zaten uyumlu: 0..10K yeşil bilimsel, 10K..1M sarı soyutlama
+  (kullanıcı 100K stop'u seçince sarı "Soyutlama" uyarısı çıkar — paleosismik kalibrasyon notu)
+
+Bilimsel namus: SCI_REVIEW_PLAKA Q-SCI-8.3 cevabına göre 10K-1M arası "soyutlama" zonudur
+(lineer GNSS ekstrapolasyon fay döngülerini ve viskoelastik relaksasyonu ihmal eder). Bu
+yüzden label "Bilimsel" yerine "Genişletilmiş" — kullanıcının görsel kalemi sınırı bilsin.
+
 ## v1.17.3 - 2026-05-26 — Plaka Simülasyonu: TOPLU HAREKET (kullanıcı bildirimi)
 
 **🌍 Bug fix — Plaka Simülasyonu artık çoklu plaka hareketini doğru gösteriyor:**
