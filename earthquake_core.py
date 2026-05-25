@@ -302,6 +302,87 @@ def plate_velocity_at_point(
     }
 
 
+# ---------------------------------------------------------------------------
+# Reasenberg & Jones (1989) Artçı Deprem Olasılığı + Omori-Utsu Yasası
+# Kaynak: Reasenberg & Jones (1989), Science 243:1173-1176,
+#         DOI:10.1126/science.243.4895.1173
+#         Omori (1894), J. Coll. Sci. Imp. Univ. Tokyo 7:111-200
+#         Utsu, Ogata & Matsu'ura (1995), J. Phys. Earth 43:1-33
+#         Öztürk et al. (2011), J. Seismol. — Türkiye için a, b kalibrasyonu
+# ---------------------------------------------------------------------------
+
+def omori_utsu_rate(t_days: float, K: float, c: float = 0.05, p: float = 1.0) -> float:
+    """Omori-Utsu artçı deprem hızı (deprem/gün).
+
+    n(t) = K / (t + c)^p
+
+    Parameters
+    ----------
+    t_days : float
+        Mainshock'tan sonra geçen gün.
+    K, c, p : float
+        Omori-Utsu parametreleri (K: produktivite, c: erken-zaman düzleştiricisi,
+        p: bozunum üsteli; Türkiye için p ≈ 0.9-1.1).
+
+    Returns
+    -------
+    float : Artçı deprem hızı (gün başına olay sayısı).
+    """
+    if t_days < 0:
+        return 0.0
+    return K / (t_days + c) ** p
+
+
+def reasenberg_jones_probability(
+    M_main: float,
+    M_min: float,
+    t1: float,
+    t2: float,
+    b: float = 1.0,
+    p: float = 1.0,
+    c: float = 0.05,
+    a: float = -1.67,
+) -> dict:
+    """Reasenberg-Jones artçı olasılığı + Poisson beklenen sayısı.
+
+    Parameters
+    ----------
+    M_main : float — mainshock büyüklüğü
+    M_min  : float — minimum artçı büyüklüğü (örn. M5)
+    t1, t2 : float — tahmin penceresi (gün cinsinden mainshock'tan itibaren)
+    b      : float — Gutenberg-Richter b-değeri (Türkiye ≈ 1.0)
+    p      : float — Omori-Utsu p (Türkiye ≈ 1.0)
+    c      : float — Omori-Utsu c (gün, ≈ 0.05)
+    a      : float — Reasenberg-Jones a (Türkiye için Öztürk 2011 ≈ -1.67)
+
+    Returns
+    -------
+    dict :
+        {
+            "probability": P(N>=1) Poisson olasılığı (0-1),
+            "expected":    Beklenen artçı sayısı (μ),
+            "K":           Üretilmiş K parametresi,
+        }
+
+    Notes
+    -----
+    K = 10^(a + b·(M_main − M_min))
+    μ = K · ln((t2+c)/(t1+c))                       p = 1
+    μ = K · ((t1+c)^(1-p) − (t2+c)^(1-p)) / (p − 1)  p ≠ 1
+    P(N >= 1) = 1 − e^(−μ)
+
+    Kaynak: Reasenberg & Jones 1989, *Science* 243:1173-1176.
+    """
+    K = 10 ** (a + b * (M_main - M_min))
+    if p == 1.0:
+        mu = K * math.log((t2 + c) / (t1 + c))
+    else:
+        mu = K * ((t1 + c) ** (1 - p) - (t2 + c) ** (1 - p)) / (p - 1)
+    mu = max(0.0, mu)
+    probability = 1.0 - math.exp(-mu)
+    return {"probability": probability, "expected": mu, "K": K}
+
+
 def plate_velocity_vector(
     plate_id: str,
     point_lat: float,

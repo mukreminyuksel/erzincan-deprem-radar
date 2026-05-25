@@ -4793,6 +4793,223 @@ if active_menu == "🚨 Erken Uyarı":
         )
 
 # ════════════════════════════════════════════════════════════════════════════
+# 📈 ARTÇI TAHMİN — F-51 / v1.19 — Reasenberg & Jones (1989) Olasılık Paneli
+# Kaynaklar: Reasenberg & Jones (1989), Science 243:1173-1176,
+#            DOI:10.1126/science.243.4895.1173
+#            Omori (1894), J. Coll. Sci. Imp. Univ. Tokyo 7:111-200
+#            Utsu, Ogata & Matsu'ura (1995), J. Phys. Earth 43:1-33
+#            Öztürk et al. (2011), J. Seismol. — Türkiye için a, b kalibrasyonu
+# ════════════════════════════════════════════════════════════════════════════
+_RJ_WINDOWS = {
+    "Sonraki 24 saat": 1.0,
+    "Sonraki 7 gün": 7.0,
+    "Sonraki 30 gün": 30.0,
+}
+
+
+@st.fragment
+def _render_artci_tahmin():
+    st.markdown(
+        '<div class="chart-title">📈 Artçı Tahmin — Reasenberg & Jones + Omori-Utsu (F-51 / v1.19)</div>',
+        unsafe_allow_html=True,
+    )
+    st.caption(
+        "Bir ana depremin (mainshock) ardından, t1–t2 zaman aralığında belirli bir minimum "
+        "büyüklüğün üstündeki artçıların **olasılığını** Poisson varsayımı altında hesaplar. "
+        "Hız modeli: Omori-Utsu yasası n(t) = K / (t + c)^p."
+    )
+
+    # ── Girdi bölümü ───────────────────────────────────────────────────────
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        m_main = st.slider(
+            "Ana deprem Mw", 4.0, 8.0, 6.8, 0.1, key="rj_m_main",
+            help="Reasenberg & Jones 1989 — California modeli; Türkiye a=-1.67, b=1.0",
+        )
+    with c2:
+        m_min = st.selectbox(
+            "Min artçı büyüklüğü", [3.0, 4.0, 5.0, 6.0], index=1, key="rj_m_min",
+            help="P(N>=1) hesaplamasında alt sınır",
+        )
+    with c3:
+        t_now = st.slider(
+            "Mainshock'tan bu yana (gün)", 0, 365, 1, key="rj_t_now",
+            help="Tahmin penceresinin başlangıcı (t1)",
+        )
+    with c4:
+        win_label = st.selectbox(
+            "Tahmin penceresi",
+            list(_RJ_WINDOWS.keys()), index=1, key="rj_window",
+            help="Pencere uzunluğu = t2 - t1",
+        )
+
+    # Bilgi notu — sabit b ve p değerleri
+    st.caption(
+        "ℹ️ **Sabitler:** b = 1.0 (Gutenberg-Richter Türkiye ortalaması, "
+        "Öztürk 2011); p = 1.0 (Omori-Utsu standard); c = 0.05 gün; "
+        "a = −1.67 (Türkiye için kalibre — KOERI 1900-2020 kataloğu)."
+    )
+
+    t1 = float(t_now)
+    t2 = t1 + _RJ_WINDOWS[win_label]
+    b_val, p_val, c_val, a_val = 1.0, 1.0, 0.05, -1.67
+
+    res = reasenberg_jones_probability(
+        M_main=m_main, M_min=m_min, t1=t1, t2=t2,
+        b=b_val, p=p_val, c=c_val, a=a_val,
+    )
+    prob_pct = res["probability"] * 100.0
+    mu = res["expected"]
+    K_val = res["K"]
+    rate_now = omori_utsu_rate(max(t1, 0.001), K_val, c_val, p_val)
+
+    # ── Sonuç kartları ─────────────────────────────────────────────────────
+    if prob_pct > 50:
+        prob_color = "#ff4444"; prob_emoji = "🔴"
+    elif prob_pct >= 20:
+        prob_color = "#ff9933"; prob_emoji = "🟠"
+    else:
+        prob_color = "#44cc66"; prob_emoji = "🟢"
+
+    cR1, cR2, cR3 = st.columns(3)
+    with cR1:
+        st.markdown(
+            f"""<div style="background:{BG3};border:2px solid {prob_color};
+                          border-radius:10px;padding:14px;text-align:center">
+                <div style="font-size:0.85rem;color:{SUBTEXT}">Olasılık (M≥{m_min:.0f}, {win_label.lower()})</div>
+                <div style="font-size:2.0rem;font-weight:800;color:{prob_color}">
+                    {prob_emoji} %{prob_pct:.1f}
+                </div>
+                <div style="font-size:0.75rem;color:{SUBTEXT}">P(N ≥ 1) = 1 − e^(−μ)</div>
+            </div>""",
+            unsafe_allow_html=True,
+        )
+    with cR2:
+        st.markdown(
+            f"""<div style="background:{BG3};border:1px solid {BORDER};
+                          border-radius:10px;padding:14px;text-align:center">
+                <div style="font-size:0.85rem;color:{SUBTEXT}">Beklenen artçı sayısı</div>
+                <div style="font-size:2.0rem;font-weight:800;color:{TEXT}">
+                    📊 {mu:.2f}
+                </div>
+                <div style="font-size:0.75rem;color:{SUBTEXT}">μ (Poisson ortalaması)</div>
+            </div>""",
+            unsafe_allow_html=True,
+        )
+    with cR3:
+        st.markdown(
+            f"""<div style="background:{BG3};border:1px solid {BORDER};
+                          border-radius:10px;padding:14px;text-align:center">
+                <div style="font-size:0.85rem;color:{SUBTEXT}">Omori-Utsu anlık hız</div>
+                <div style="font-size:2.0rem;font-weight:800;color:{TEXT}">
+                    ⏱️ {rate_now:.2f}
+                </div>
+                <div style="font-size:0.75rem;color:{SUBTEXT}">deprem / gün (t = {t1:.1f} gün)</div>
+            </div>""",
+            unsafe_allow_html=True,
+        )
+
+    # ── Omori-Utsu zaman grafiği ───────────────────────────────────────────
+    st.markdown(
+        '<div class="chart-title">📉 Omori-Utsu Artçı Hız Eğrisi</div>',
+        unsafe_allow_html=True,
+    )
+
+    t_grid = np.logspace(-2, math.log10(365.0), 200)  # 0.01 → 365 gün, log
+    rate_grid = np.array([omori_utsu_rate(t, K_val, c_val, p_val) for t in t_grid])
+
+    fig_omori = go.Figure()
+    fig_omori.add_trace(go.Scatter(
+        x=t_grid, y=rate_grid,
+        mode="lines",
+        line=dict(color="#ff7733", width=3),
+        name="n(t) = K/(t+c)^p",
+        hovertemplate="t = %{x:.2f} gün<br>hız = %{y:.3f} dpr/gün<extra></extra>",
+    ))
+    # Tahmin penceresi (gölgeli)
+    fig_omori.add_vrect(
+        x0=t1, x1=t2,
+        fillcolor="rgba(80,170,255,0.18)", line_width=0,
+        annotation_text=f"Pencere: {win_label}", annotation_position="top left",
+        annotation=dict(font=dict(color="#aacfff", size=11)),
+    )
+    # "Şu an" işareti
+    fig_omori.add_vline(
+        x=max(t1, 0.01),
+        line=dict(color="#ffcc00", width=2, dash="dash"),
+        annotation_text="⏰ Şu an",
+        annotation_position="top right",
+        annotation=dict(font=dict(color="#ffcc00", size=11)),
+    )
+    fig_omori.update_layout(
+        title=dict(
+            text=f"Mw {m_main:.1f} ana deprem — K = {K_val:.3f}, c = {c_val}, p = {p_val}",
+            font=dict(size=12, color=TEXT),
+        ),
+        height=380,
+        plot_bgcolor=BG2, paper_bgcolor=BG2,
+        font=dict(color=TEXT, size=11),
+        xaxis=dict(
+            title="Mainshock'tan sonra geçen gün (log)",
+            type="log", gridcolor="#222",
+        ),
+        yaxis=dict(
+            title=f"Artçı hızı (M ≥ {m_min:.0f} dpr/gün, log)",
+            type="log", gridcolor="#222",
+        ),
+        margin=dict(t=50, b=50, l=60, r=20),
+        showlegend=False,
+    )
+    st.plotly_chart(fig_omori, use_container_width=True, key="rj_omori_curve")
+
+    # ── Büyüklük-olasılık tablosu ──────────────────────────────────────────
+    st.markdown(
+        '<div class="chart-title">📋 Büyüklük × Pencere Olasılık Tablosu</div>',
+        unsafe_allow_html=True,
+    )
+
+    mag_rows = [3.0, 4.0, 5.0, 6.0]
+    tbl_rows = []
+    for mm in mag_rows:
+        row = {"Artçı Mw": f"M ≥ {mm:.0f}"}
+        for wl, dur in _RJ_WINDOWS.items():
+            r = reasenberg_jones_probability(
+                M_main=m_main, M_min=mm, t1=t1, t2=t1 + dur,
+                b=b_val, p=p_val, c=c_val, a=a_val,
+            )
+            row[wl] = f"%{r['probability'] * 100:.1f}"
+        tbl_rows.append(row)
+    tbl_df = pd.DataFrame(tbl_rows)
+    st.dataframe(tbl_df, use_container_width=True, hide_index=True)
+
+    # ── Bilimsel kaynak kutusu ─────────────────────────────────────────────
+    st.info(
+        "📚 **Birincil kaynak:** Reasenberg, P.A. & Jones, L.M. (1989). "
+        "Earthquake hazard after a mainshock in California. "
+        "*Science* 243(4895):1173-1176. DOI:10.1126/science.243.4895.1173 | "
+        "**Omori-Utsu:** Omori (1894) *J. Coll. Sci. Imp. Univ. Tokyo* 7:111-200; "
+        "Utsu, Ogata & Matsu'ura (1995) *J. Phys. Earth* 43:1-33 | "
+        "**Türkiye kalibrasyonu:** Öztürk et al. (2011) *J. Seismol.* "
+        "(a = −1.67, b = 1.0; KOERI kataloğu 1900-2020)."
+    )
+
+    # ── Uyarı ──────────────────────────────────────────────────────────────
+    st.warning(
+        "⚠️ **Bu istatistiksel bir modeldir.** Bireysel artçı depremlerin "
+        "**zamanını, yerini veya büyüklüğünü tahmin etmez** — yalnızca seçili "
+        "pencere içinde belirli M üstünde en az 1 artçı görme olasılığını "
+        "verir. Sonuçlar Türkiye için bölgesel kalibrasyon kabaca yapılmış "
+        "ortalama parametrelerden türetilmiştir; spesifik faylarda gerçek "
+        "p, K, c değerleri farklı olabilir (Öztürk 2011). "
+        "Kaynak: Reasenberg & Jones (1989), *Science* 243:1173-1176."
+    )
+
+
+if active_menu == "📈 Artçı Tahmin":
+    _render_artci_tahmin()
+
+
+# ════════════════════════════════════════════════════════════════════════════
 # 🏛️ ERZİNCAN ARŞİVİ — F-66 / v1.18 — Tarihi Depremler Analiz Paneli
 # Kaynaklar: Ambraseys & Finkel 1995, Barka 1996, Özalaybey 1993, Grosser 1998,
 #            Reilinger 2006 (GPS), Wallace-Schwartz-Coppersmith 1984 (paleoseismik)
