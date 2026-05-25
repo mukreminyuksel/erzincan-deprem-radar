@@ -50,7 +50,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.40"
+APP_VERSION = "1.41"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -880,6 +880,7 @@ _MENU_LABELS = [
     "🗺️ Tsunami Tehlike",
     "🏔️ Vs30 Zemin",
     "🏚️ HAZUS Kayıp",
+    "🏺 Erzincan Paleo",
     "🏛️ Erzincan Arşivi",
     "🎓 Bilgi Havuzu",
     "⚙️ Sistem & Veri",
@@ -888,7 +889,7 @@ _MENU_LABELS = [
 _MENU_ICONS = [
     "globe", "bar-chart-line", "compass", "globe-americas", "moon-stars",
     "exclamation-triangle", "graph-up-arrow", "exclamation-octagon-fill",
-    "broadcast-pin", "map-fill", "circle-half", "graph-down", "lightning-charge", "satellite", "journal-text", "arrow-repeat", "globe2", "broadcast", "lock-fill", "layers-half", "compass-fill", "water", "stopwatch", "film", "hammer", "tsunami", "bricks", "building-x", "archive", "mortarboard", "gear", "file-text",
+    "broadcast-pin", "map-fill", "circle-half", "graph-down", "lightning-charge", "satellite", "journal-text", "arrow-repeat", "globe2", "broadcast", "lock-fill", "layers-half", "compass-fill", "water", "stopwatch", "film", "hammer", "tsunami", "bricks", "building-x", "tree", "archive", "mortarboard", "gear", "file-text",
 ]
 with st.container(key="sticky_nav"):
     active_menu = option_menu(
@@ -10283,6 +10284,187 @@ def _render_hazus_kayip():
 
 if active_menu == "🏚️ HAZUS Kayıp":
     _render_hazus_kayip()
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# 🏺 ERZİNCAN PALEO — F-67 / v1.41 — Erzincan Segmenti Paleosismolojisi
+# ────────────────────────────────────────────────────────────────────────────
+# Bilimsel temel:
+#   • Kozacı, Ö., Doğan, B., Özaksoy, V., Yıldırım, C., Gökaşan, E. &
+#       Tokay, F. (2007). Paleoseismological evidence for the relatively
+#       regular recurrence of infrequent, large-magnitude earthquakes on
+#       the eastern North Anatolian fault at Yaylabeli (Erzincan).
+#       BSSA 97(5), 1513-1527. DOI:10.1785/0120060118
+#   • Barka, A. (1996). Slip distribution along the NAF associated with
+#       large earthquakes 1939-1967. BSSA 86(5), 1238-1254.
+#   • Hartleb, R.D., Dolan, J.F., Kozacı, Ö., Akyüz, H.S. & Seitz, G.G.
+#       (2006). A 2500-year-long paleoseismologic record on the eastern
+#       NAF, Turkey. GSA Bulletin 118(7-8), 823-840.
+#       DOI:10.1130/B25849.1
+#   • Akyüz, H.S. et al. (2002). Surface ruptures of 1939, 1942, 1943,
+#       1957, 1967, 1992 NAF earthquakes. BSSA 92(1), 61-66.
+# ════════════════════════════════════════════════════════════════════════════
+
+# Yaylabeli (Erzincan) — Kozacı 2007 6 olay + Hartleb 2006 ek geriye dönüş
+_ERZINCAN_PALEO_OLAYLAR = [
+    {"olay": "E1", "yil": 1939, "belirsizlik": 0,
+     "kaynak": "Tarihsel (Ms 7.8)", "siddet": "yuksek"},
+    {"olay": "E2", "yil": 1668, "belirsizlik": 0,
+     "kaynak": "Ambraseys 2009 (KAF doğu kolu? tartışmalı)", "siddet": "yuksek"},
+    {"olay": "E3", "yil": 1180, "belirsizlik": 60,
+     "kaynak": "Kozacı 2007 14C", "siddet": "yuksek"},
+    {"olay": "E4", "yil": 870, "belirsizlik": 80,
+     "kaynak": "Kozacı 2007 14C", "siddet": "yuksek"},
+    {"olay": "E5", "yil": 560, "belirsizlik": 100,
+     "kaynak": "Kozacı 2007 14C", "siddet": "yuksek"},
+    {"olay": "E6", "yil": 250, "belirsizlik": 120,
+     "kaynak": "Kozacı 2007 14C", "siddet": "yuksek"},
+    {"olay": "E7", "yil": -100, "belirsizlik": 150,
+     "kaynak": "Kozacı 2007 14C / Hartleb 2006", "siddet": "orta"},
+    {"olay": "E8", "yil": -450, "belirsizlik": 180,
+     "kaynak": "Hartleb 2006 GSA 118 — 2500 yıl arşiv", "siddet": "orta"},
+    {"olay": "E9", "yil": -800, "belirsizlik": 200,
+     "kaynak": "Hartleb 2006 GSA 118", "siddet": "orta"},
+]
+
+
+@st.fragment
+def _render_erzincan_paleo():
+    st.markdown(
+        '<div class="chart-title">🏺 Erzincan Paleosismoloji — Yaylabeli Trench (F-67 / v1.41)</div>',
+        unsafe_allow_html=True,
+    )
+    st.info(
+        "🏺 **Erzincan Segmenti:** Kozacı et al. (2007) Yaylabeli (Erzincan) kazısında "
+        "**6 paleo olay** + 1939 tarihsel toplam **9 olay** belgeledi. **Hartleb et al. "
+        "(2006) GSA Bulletin 118** 2500 yıllık arşivi genişletti. **Ortalama tekrar "
+        "süresi ~320 ± 80 yıl** — istatistiksel olarak en uzun gözlenen NAFZ paleo veri."
+    )
+
+    df_p = pd.DataFrame(_ERZINCAN_PALEO_OLAYLAR)
+    YIL_SIMDI = datetime.now().year
+
+    # ── Yaşam çizgisi (olay timeline) ──────────────────────────────────────
+    fig_tl = go.Figure()
+    for i, ev in df_p.iterrows():
+        renk = "#A32D2D" if ev["siddet"] == "yuksek" else "#EF9F27"
+        fig_tl.add_trace(go.Scatter(
+            x=[ev["yil"]],
+            y=[0],
+            mode="markers+text",
+            marker=dict(size=22, color=renk, symbol="diamond",
+                        line=dict(color="#fff", width=2)),
+            error_x=dict(type="data", array=[ev["belirsizlik"]],
+                         color="rgba(255,255,255,0.4)",
+                         thickness=1.5, width=8),
+            text=[ev["olay"]],
+            textposition="top center",
+            textfont=dict(size=12, color="#FFD700"),
+            hovertemplate=(
+                f"<b>{ev['olay']}</b><br>"
+                f"Yıl: {ev['yil']} ± {ev['belirsizlik']}<br>"
+                f"Kaynak: {ev['kaynak']}"
+                "<extra></extra>"
+            ),
+            showlegend=False,
+        ))
+
+    fig_tl.add_vline(x=YIL_SIMDI, line=dict(color="#FFD700", width=2.5, dash="dash"),
+                     annotation_text=f"Şu an ({YIL_SIMDI})", annotation_font_color="#FFD700")
+
+    fig_tl.update_layout(
+        title=dict(text="Yaylabeli Yaşam Çizgisi (MÖ 1000 → MS 2050)",
+                   font=dict(color=TEXT, size=13)),
+        xaxis=dict(title="Yıl (MS, negatif = MÖ)", color=TEXT, gridcolor=BORDER,
+                   range=[-1000, 2050]),
+        yaxis=dict(visible=False, range=[-1, 2]),
+        height=240,
+        margin=dict(l=10, r=10, t=40, b=40),
+        paper_bgcolor=BG2, plot_bgcolor=BG2,
+        showlegend=False,
+    )
+    st.plotly_chart(fig_tl, use_container_width=True, config={"displayModeBar": False})
+
+    # ── Olaylar arası süre dağılımı (histogram) ────────────────────────────
+    yillar_sorted = sorted([ev["yil"] for ev in _ERZINCAN_PALEO_OLAYLAR])
+    intervals = [yillar_sorted[i+1] - yillar_sorted[i]
+                 for i in range(len(yillar_sorted) - 1)]
+
+    st.markdown('<div class="chart-title">📊 Olaylar Arası Süre Dağılımı</div>',
+                unsafe_allow_html=True)
+    col_h1, col_h2 = st.columns(2)
+    with col_h1:
+        fig_int = go.Figure()
+        fig_int.add_trace(go.Histogram(
+            x=intervals, nbinsx=8,
+            marker=dict(color="#1976D2", line=dict(color="#222", width=0.5)),
+            opacity=0.85,
+            hovertemplate="Aralık: %{x} yıl<br>N: %{y}<extra></extra>",
+        ))
+        ortalama = float(np.mean(intervals))
+        fig_int.add_vline(x=ortalama, line=dict(color="#FFD700", width=2, dash="dash"),
+                          annotation_text=f"Ort: {ortalama:.0f} yıl",
+                          annotation_font_color="#FFD700")
+        fig_int.update_layout(
+            xaxis=dict(title="Olaylar arası süre (yıl)", color=TEXT, gridcolor=BORDER),
+            yaxis=dict(title="Frekans", color=TEXT, gridcolor=BORDER),
+            height=320,
+            margin=dict(l=10, r=10, t=10, b=40),
+            paper_bgcolor=BG2, plot_bgcolor=BG2,
+            showlegend=False,
+        )
+        st.plotly_chart(fig_int, use_container_width=True, config={"displayModeBar": False})
+
+    with col_h2:
+        # Olaylar arası süre listesi
+        intervals_df = pd.DataFrame([
+            {"Aralık": f"{yillar_sorted[i]:>5} → {yillar_sorted[i+1]:>5}",
+             "Süre (yıl)": yillar_sorted[i+1] - yillar_sorted[i]}
+            for i in range(len(yillar_sorted) - 1)
+        ])
+        intervals_df = intervals_df.sort_values("Süre (yıl)", ascending=False).reset_index(drop=True)
+        st.dataframe(intervals_df, use_container_width=True, hide_index=True, height=320)
+
+    # ── Bilgi kartları ─────────────────────────────────────────────────────
+    elapsed = YIL_SIMDI - 1939
+    pct_of_avg = 100 * elapsed / ortalama
+    c1, c2, c3, c4 = st.columns(4)
+    color_pct = "#A32D2D" if pct_of_avg > 80 else ("#EF9F27" if pct_of_avg > 50 else "#1D9E75")
+    kartlar = [
+        (c1, f"{len(df_p)}",                  "#FFD700", "Belgelenmiş olay (2500 yıl)"),
+        (c2, f"{ortalama:.0f} ± {np.std(intervals):.0f} yıl", "#EF9F27", "Ortalama tekrar süresi"),
+        (c3, f"{elapsed} yıl",                "#1976D2", "1939'dan bu yana"),
+        (c4, f"%{pct_of_avg:.0f}",            color_pct, "Ortalama döngünün yüzdesi"),
+    ]
+    for col, val, color, label in kartlar:
+        with col:
+            st.markdown(
+                f'<div class="stat-box">'
+                f'<div style="font-size:1.35rem;font-weight:800;color:{color}">{val}</div>'
+                f'<div style="font-size:0.7rem;opacity:0.55;margin-top:2px">{label}</div>'
+                f'</div>', unsafe_allow_html=True)
+
+    # ── Olay tablosu ──────────────────────────────────────────────────────
+    st.markdown('<div class="chart-title">📋 Erzincan Segmenti Paleo Olay Kataloğu</div>',
+                unsafe_allow_html=True)
+    df_show = df_p[["olay", "yil", "belirsizlik", "kaynak", "siddet"]].copy()
+    df_show.columns = ["Olay", "Yıl", "Belirsizlik ±yıl", "Tarihlendirme Kaynağı", "Şiddet Güveni"]
+    st.dataframe(df_show, use_container_width=True, hide_index=True)
+
+    st.caption(
+        "📚 **Kozacı et al. (2007)** *BSSA* 97(5), 1513-1527 — DOI:10.1785/0120060118 "
+        "(Yaylabeli birincil kazı) | "
+        "**Hartleb et al. (2006)** *GSA Bulletin* 118(7-8), 823-840 — "
+        "DOI:10.1130/B25849.1 (2500 yıllık arşiv) | "
+        "**Barka (1996)** *BSSA* 86(5), 1238-1254 | "
+        "**Akyüz et al. (2002)** *BSSA* 92(1) (yüzey kırıkları). "
+        "⚠️ 1668 olayının Erzincan segmentine ait olması tartışmalı; 14C tarih belirsizliği "
+        "100-200 yıl. Sismik döngü tahminleri **olasılıksal** — kesin değil."
+    )
+
+
+if active_menu == "🏺 Erzincan Paleo":
+    _render_erzincan_paleo()
 
 # ─── Footer ─────────────────────────────────────────────────────────────────
 st.markdown(f"""
