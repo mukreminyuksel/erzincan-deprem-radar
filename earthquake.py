@@ -50,7 +50,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.24"
+APP_VERSION = "1.25"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -864,6 +864,7 @@ _MENU_LABELS = [
     "🗺️ Sismik Tehlike",
     "🥎 Odak Mekanizması",
     "📉 b-Değeri Zaman Serisi",
+    "💥 Coulomb Stres",
     "🏛️ Erzincan Arşivi",
     "🎓 Bilgi Havuzu",
     "⚙️ Sistem & Veri",
@@ -872,7 +873,7 @@ _MENU_LABELS = [
 _MENU_ICONS = [
     "globe", "bar-chart-line", "compass", "globe-americas", "moon-stars",
     "exclamation-triangle", "graph-up-arrow", "exclamation-octagon-fill",
-    "broadcast-pin", "map-fill", "circle-half", "graph-down", "archive", "mortarboard", "gear", "file-text",
+    "broadcast-pin", "map-fill", "circle-half", "graph-down", "lightning-charge", "archive", "mortarboard", "gear", "file-text",
 ]
 with st.container(key="sticky_nav"):
     active_menu = option_menu(
@@ -6662,6 +6663,268 @@ def _render_b_value_time_series():
 
 if active_menu == "📉 b-Değeri Zaman Serisi":
     _render_b_value_time_series()
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# 💥 COULOMB STRES — F-47 / v1.25 — Statik Gerilme Transferi (CFS)
+# ────────────────────────────────────────────────────────────────────────────
+# Bilimsel temel:
+#   • King, G.C.P., Stein, R.S. & Lin, J. (1994). Static stress changes
+#       and the triggering of earthquakes. BSSA 84(3), 935-953.
+#   • Stein, R.S. (1999). The role of stress transfer in earthquake
+#       occurrence. Nature 402, 605-609. DOI:10.1038/45144
+#   • Okada, Y. (1992). Internal deformation due to shear and tensile
+#       faults in a half-space. BSSA 82(2), 1018-1040.
+#   • Toda, S. et al. (2011). Coulomb 3 software.
+#       USGS Open-File Report 2011-1060.
+#   • Stein, Barka & Dieterich (1997). Progressive failure on NAF.
+#       Geophys. J. Int. 128, 594-604.
+# ════════════════════════════════════════════════════════════════════════════
+
+# CFS senaryoları — büyük olaylar ve komşu fay yüklenmesi
+# ΔCFS = Δτ + µ' × Δσn ; µ' = 0.4 (Türkiye için tipik, King 1994)
+_CFS_SENARYOLAR = {
+    "1999 İzmit (Mw 7.6) → Düzce yüklenmesi": {
+        "kaynak_lat": 40.75, "kaynak_lon": 29.86, "kaynak_mw": 7.6,
+        "kaynak_strike": 91, "kaynak_rake": -179,
+        "kirik_uzunluk_km": 145, "kayma_m": 4.0,
+        "aciklama": "İzmit kırığının doğu ucu Düzce segmentinde +1.5 bar ΔCFS yüklemesi yaptı; "
+                    "3 ay sonra Mw 7.2 Düzce kırıldı (Parsons et al. 2000).",
+        "ref": "Parsons et al. 2000 Science; Stein 1999 Nature",
+        "lab_hedef_lat": 40.79, "lab_hedef_lon": 31.21, "lab_hedef_isim": "Düzce segmenti",
+    },
+    "2023 Pazarcık (Mw 7.8) → Elbistan yüklenmesi": {
+        "kaynak_lat": 37.17, "kaynak_lon": 37.04, "kaynak_mw": 7.8,
+        "kaynak_strike": 228, "kaynak_rake": 1,
+        "kirik_uzunluk_km": 350, "kayma_m": 5.5,
+        "aciklama": "Pazarcık kırığının kuzey ucu Sürgü-Çardak fayında +3 bar ΔCFS; "
+                    "9 saat sonra Mw 7.7 Elbistan ana şoku (Melgar et al. 2023).",
+        "ref": "Melgar et al. 2023 Seismica; Stein et al. 2023",
+        "lab_hedef_lat": 38.02, "lab_hedef_lon": 37.20, "lab_hedef_isim": "Sürgü fayı (Elbistan)",
+    },
+    "1939 Erzincan (Ms 7.8) → KAF batıya göç": {
+        "kaynak_lat": 39.80, "kaynak_lon": 39.51, "kaynak_mw": 7.8,
+        "kaynak_strike": 105, "kaynak_rake": -10,
+        "kirik_uzunluk_km": 360, "kayma_m": 4.5,
+        "aciklama": "1939 Erzincan kırığının batı ucu Niksar-Erbaa segmentinde +1.5 bar ΔCFS; "
+                    "3 yıl sonra 1942 Niksar Ms 7.0 ana şoku. KAF batıya göç dizisinin başlangıcı.",
+        "ref": "Stein, Barka & Dieterich 1997 GJI 128; Toksöz et al. 1979",
+        "lab_hedef_lat": 40.65, "lab_hedef_lon": 36.95, "lab_hedef_isim": "Niksar segmenti",
+    },
+    "1999 Düzce (Mw 7.2) → Marmara/İstanbul": {
+        "kaynak_lat": 40.79, "kaynak_lon": 31.21, "kaynak_mw": 7.2,
+        "kaynak_strike": 264, "kaynak_rake": -172,
+        "kirik_uzunluk_km": 40, "kayma_m": 3.0,
+        "aciklama": "Düzce → batı, Marmara seismic gap'e ~0.2 bar ΔCFS; küçük yükleme ama "
+                    "kümülatif Marmara stres bütçesine eklendi (Parsons 2004).",
+        "ref": "Parsons 2004 JGR; Hubert-Ferrari et al. 2000 Nature",
+        "lab_hedef_lat": 40.87, "lab_hedef_lon": 28.45, "lab_hedef_isim": "Marmara seismic gap",
+    },
+}
+
+
+def _cfs_simplified_grid(src_lat: float, src_lon: float, src_mw: float,
+                         src_strike_deg: float, n: int = 70):
+    """
+    Basitleştirilmiş 2B CFS gridi — King, Stein & Lin (1994) 'butterfly' deseni.
+    Tam Okada 1992 dislokasyon modeli değil; göreceli yüklenme yön desenini gösterir.
+
+    ΔCFS pozitif lobları kaynak fayın uçlarında ve şarken kanadında oluşur
+    (4-lob desen: ±x ekseninde +, ±y ekseninde −).
+    """
+    # Grid range — büyüklüğe göre ölçek (Mw 7.0 ~ 100 km, Mw 7.8 ~ 250 km)
+    extent_km = 50 + (src_mw - 6.0) * 80
+    extent_deg = extent_km / 111.0
+
+    lats = np.linspace(src_lat - extent_deg, src_lat + extent_deg, n)
+    lons = np.linspace(src_lon - extent_deg / max(math.cos(math.radians(src_lat)), 0.1),
+                       src_lon + extent_deg / max(math.cos(math.radians(src_lat)), 0.1), n)
+
+    LON, LAT = np.meshgrid(lons, lats)
+    dlat = (LAT - src_lat) * 111.0
+    dlon = (LON - src_lon) * 111.0 * math.cos(math.radians(src_lat))
+    r = np.sqrt(dlat * dlat + dlon * dlon) + 0.5  # km, sıfır bölmeyi engelle
+
+    # Strike yönüne göre rotate koordinat sistemi
+    s_rad = math.radians(src_strike_deg)
+    x_rot = dlon * math.cos(s_rad) + dlat * math.sin(s_rad)
+    y_rot = -dlon * math.sin(s_rad) + dlat * math.cos(s_rad)
+    theta = np.arctan2(y_rot, x_rot)
+
+    # 4-lob butterfly deseni: cos(2θ) → +/-/+/- desen
+    # Mw ölçeği: Mw 7 ~ 1 bar maks, Mw 8 ~ 5 bar
+    amplitude = 10 ** (1.5 * (src_mw - 7.0))  # 7.0 → 1 bar, 7.8 → 5.6 bar
+    # Mesafe ile düşüş: r^(-2) yakın, r^(-3) uzak (rough)
+    decay = 1.0 / (1.0 + (r / 20.0) ** 2)
+    cfs = amplitude * np.cos(2 * theta) * decay
+
+    return LAT, LON, cfs
+
+
+@st.fragment
+def _render_coulomb_stress():
+    st.markdown(
+        '<div class="chart-title">💥 Coulomb Stres Transferi — CFS Haritası (F-47 / v1.25)</div>',
+        unsafe_allow_html=True,
+    )
+    st.info(
+        "💥 **Coulomb Stres (ΔCFS):** Bir deprem komşu faylarda gerilim alanını değiştirir. "
+        "ΔCFS = Δτ + µ' × Δσn. **Pozitif yüklenme (~+0.1 bar)** komşu fayda "
+        "tetiklemeyi hızlandırır (Stein 1999, Nature 402). Teorik temel: "
+        "**King, Stein & Lin (1994), BSSA 84(3)**; "
+        "**Okada (1992) dislokasyon modeli**."
+    )
+
+    # ── Senaryo seçici ─────────────────────────────────────────────────────
+    sec = st.selectbox(
+        "Senaryo seç",
+        options=list(_CFS_SENARYOLAR.keys()),
+        index=0,
+        key="cfs_senaryo",
+    )
+    s = _CFS_SENARYOLAR[sec]
+
+    st.markdown(f"**📍 Bağlam:** {s['aciklama']}")
+
+    # ── Hesap ──────────────────────────────────────────────────────────────
+    LAT, LON, cfs = _cfs_simplified_grid(
+        s["kaynak_lat"], s["kaynak_lon"], s["kaynak_mw"], s["kaynak_strike"]
+    )
+
+    # ── Harita: CFS densitymapbox ─────────────────────────────────────────
+    z_max = float(np.max(np.abs(cfs)))
+    fig_map = go.Figure()
+    fig_map.add_trace(go.Densitymapbox(
+        lat=LAT.flatten(),
+        lon=LON.flatten(),
+        z=cfs.flatten(),
+        radius=18,
+        colorscale=[
+            [0.00, "#1976D2"],  # negatif (gölgeleme) — mavi
+            [0.40, "#7FB3D5"],
+            [0.50, "rgba(255,255,255,0.0)"],
+            [0.60, "#FAC775"],
+            [1.00, "#A32D2D"],  # pozitif (yüklenme) — kırmızı
+        ],
+        zmid=0,
+        zmin=-z_max, zmax=z_max,
+        colorbar=dict(
+            title=dict(text="ΔCFS (bar)", font=dict(color=TEXT, size=11)),
+            tickfont=dict(color=TEXT, size=10),
+            bgcolor="rgba(0,0,0,0.4)",
+            thickness=14, len=0.7,
+        ),
+        opacity=0.7,
+        hovertemplate="ΔCFS: %{z:.2f} bar<br>(%{lat:.2f}, %{lon:.2f})<extra></extra>",
+    ))
+
+    # Kaynak fay çizgisi (strike yönünde)
+    s_rad = math.radians(s["kaynak_strike"])
+    half_len_deg = (s["kirik_uzunluk_km"] / 2.0) / 111.0
+    f_lat1 = s["kaynak_lat"] - half_len_deg * math.cos(s_rad)
+    f_lon1 = s["kaynak_lon"] - half_len_deg * math.sin(s_rad) / math.cos(math.radians(s["kaynak_lat"]))
+    f_lat2 = s["kaynak_lat"] + half_len_deg * math.cos(s_rad)
+    f_lon2 = s["kaynak_lon"] + half_len_deg * math.sin(s_rad) / math.cos(math.radians(s["kaynak_lat"]))
+    fig_map.add_trace(go.Scattermapbox(
+        lat=[f_lat1, f_lat2], lon=[f_lon1, f_lon2],
+        mode="lines",
+        line=dict(width=5, color="#FFD700"),
+        name=f"Kaynak fay (Mw {s['kaynak_mw']:.1f}, {s['kirik_uzunluk_km']} km)",
+        hoverinfo="name",
+    ))
+    fig_map.add_trace(go.Scattermapbox(
+        lat=[s["kaynak_lat"]], lon=[s["kaynak_lon"]],
+        mode="markers+text",
+        marker=dict(size=14, color="#FFD700", symbol="star"),
+        text=[f"★ Mw {s['kaynak_mw']:.1f}"],
+        textposition="top right",
+        textfont=dict(size=12, color="#FFD700"),
+        name="Episentr",
+        hoverinfo="name",
+    ))
+
+    # Hedef segment
+    fig_map.add_trace(go.Scattermapbox(
+        lat=[s["lab_hedef_lat"]], lon=[s["lab_hedef_lon"]],
+        mode="markers+text",
+        marker=dict(size=18, color="#E24B4A", symbol="circle"),
+        text=[s["lab_hedef_isim"]],
+        textposition="bottom right",
+        textfont=dict(size=11, color="#E24B4A"),
+        name="Etkilenen hedef",
+        hoverinfo="name+text",
+    ))
+
+    fig_map.update_layout(
+        mapbox=dict(
+            style="open-street-map",
+            center=dict(lat=s["kaynak_lat"], lon=s["kaynak_lon"]),
+            zoom=6,
+        ),
+        height=520,
+        margin=dict(l=0, r=0, t=10, b=0),
+        paper_bgcolor=BG2,
+        legend=dict(
+            orientation="h", yanchor="bottom", y=1.0, xanchor="left", x=0.0,
+            bgcolor="rgba(0,0,0,0)", font=dict(color=TEXT, size=11),
+        ),
+    )
+    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": False})
+
+    # ── Hedef noktada CFS değeri ───────────────────────────────────────────
+    # En yakın grid noktasını bul
+    target_dlat = (LAT - s["lab_hedef_lat"]) * 111.0
+    target_dlon = (LON - s["lab_hedef_lon"]) * 111.0 * math.cos(math.radians(s["lab_hedef_lat"]))
+    target_dist = np.sqrt(target_dlat ** 2 + target_dlon ** 2)
+    nearest_idx = np.unravel_index(np.argmin(target_dist), target_dist.shape)
+    target_cfs = float(cfs[nearest_idx])
+    target_km = float(target_dist[nearest_idx])
+
+    # Lob sayımı
+    pos_area_pct = 100.0 * np.sum(cfs > 0.1) / cfs.size
+    max_pos = float(np.max(cfs))
+    max_neg = float(np.min(cfs))
+
+    c1, c2, c3, c4 = st.columns(4)
+    target_color = "#E24B4A" if target_cfs > 0.1 else ("#FAC775" if target_cfs > 0 else "#1976D2")
+    kartlar = [
+        (c1, f"{target_cfs:+.2f} bar", target_color,
+         f"Hedef ΔCFS ({s['lab_hedef_isim']})"),
+        (c2, f"+{max_pos:.2f} bar", "#A32D2D", "Maks pozitif yüklenme"),
+        (c3, f"{max_neg:.2f} bar", "#1976D2", "Maks negatif (gölgeleme)"),
+        (c4, f"%{pos_area_pct:.0f}", "#EF9F27", "Pozitif lob alan oranı"),
+    ]
+    for col, val, color, label in kartlar:
+        with col:
+            st.markdown(
+                f'<div class="stat-box">'
+                f'<div style="font-size:1.35rem;font-weight:800;color:{color}">{val}</div>'
+                f'<div style="font-size:0.7rem;opacity:0.55;margin-top:2px">{label}</div>'
+                f'</div>', unsafe_allow_html=True)
+
+    # ── Yorumlama tablosu ─────────────────────────────────────────────────
+    st.markdown('<div class="chart-title">📋 ΔCFS Yorumlama Eşikleri</div>', unsafe_allow_html=True)
+    df_cfs = pd.DataFrame([
+        {"ΔCFS aralığı": "ΔCFS > +1.0 bar",     "Yorum": "Yüksek tetikleme olasılığı", "Örnek": "Düzce 1999 (3 ay sonra)"},
+        {"ΔCFS aralığı": "+0.1 < ΔCFS ≤ +1.0",  "Yorum": "Anlamlı yüklenme",          "Örnek": "Çoğu artçı (King 1994 eşiği)"},
+        {"ΔCFS aralığı": "−0.1 ≤ ΔCFS ≤ +0.1",  "Yorum": "İhmal edilebilir",          "Örnek": "Uzak alan"},
+        {"ΔCFS aralığı": "ΔCFS < −0.1 bar",     "Yorum": "Stres gölgeleme (gecikme)", "Örnek": "Komşu segmentlerin geçici dinginleşmesi"},
+    ])
+    st.dataframe(df_cfs, use_container_width=True, hide_index=True)
+
+    st.caption(
+        f"📚 **Senaryo referansı:** {s['ref']} | "
+        "**King, Stein & Lin (1994)** *BSSA* 84(3), 935-953 (CFS formülasyonu) | "
+        "**Stein (1999)** *Nature* 402, 605-609 — DOI:10.1038/45144 (kavramsal) | "
+        "**Okada (1992)** *BSSA* 82(2), 1018-1040 (dislokasyon teorisi) | "
+        "**Toda et al. (2011)** USGS OFR 2011-1060 (Coulomb 3 yazılım). "
+        "⚠️ Bu görsel basitleştirilmiş 4-lob deseni gösterir; tam Okada 1992 yarım-uzay "
+        "elastik dislokasyon modeli için Coulomb 3 / PSCMP kullanılır."
+    )
+
+
+if active_menu == "💥 Coulomb Stres":
+    _render_coulomb_stress()
 
 # ─── Footer ─────────────────────────────────────────────────────────────────
 st.markdown(f"""
