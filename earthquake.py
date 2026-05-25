@@ -48,7 +48,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.17.1"
+APP_VERSION = "1.17.2"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -705,25 +705,36 @@ with st.sidebar:
         if "custom_days_input" not in st.session_state:
             st.session_state.custom_days_input = st.session_state.custom_days
 
+        # Slider üst sınırı 10 yıl (3650 gün) — görsel hızlı seçim için geniş aralık.
+        # Bunun ötesi için aşağıdaki number_input sınırsız (max_value yok).
+        SLIDER_MAX_DAYS = 3650
+
         def sync_custom_days_from_slider():
             st.session_state.custom_days = int(st.session_state.custom_days_slider)
             st.session_state.custom_days_input = st.session_state.custom_days
 
         def sync_custom_days_from_input():
-            st.session_state.custom_days = int(st.session_state.custom_days_input)
-            st.session_state.custom_days_slider = st.session_state.custom_days
+            # Input slider'ın üst sınırını aşabilir; slider'ı clamp ile senkronla.
+            new_val = int(st.session_state.custom_days_input)
+            st.session_state.custom_days = new_val
+            st.session_state.custom_days_slider = min(new_val, SLIDER_MAX_DAYS)
+
+        # Slider değeri sınırın üstündeyse görsel olarak clamp'le (state etkilenmez)
+        slider_display = min(int(st.session_state.custom_days), SLIDER_MAX_DAYS)
+        if st.session_state.custom_days_slider != slider_display:
+            st.session_state.custom_days_slider = slider_display
 
         st.slider(
-            "Gün sayısı",
-            min_value=1, max_value=365,
+            "Gün sayısı (slider: 1–3650 gün ≈ 10 yıl)",
+            min_value=1, max_value=SLIDER_MAX_DAYS,
             step=1,
             key="custom_days_slider",
             on_change=sync_custom_days_from_slider,
         )
 
         st.number_input(
-            "Gün kutusu",
-            min_value=1, max_value=365,
+            "Gün kutusu (sınırsız — daha uzun dönem için doğrudan yaz)",
+            min_value=1,
             step=1,
             key="custom_days_input",
             on_change=sync_custom_days_from_input,
