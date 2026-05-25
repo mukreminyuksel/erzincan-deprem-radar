@@ -37,7 +37,7 @@ from earthquake_core import (
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.12"
+APP_VERSION = "1.13"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -429,25 +429,41 @@ def fetch_all(lat, lon, radius_km, min_mag, start_dt, end_dt, active_sources):
     df = df.dropna(subset=["buyukluk", "lat", "lon"])
     df["zaman"] = pd.to_datetime(df["zaman"], errors="coerce")
     df = df.dropna(subset=["zaman"])
-    df["uzaklik_km"] = df.apply(lambda r: haversine(lat, lon, r["lat"], r["lon"]), axis=1)
+    # Vektörleştirilmiş haversine (Ajan 3) — df.apply Python loop'undan ~50-100× hızlı
+    lat_rad = math.radians(lat)
+    lon_rad_val = math.radians(lon)
+    df_lat_rad = np.radians(df["lat"].to_numpy())
+    df_lon_rad = np.radians(df["lon"].to_numpy())
+    dlat = df_lat_rad - lat_rad
+    dlon = df_lon_rad - lon_rad_val
+    a_hav = np.sin(dlat / 2) ** 2 + math.cos(lat_rad) * np.cos(df_lat_rad) * np.sin(dlon / 2) ** 2
+    df["uzaklik_km"] = 6371.0 * 2.0 * np.arcsin(np.sqrt(a_hav))
     df = df.sort_values("zaman", ascending=False).reset_index(drop=True)
 
-    # Tekillestirme — Kandilli UTC+3 duzeltmesi yapildi, toleranslar genisletildi
-    # Farkli aglarin ayni depremi rapor etme suresi gercekte 0-90sn arasidir
-    seen, keep = [], []
-    for i, row in df.iterrows():
-        dup = any(
-            abs((row["zaman"] - s["zaman"]).total_seconds()) < 120  # 2 dk tolerans
-            and abs(row["lat"] - s["lat"]) < 0.15                    # ~16 km
-            and abs(row["lon"] - s["lon"]) < 0.15
-            and abs(row["buyukluk"] - s["buyukluk"]) < 0.5           # 0.5 mag tolerans
-            for s in seen
-        )
-        if not dup:
-            keep.append(i)
-            seen.append(row)
-
-    df = df.loc[keep].reset_index(drop=True)
+    # Tekilleştirme — Kandilli UTC+3 düzeltmesi, toleranslar genişletildi
+    # Farklı ağların aynı depremi rapor etme süresi gerçekte 0-90sn arası
+    # Sliding-window dedup (Ajan 3): O(n²) → O(n × k), k ≈ 2dk pencere satır sayısı
+    if len(df) > 1:
+        n = len(df)
+        times_ns = df["zaman"].to_numpy().astype("datetime64[ns]").astype(np.int64)
+        lats_arr = df["lat"].to_numpy()
+        lons_arr = df["lon"].to_numpy()
+        mags_arr = df["buyukluk"].to_numpy()
+        keep_mask = np.ones(n, dtype=bool)
+        threshold_ns = np.int64(120_000_000_000)  # 120 s
+        for i in range(1, n):
+            ti = times_ns[i]
+            for j in range(i - 1, -1, -1):
+                if not keep_mask[j]:
+                    continue
+                if abs(ti - times_ns[j]) >= threshold_ns:
+                    break  # descending sorted: ileri gidersek pencere kapanır
+                if (abs(lats_arr[i] - lats_arr[j]) < 0.15
+                    and abs(lons_arr[i] - lons_arr[j]) < 0.15
+                    and abs(mags_arr[i] - mags_arr[j]) < 0.5):
+                    keep_mask[i] = False
+                    break
+        df = df[keep_mask].reset_index(drop=True)
     df["renk"]     = df["buyukluk"].apply(mag_color)
     df["emoji"]    = df["buyukluk"].apply(mag_emoji)
     df["sinif"]    = df["buyukluk"].apply(mag_label)
