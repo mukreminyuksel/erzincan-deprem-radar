@@ -4,10 +4,10 @@ Tarih: 2026-05-25 | Sahibi: Tasarım Master (Ajan 9) | İlgili plan: [PLAN_v2.md
 ---
 
 ## Özet
-- **Toplam özellik:** 38 (26 mevcut + 12 önerilen)
+- **Toplam özellik:** 39 (26 mevcut + 13 önerilen)
 - **Tamamlanmış (v1.0-v1.14):** 26
 - **Aktif geliştirme (v1.15 sprint):** 3
-- **Backlog (v1.15-v1.18 hedefli):** 9
+- **Backlog (v1.15-v1.18 hedefli):** 10
 - **Donmuş / iptal:** 3
 
 Tablo iki bloktan oluşur: (1) **MEVCUT** — `earthquake.py` içinde halen çalışan paneller; her satıra `file:line` referansı verildi. (2) **ÖNERİLEN** — PLAN_v2.md misyonlarından + peer-reviewed sismolojik literatürden türetilmiş; her satıra atıf verildi.
@@ -67,6 +67,7 @@ Tablo iki bloktan oluşur: (1) **MEVCUT** — `earthquake.py` içinde halen çal
 | F-40 | P/S/Rayleigh particle motion — fiziksel doğru (P longitudinal, S transverse, Rayleigh retrograde elliptik) | Backlog | 🟡 Orta | v1.16 | Bilgi Havuzu — dalga animasyonunun yenisi [PLAN_v2.md:128-132](../PLAN_v2.md#L128) | Animasyon Uzmanı (Ajan 6) | mevcut Plotly Cone/Scatter3d | Aki & Richards 2002 quantitative seismology |
 | F-41 | SRTM 30m topografya — Erzincan sanal etki 3D terrain overlay | Backlog | 🟢 Düşük | v1.18 | Bilgi Havuzu — Erzincan simülasyonu | Animasyon Uzmanı (Ajan 6) | SRTM tile fetch, ~30MB lazy | NASA SRTM v3 (Farr et al. RG 2007) |
 | F-42 | Foreshock pattern recognition — M2+ swarm + spatial clustering uyarısı | Backlog | 🟡 Orta | v1.18 | Erken Uyarı altsekmesi veya yeni "Öncü Tespit" | Bilim Profesörü (Ajan 8) | DBSCAN, sklearn | Bouchon vd. Science 2013; Brodsky & Lay Science 2014 |
+| F-43 | **Tektonik Plaka Hareketi Simülasyonu** — GNSS hız vektörleri ile 10/100/1.000 yıl animasyonu, Erzincan kümülatif kayma bilgi kutusu | Backlog | 🔴 Yüksek | v1.17 | 🌐 Yeni bağımsız panel "Tektonik Simülasyon" (pill UX testine bağlı — F-31 sonrası karar) | Ajan 8 → Ajan 4 → Ajan 5 → Ajan 9 | PB2002 (F-05 tamam) + yeni `plate_velocities.json` + F-31 pill bar testi | Reilinger et al. JGR 2006 (GNSS hız alanı); Bird 2003 PB2002; Barka & Kadinsky-Cade JGR 1988 (NAFZ kayma hızı) — [Misyon brifingi](MISSION_PLAKA_SIMUASYON.md) |
 
 ---
 

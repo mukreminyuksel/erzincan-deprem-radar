@@ -1,5 +1,28 @@
 # Changelog
 
+## v1.17 - 2026-05-26 — F-43 Tektonik Plaka Hareketi Simülasyonu + sticky overflow fix
+
+**🌍 Plaka Hareketi Simülasyonu paneli (Ajan 4 + 5 + 8 + 9, F-43):**
+- Yeni "🌍 Plaka Simülasyonu" menü öğesi (Fay Sistemleri yanına, `globe-americas` ikonu).
+- 10 / 100 / 1.000 / 10.000 yıl zaman ufukları seçilebilir; 20 frame Plotly linear interpolation animasyonu.
+- 4 odak şehir: Erzincan / İstanbul / Diyarbakır / Van (sabit pin, plakalar etrafında kayar).
+- Görselleştirme: statik gri "bugünkü sınırlar" + kayan turuncu "N yıl sonrası" çizgileri + sarı hız vektör oku + sabit şehir pin.
+- Görsel ölçek ×1000 (Euler-türevli mm/yıl değerleri büyük zoom'da görünür); info kutusu gerçek mm/m/km değerini gösterir.
+- `carto-darkmatter` mapbox tabanı, koyu tema uyumlu.
+
+**📁 Veri & Bilim altyapısı:**
+- **`data/plate_velocities.json`** — NNR-MORVEL56 Euler kutbu parametreleri (Argus, Gordon & DeMets 2011 G-cubed, Tablo 1): Anadolu, Avrasya, Afrika, Arabistan plakaları (`euler_lat`, `euler_lon`, `omega_deg_myr`).
+- **`earthquake_core.py` +150 satır** — Euler rotasyon math: `plate_velocity_at_point()`, `_sph_to_cart()`, `_cross()`, kartezyen ECEF dönüşümleri.
+- **`features/MISSION_PLAKA_SIMUASYON.md`** — Ajan 9 (Tasarım Master) brief: özellik tanımı, etkileşim akışı, Q-SCI-8.1..6 + Q-UI-8.1..N soru listeleri, Ajan 4/5 görev dağılımı.
+- **`features/SCI_REVIEW_PLAKA.md`** — Ajan 8 (Bilim Profesörü) bilimsel fizibilite raporu: PB2002 + NNR-MORVEL56 + Reilinger 2006 yetersizlik analizi, KAF kayma hızları (Marmara 24/Niksar 20/Erzincan 18 mm/yıl), 1939 Erzincan paleoseismik kalibrasyon.
+- **`features/BACKLOG.md`** — F-43 backlog girişi eklendi.
+
+**📌 Sticky pill bar overflow düzeltmesi (UI Uzmanı — v1.16 takip):**
+- v1.16'da `overflow-x: clip` konmuştu — kullanıcı bildirdi: pill bar scroll'da görünmüyor.
+- CSS spec analizi: `clip` da tıpkı `hidden/auto/scroll` gibi sticky context'ini kırar.
+- Fix: `[data-testid="stMain"]` + `stMainBlockContainer` + `stVerticalBlock` = `overflow: visible !important`. Scroll `stApp`/`body` seviyesinde kalır, sticky çalışır.
+- v1.16'daki Antigravity'nin agresif `position: -webkit-sticky !important + z-index:9999 + box-shadow + tema-aware {BG}` styling korundu.
+
 ## v1.16 - 2026-05-26 — Sticky scroll fix + in_view bbox optimizasyonu
 
 **📌 Sticky pill bar tam çalıştırıldı (UI Uzmanı):**

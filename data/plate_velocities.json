@@ -1,0 +1,39 @@
+{
+  "_comment": "NNR-MORVEL56 mutlak plaka hareketi Euler kutupları. Kaynak: Argus, Gordon & DeMets (2011), G-cubed, doi:10.1029/2011GC003751, Tablo 1. euler_lat/euler_lon derece (WGS-84), omega_deg_myr: derece/milyon-yıl (saat yönü tersi pozitif, sağ-el kuralı). Türkiye bölgesi için AN, EU, AF, AR plakaları seçilmiştir.",
+  "AN": {
+    "name": "Anadolu",
+    "euler_lat": 32.93,
+    "euler_lon": 34.12,
+    "omega_deg_myr": 0.938,
+    "approx_speed_mm_yr": 25,
+    "approx_direction": "BKB (WSW) — Kuzey Anadolu Fayı boyunca",
+    "ref": "NNR-MORVEL56 Argus et al. 2011"
+  },
+  "EU": {
+    "name": "Avrasya",
+    "euler_lat": 48.85,
+    "euler_lon": -106.50,
+    "omega_deg_myr": 0.2228,
+    "approx_speed_mm_yr": 3,
+    "approx_direction": "KB (NW) — Kuzey Atlantik sırtından uzaklaşma",
+    "ref": "NNR-MORVEL56 Argus et al. 2011"
+  },
+  "AF": {
+    "name": "Afrika",
+    "euler_lat": 49.36,
+    "euler_lon": -80.44,
+    "omega_deg_myr": 0.2677,
+    "approx_speed_mm_yr": 20,
+    "approx_direction": "K-KB (N-NW) — Doğu Akdeniz'de yakınsayan sınır",
+    "ref": "NNR-MORVEL56 Argus et al. 2011"
+  },
+  "AR": {
+    "name": "Arabistan",
+    "euler_lat": 50.44,
+    "euler_lon": -5.65,
+    "omega_deg_myr": 0.5589,
+    "approx_speed_mm_yr": 25,
+    "approx_direction": "KKB (NNW) — Zagros kıvrım kuşağına doğru",
+    "ref": "NNR-MORVEL56 Argus et al. 2011"
+  }
+}

@@ -185,3 +185,153 @@ def nearest_fault_vertex_distance(lat, lon, faults):
 def event_signature(zaman, lat, lon, magnitude):
     key = f"{zaman}|{round(float(lat), 3)}|{round(float(lon), 3)}|{round(float(magnitude), 1)}"
     return hashlib.sha1(key.encode("utf-8")).hexdigest()[:12]
+
+
+# ---------------------------------------------------------------------------
+# Tektonik Plaka Hareketi — Euler Kutbu Rotasyonu
+# Kaynak: NNR-MORVEL56 (Argus, Gordon & DeMets 2011, G-cubed)
+# ---------------------------------------------------------------------------
+
+# NNR-MORVEL56 Euler kutbu parametreleri (Tablo 1)
+# euler_lat, euler_lon: derece; omega: derece/milyon-yıl (sağ-el kuralı)
+_PLATE_EULER_POLES: dict[str, dict] = {
+    "AN": {"euler_lat": 32.93, "euler_lon":  34.12, "omega_deg_myr": 0.938},   # Anadolu
+    "EU": {"euler_lat": 48.85, "euler_lon": -106.50, "omega_deg_myr": 0.2228}, # Avrasya
+    "AF": {"euler_lat": 49.36, "euler_lon":  -80.44, "omega_deg_myr": 0.2677}, # Afrika
+    "AR": {"euler_lat": 50.44, "euler_lon":   -5.65, "omega_deg_myr": 0.5589}, # Arabistan
+}
+
+_R_EARTH_MM = 6_371_000_000.0   # mm cinsinden Dünya yarıçapı
+
+
+def _deg2rad(deg: float) -> float:
+    return deg * math.pi / 180.0
+
+
+def _sph_to_cart(lat_deg: float, lon_deg: float) -> tuple[float, float, float]:
+    """Coğrafi koordinatı birim kartezyen vektöre çevirir (x=ECEF-X, y=Y, z=Z)."""
+    phi = _deg2rad(lat_deg)
+    lam = _deg2rad(lon_deg)
+    return (
+        math.cos(phi) * math.cos(lam),
+        math.cos(phi) * math.sin(lam),
+        math.sin(phi),
+    )
+
+
+def _cross(a: tuple[float, float, float], b: tuple[float, float, float]) -> tuple[float, float, float]:
+    """3B vektör çarpımı."""
+    return (
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    )
+
+
+def plate_velocity_at_point(
+    plate_id: str,
+    point_lat: float,
+    point_lon: float,
+) -> dict:
+    """Euler kutbu rotasyonu ile noktadaki anlık hız vektörünü hesaplar.
+
+    Parameters
+    ----------
+    plate_id  : str  — 'AN', 'EU', 'AF', 'AR'
+    point_lat : float — enlem (kuzey pozitif, derece)
+    point_lon : float — boylam (doğu pozitif, derece)
+
+    Returns
+    -------
+    dict şu anahtarlarla:
+        v_north_mm_yr : float  — kuzey bileşeni (mm/yıl)
+        v_east_mm_yr  : float  — doğu bileşeni   (mm/yıl)
+        speed_mm_yr   : float  — toplam hız büyüklüğü (mm/yıl)
+        azimuth_deg   : float  — hareket yönü (K=0, D=90, ...)
+
+    Notes
+    -----
+    Euler açısal hızı ω (derece/Myr) → radyan/yıl:
+        ω_rad_yr = ω_deg_myr × (π/180) × 1e-6
+
+    Yüzey hızı:  v⃗ = ω⃗ × r⃗ × R_Earth   (mm/yıl)
+    Burada ω⃗ ve r⃗ birim Kartezyen vektörler, R_Earth mm cinsindendir.
+    """
+    if plate_id not in _PLATE_EULER_POLES:
+        raise ValueError(
+            f"Bilinmeyen plaka ID: {plate_id!r}. "
+            f"Geçerli değerler: {list(_PLATE_EULER_POLES)}"
+        )
+
+    pole = _PLATE_EULER_POLES[plate_id]
+    omega_rad_yr = pole["omega_deg_myr"] * (math.pi / 180.0) * 1e-6   # rad/yıl
+
+    # Euler kutbu ve nokta → birim Kartezyen
+    ex, ey, ez = _sph_to_cart(pole["euler_lat"], pole["euler_lon"])
+    px, py, pz = _sph_to_cart(point_lat, point_lon)
+
+    # Omega vektörü: ω⃗ = omega_rad_yr × ê_pole
+    wx, wy, wz = omega_rad_yr * ex, omega_rad_yr * ey, omega_rad_yr * ez
+
+    # Yüzey hız vektörü (Kartezyen, mm/yıl): v⃗ = ω⃗ × p̂ × R
+    vx, vy, vz = _cross((wx, wy, wz), (px, py, pz))
+    vx *= _R_EARTH_MM
+    vy *= _R_EARTH_MM
+    vz *= _R_EARTH_MM
+
+    # Kartezyen hızı lokal ENU (East-North-Up) bileşenlerine dönüştür
+    phi = _deg2rad(point_lat)
+    lam = _deg2rad(point_lon)
+    # Lokal North birimi: (-sin(φ)cos(λ), -sin(φ)sin(λ), cos(φ))
+    # Lokal East birimi:  (-sin(λ),        cos(λ),         0      )
+    v_north = (-math.sin(phi) * math.cos(lam)) * vx \
+            + (-math.sin(phi) * math.sin(lam)) * vy \
+            + math.cos(phi) * vz
+    v_east  = (-math.sin(lam)) * vx + math.cos(lam) * vy
+
+    speed = math.sqrt(v_north ** 2 + v_east ** 2)
+    azimuth = math.degrees(math.atan2(v_east, v_north)) % 360.0
+
+    return {
+        "v_north_mm_yr": round(v_north, 3),
+        "v_east_mm_yr":  round(v_east,  3),
+        "speed_mm_yr":   round(speed,   3),
+        "azimuth_deg":   round(azimuth, 1),
+    }
+
+
+def plate_velocity_vector(
+    plate_id: str,
+    point_lat: float,
+    point_lon: float,
+    years: int,
+) -> tuple[float, float]:
+    """Euler kutbu rotasyonu ile `years` yıl için yer değiştirme vektörünü döndürür.
+
+    Parameters
+    ----------
+    plate_id  : str   — 'AN', 'EU', 'AF', 'AR'
+    point_lat : float — başlangıç enlemi (derece)
+    point_lon : float — başlangıç boylamı (derece)
+    years     : int   — ileriye veya geriye simülasyon süresi (yıl)
+
+    Returns
+    -------
+    (delta_lat, delta_lon) : tuple[float, float]
+        Derece cinsinden konumsal kayma.
+        Küçük süreler için lineer yaklaşım kullanılır (< ~1000 yıl güvenli).
+        Büyük süreler için Runge-Kutta entegrasyonu önerilir.
+
+    Notes
+    -----
+    1° enlem ≈ 111 320 m = 111 320 000 mm
+    1° boylam ≈ 111 320 × cos(φ) mm
+    """
+    vel = plate_velocity_at_point(plate_id, point_lat, point_lon)
+    mm_per_deg_lat = 111_320_000.0
+    mm_per_deg_lon = 111_320_000.0 * math.cos(_deg2rad(point_lat))
+
+    delta_lat = (vel["v_north_mm_yr"] * years) / mm_per_deg_lat
+    delta_lon = (vel["v_east_mm_yr"]  * years) / mm_per_deg_lon
+
+    return (round(delta_lat, 8), round(delta_lon, 8))
