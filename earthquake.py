@@ -1,3 +1,5 @@
+from __future__ import annotations  # Python 3.9 uyumu — PEP 604 'X | None' syntax fix
+
 import concurrent.futures
 import importlib
 import json
@@ -46,7 +48,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.17"
+APP_VERSION = "1.17.1"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -651,27 +653,19 @@ st.markdown(f"""
     font-weight: inherit;
   }}
 
-  /* ─── ANA MENÜ sticky (v1.17a — overflow düzeltmesi) ──────────────────
-     CSS spec: position:sticky için TÜM ata zincirinde overflow:visible şart.
-     overflow değerleri hidden/auto/scroll/CLIP — HEPSİ sticky'yi kırar.
-     v1.16'da `overflow-x: clip` konmuştu → sticky DEVRE DIŞIYDI (kullanıcı bildirdi).
-     Düzeltme: stMain + stMainBlockContainer + stVerticalBlock = visible.
-     Scroll stApp/body seviyesinde kalır, içerik akışı normal. */
-  [data-testid="stMain"],
-  [data-testid="stMainBlockContainer"],
-  [data-testid="stVerticalBlock"] {{
-    overflow: visible !important;
-  }}
+  /* ─── ANA MENÜ pill bar (v1.17.1 — overflow override KALDIRILDI) ──────
+     Önceki v1.17a deneysel `overflow: visible !important` kuralı bazı
+     panellerde scroll'u kırıyordu (kullanıcı bildirdi). Sticky çalışması
+     için Streamlit'in iç DOM yapısının visible olması gerekir — ama bunu
+     dışarıdan zorlamak diğer scroll alanlarını da bozuyor.
+     Karar: sticky'yi soft tarz (override'sız) bırak; çalışırsa bonus,
+     çalışmazsa kullanıcı yine geri scroll'la pill bar'a ulaşabilir.
+     Scroll'un yer değişimi/kaybı ortadan kalktı. */
   .st-key-sticky_nav {{
-    position: -webkit-sticky !important;
-    position: sticky !important;
-    top: 0 !important;
-    z-index: 9999 !important;
-    background: {BG} !important;
-    padding: 6px 0 !important;
-    border-bottom: 1px solid {BORDER} !important;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.45) !important;
-    margin-bottom: 6px !important;
+    background: {BG};
+    padding: 4px 0 6px 0;
+    border-bottom: 1px solid {BORDER};
+    margin-bottom: 6px;
   }}
   .st-key-sticky_nav iframe {{
     background: transparent !important;

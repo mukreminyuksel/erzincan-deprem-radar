@@ -1,3 +1,5 @@
+from __future__ import annotations  # Python 3.9 uyumu — PEP 585 generics + PEP 604 unions lazy eval
+
 from datetime import datetime, timedelta, timezone
 from html import escape
 import math

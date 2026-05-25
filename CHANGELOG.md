@@ -1,5 +1,23 @@
 # Changelog
 
+## v1.17.1 - 2026-05-26 — HOT-FIX: Python 3.9 uyumu + scroll bozulma rollback
+
+**🚨 İki kritik sorun düzeltildi (kullanıcı bildirdi):**
+
+1. **TypeError: unsupported operand type(s) for |: 'type' and 'NoneType'**
+   - `earthquake.py:3946` `float | None` PEP 604 syntax → Python 3.10+ özel; sistem Python 3.9.6
+   - Fix: `from __future__ import annotations` her iki dosyaya (`earthquake.py`, `earthquake_core.py`)
+   - Tüm tip hint'leri lazy/string evaluation → runtime eval atlanır
+
+2. **Scroll bozulması — kaymayan sayfalar**
+   - v1.17a'da `[data-testid="stMain"] + stMainBlockContainer + stVerticalBlock { overflow: visible !important }` eklenmişti
+   - Bu Streamlit'in iç scroll mekanizmasını kırdı — bazı panellerde sayfa kaymıyordu
+   - Rollback: overflow override'ları KALDIRILDI; sticky soft tarz (override'sız) bırakıldı
+   - Trade-off: sticky pill bar tarayıcıya/zoom'a göre çalışabilir-çalışmayabilir, ama scroll kesin çalışır
+   - Sticky kalıcı çözümü ileriki bir sürümde `position: fixed` ile yeniden ele alınacak
+
+APP_VERSION 1.17 -> 1.17.1
+
 ## v1.17 - 2026-05-26 — F-43 Tektonik Plaka Hareketi Simülasyonu + sticky overflow fix
 
 **🌍 Plaka Hareketi Simülasyonu paneli (Ajan 4 + 5 + 8 + 9, F-43):**
