@@ -50,7 +50,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.25"
+APP_VERSION = "1.26"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -865,6 +865,7 @@ _MENU_LABELS = [
     "🥎 Odak Mekanizması",
     "📉 b-Değeri Zaman Serisi",
     "💥 Coulomb Stres",
+    "🛰️ InSAR Deformasyon",
     "🏛️ Erzincan Arşivi",
     "🎓 Bilgi Havuzu",
     "⚙️ Sistem & Veri",
@@ -873,7 +874,7 @@ _MENU_LABELS = [
 _MENU_ICONS = [
     "globe", "bar-chart-line", "compass", "globe-americas", "moon-stars",
     "exclamation-triangle", "graph-up-arrow", "exclamation-octagon-fill",
-    "broadcast-pin", "map-fill", "circle-half", "graph-down", "lightning-charge", "archive", "mortarboard", "gear", "file-text",
+    "broadcast-pin", "map-fill", "circle-half", "graph-down", "lightning-charge", "satellite", "archive", "mortarboard", "gear", "file-text",
 ]
 with st.container(key="sticky_nav"):
     active_menu = option_menu(
@@ -6925,6 +6926,262 @@ def _render_coulomb_stress():
 
 if active_menu == "💥 Coulomb Stres":
     _render_coulomb_stress()
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# 🛰️ INSAR DEFORMASYON — F-48 / v1.26 — Sentinel-1 LOS Yer Değiştirme
+# ────────────────────────────────────────────────────────────────────────────
+# Bilimsel temel:
+#   • Massonnet, D. & Feigl, K.L. (1998). Radar interferometry and its
+#       application to changes in the earth's surface. Rev. Geophys. 36(4),
+#       441-500. DOI:10.1029/97RG03139
+#   • Xu, W. et al. (2023). Surface ruptures, coseismic deformation, and
+#       seismotectonics of the 2023 M7.8 and M7.7 earthquake doublet in SE
+#       Turkey. EPSL 612, 118333. DOI:10.1016/j.epsl.2023.118333
+#   • Massonnet et al. (1993). The displacement field of the Landers
+#       earthquake mapped by radar interferometry. Nature 364, 138-142.
+#   • ESA Sentinel-1: sentinel.esa.int
+#   • COMET LiCS portal: comet.nerc.ac.uk/COMET-LiCS-portal
+# ════════════════════════════════════════════════════════════════════════════
+
+_INSAR_OLAYLAR = {
+    "2023 Pazarcık (Mw 7.8) — Kahramanmaraş doublet": {
+        "lat": 37.17, "lon": 37.04, "mw": 7.8,
+        "tarih": "2023-02-06",
+        "strike": 228, "rupture_km": 350,
+        "max_los_m": 5.5,  # Xu et al. 2023 EPSL — line-of-sight
+        "max_horizontal_m": 7.2,
+        "comet_url": "https://comet.nerc.ac.uk/earthquakes/us6000jllz/",
+        "kaynak": "Xu et al. 2023 EPSL 612, 118333 (COMET LiCS interferogram)",
+    },
+    "2023 Elbistan (Mw 7.7) — Sürgü-Çardak fayı": {
+        "lat": 38.02, "lon": 37.20, "mw": 7.7,
+        "tarih": "2023-02-06",
+        "strike": 261, "rupture_km": 160,
+        "max_los_m": 3.8,
+        "max_horizontal_m": 4.6,
+        "comet_url": "https://comet.nerc.ac.uk/earthquakes/us6000jlqa/",
+        "kaynak": "Melgar et al. 2023 Seismica; COMET LiCS",
+    },
+    "2020 Sivrice/Elazığ (Mw 6.8) — DAF": {
+        "lat": 38.39, "lon": 39.06, "mw": 6.8,
+        "tarih": "2020-01-24",
+        "strike": 247, "rupture_km": 50,
+        "max_los_m": 0.95,
+        "max_horizontal_m": 1.1,
+        "comet_url": "https://comet.nerc.ac.uk/earthquakes/us60007ewc/",
+        "kaynak": "Pousse-Beltran et al. 2020 GRL; ESA Sentinel-1",
+    },
+    "2011 Van (Mw 7.1) — Doğu Anadolu ters fay": {
+        "lat": 38.72, "lon": 43.51, "mw": 7.1,
+        "tarih": "2011-10-23",
+        "strike": 252, "rupture_km": 60,
+        "max_los_m": 0.85,
+        "max_horizontal_m": 0.55,
+        "comet_url": "https://comet.nerc.ac.uk/",
+        "kaynak": "Elliott et al. 2013 GRL; Fielding et al. 2013 JGR",
+    },
+    "1999 İzmit (Mw 7.6) — KAF (ERS-2)": {
+        "lat": 40.75, "lon": 29.86, "mw": 7.6,
+        "tarih": "1999-08-17",
+        "strike": 91, "rupture_km": 145,
+        "max_los_m": 2.7,
+        "max_horizontal_m": 4.5,
+        "comet_url": "https://comet.nerc.ac.uk/",
+        "kaynak": "Wright et al. 2001 GRL (ERS-2 — InSAR'ın Türkiye'deki klasiği)",
+    },
+}
+
+
+def _insar_synthetic_interferogram(lat0: float, lon0: float, strike_deg: float,
+                                   rupture_km: float, max_los_m: float, n: int = 80):
+    """
+    Sentinel-1 interferogram benzeri sentetik LOS deformasyon alanı.
+    Fay boyunca anti-simetrik kayma — gerçek InSAR fringe deseninin basit özeti.
+
+    Eğitim/görselleştirme amaçlı; gerçek interferogram için COMET LiCS portalı.
+    """
+    extent_km = rupture_km * 1.2
+    extent_deg = extent_km / 111.0
+
+    lats = np.linspace(lat0 - extent_deg, lat0 + extent_deg, n)
+    cos_lat = math.cos(math.radians(lat0))
+    lons = np.linspace(lon0 - extent_deg / cos_lat, lon0 + extent_deg / cos_lat, n)
+    LON, LAT = np.meshgrid(lons, lats)
+
+    dlat = (LAT - lat0) * 111.0
+    dlon = (LON - lon0) * 111.0 * cos_lat
+
+    # Strike yönüne rotate
+    s_rad = math.radians(strike_deg)
+    x_par = dlon * math.cos(s_rad) + dlat * math.sin(s_rad)   # fay boyunca
+    y_perp = -dlon * math.sin(s_rad) + dlat * math.cos(s_rad)  # faya dik
+
+    # Anti-simetrik doğrultu atımlı deformasyon (right-lateral varsayım):
+    # y > 0 tarafında +los, y < 0 tarafında −los
+    # Fay boyunca cosine taper (uçlarda 0)
+    half_l = rupture_km / 2.0
+    taper = np.where(
+        np.abs(x_par) < half_l,
+        np.cos(np.pi * x_par / (2 * half_l)),
+        0.0,
+    )
+    decay = np.exp(-np.abs(y_perp) / 15.0)
+    los = max_los_m * np.sign(y_perp) * taper * decay
+
+    return LAT, LON, los
+
+
+@st.fragment
+def _render_insar():
+    st.markdown(
+        '<div class="chart-title">🛰️ InSAR Koseismik Deformasyon — Sentinel-1 LOS (F-48 / v1.26)</div>',
+        unsafe_allow_html=True,
+    )
+    st.info(
+        "🛰️ **InSAR (Interferometric SAR):** İki SAR görüntüsünün faz farkından "
+        "**centimetre hassasiyetinde** yer deformasyonu ölçer. Massonnet 1993'te "
+        "ilk kez Landers depreminde uygulanmış, bugün ESA Sentinel-1 her 6-12 günde "
+        "tüm Türkiye'yi tarar. Teorik temel: **Massonnet & Feigl (1998), Rev. Geophys. 36(4)**."
+    )
+
+    sec = st.selectbox(
+        "Olay seç",
+        options=list(_INSAR_OLAYLAR.keys()),
+        index=0,
+        key="insar_select",
+    )
+    o = _INSAR_OLAYLAR[sec]
+
+    st.markdown(
+        f"**📍 Olay:** {sec} | **Tarih:** {o['tarih']} | "
+        f"**Mw:** {o['mw']:.1f} | **Kırık:** {o['rupture_km']} km"
+    )
+
+    # ── Sentetik interferogram ─────────────────────────────────────────────
+    LAT, LON, los = _insar_synthetic_interferogram(
+        o["lat"], o["lon"], o["strike"], o["rupture_km"], o["max_los_m"]
+    )
+
+    fig = go.Figure()
+    fig.add_trace(go.Densitymapbox(
+        lat=LAT.flatten(),
+        lon=LON.flatten(),
+        z=los.flatten(),
+        radius=15,
+        colorscale=[
+            [0.00, "#000080"],  # uzaklaşma (LOS negatif) — koyu mavi
+            [0.25, "#1976D2"],
+            [0.50, "rgba(255,255,255,0.0)"],
+            [0.75, "#EF9F27"],
+            [1.00, "#A32D2D"],  # yaklaşma (LOS pozitif) — koyu kırmızı
+        ],
+        zmid=0,
+        zmin=-o["max_los_m"], zmax=o["max_los_m"],
+        colorbar=dict(
+            title=dict(text="LOS<br>(m)", font=dict(color=TEXT, size=11)),
+            tickfont=dict(color=TEXT, size=10),
+            bgcolor="rgba(0,0,0,0.4)",
+            thickness=14, len=0.7,
+        ),
+        opacity=0.75,
+        hovertemplate="LOS: %{z:+.2f} m<br>(%{lat:.3f}, %{lon:.3f})<extra></extra>",
+    ))
+
+    # Fay kırığı (strike boyunca)
+    s_rad = math.radians(o["strike"])
+    half_l_deg = (o["rupture_km"] / 2.0) / 111.0
+    cos_lat = math.cos(math.radians(o["lat"]))
+    f_lat1 = o["lat"] - half_l_deg * math.cos(s_rad)
+    f_lon1 = o["lon"] - half_l_deg * math.sin(s_rad) / cos_lat
+    f_lat2 = o["lat"] + half_l_deg * math.cos(s_rad)
+    f_lon2 = o["lon"] + half_l_deg * math.sin(s_rad) / cos_lat
+    fig.add_trace(go.Scattermapbox(
+        lat=[f_lat1, f_lat2], lon=[f_lon1, f_lon2],
+        mode="lines",
+        line=dict(width=5, color="#FFD700"),
+        name=f"Yüzey kırığı ({o['rupture_km']} km)",
+        hoverinfo="name",
+    ))
+    fig.add_trace(go.Scattermapbox(
+        lat=[o["lat"]], lon=[o["lon"]],
+        mode="markers+text",
+        marker=dict(size=14, color="#FFD700", symbol="star"),
+        text=[f"★ Mw {o['mw']:.1f}"],
+        textposition="top right",
+        textfont=dict(size=12, color="#FFD700"),
+        hoverinfo="text",
+        showlegend=False,
+    ))
+
+    fig.update_layout(
+        mapbox=dict(
+            style="open-street-map",
+            center=dict(lat=o["lat"], lon=o["lon"]),
+            zoom=7,
+        ),
+        height=520,
+        margin=dict(l=0, r=0, t=10, b=0),
+        paper_bgcolor=BG2,
+        legend=dict(
+            orientation="h", yanchor="bottom", y=1.0, xanchor="left", x=0.0,
+            bgcolor="rgba(0,0,0,0)", font=dict(color=TEXT, size=11),
+        ),
+    )
+    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+
+    # ── Bilgi kartları ─────────────────────────────────────────────────────
+    fringe_count = int(o["max_los_m"] / 0.028)  # Sentinel-1 C-band yarı dalgaboyu ~2.8 cm
+    c1, c2, c3, c4 = st.columns(4)
+    kartlar = [
+        (c1, f"{o['max_los_m']:.2f} m",        "#A32D2D", "Maks LOS yer değiştirme"),
+        (c2, f"{o['max_horizontal_m']:.2f} m", "#EF9F27", "Maks yatay (3D inv.)"),
+        (c3, f"{o['rupture_km']} km",          "#FFD700", "Yüzey kırık uzunluğu"),
+        (c4, f"~{fringe_count}",               "#1976D2", "Sentinel-1 C-bant fringe (2.8 cm/fringe)"),
+    ]
+    for col, val, color, label in kartlar:
+        with col:
+            st.markdown(
+                f'<div class="stat-box">'
+                f'<div style="font-size:1.35rem;font-weight:800;color:{color}">{val}</div>'
+                f'<div style="font-size:0.7rem;opacity:0.55;margin-top:2px">{label}</div>'
+                f'</div>', unsafe_allow_html=True)
+
+    # ── Bağlantılar ───────────────────────────────────────────────────────
+    st.markdown(f"""
+**🔗 Gerçek interferogram için:**
+- **COMET LiCS Portal:** [{o['comet_url']}]({o['comet_url']})
+- **ESA Copernicus Open Hub:** https://scihub.copernicus.eu/
+- **NASA ARIA:** https://aria.jpl.nasa.gov/
+
+**📐 Sentinel-1 spesifikasyonları:**
+- C-bant SAR (5.405 GHz, λ = 5.6 cm → yarı dalgaboyu 2.8 cm/fringe)
+- Tekrarlama: 6 gün (ascending+descending), 12 gün tek modda
+- Çözünürlük: 5 × 20 m (IW modu)
+    """)
+
+    # ── InSAR Fizik Tablosu ────────────────────────────────────────────────
+    st.markdown('<div class="chart-title">📋 InSAR Yorum Anahtarı</div>', unsafe_allow_html=True)
+    df_insar = pd.DataFrame([
+        {"Renk": "🔴 Kırmızı", "LOS": "+", "Yorum": "Uydudan uzağa hareket (uplift veya yaklaşma)"},
+        {"Renk": "🔵 Mavi",   "LOS": "−", "Yorum": "Uyduya doğru hareket (subsidence veya uzaklaşma)"},
+        {"Renk": "⚪ Beyaz",  "LOS": "0", "Yorum": "Deformasyon yok veya çok küçük"},
+        {"Renk": "🟢 Fringe", "Renk değişimi": "1 tam fringe", "Yorum": "Yarım dalgaboyu yer değiştirme (~2.8 cm, C-bant)"},
+    ])
+    st.dataframe(df_insar, use_container_width=True, hide_index=True)
+
+    st.caption(
+        f"📚 **Senaryo:** {o['kaynak']} | "
+        "**Massonnet & Feigl (1998)** *Rev. Geophys.* 36(4), 441-500 — DOI:10.1029/97RG03139 | "
+        "**Massonnet et al. (1993)** *Nature* 364, 138-142 (Landers — InSAR'ın doğuşu) | "
+        "**Xu et al. (2023)** *EPSL* 612, 118333 (Kahramanmaraş) | "
+        "**Wright et al. (2001)** *GRL* (İzmit ERS-2). "
+        "⚠️ Harita sentetik gösterim — gerçek interferogram için COMET LiCS portalı kullanılmalıdır."
+    )
+
+
+if active_menu == "🛰️ InSAR Deformasyon":
+    _render_insar()
 
 # ─── Footer ─────────────────────────────────────────────────────────────────
 st.markdown(f"""
