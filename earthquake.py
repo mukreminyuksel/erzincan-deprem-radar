@@ -37,7 +37,7 @@ from earthquake_core import (
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.13"
+APP_VERSION = "1.14"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -720,7 +720,7 @@ with st.sidebar:
     st.markdown("---")
     harita_stil = st.selectbox("Harita Stili", ["Uydu", "Uydu+Yol", "Koyu", "Acik"], index=0)
     show_faults = st.checkbox("Fay Hatlarini Goster", value=True)
-    show_plates = st.checkbox("Kıta / Plaka Sınırlarını Göster", value=False)
+    show_plates = st.checkbox("Kıta / Plaka Sınırlarını Göster", value=True)
 
     st.markdown("---")
     st.markdown("**Veri Kaynakları** (tıkla aç/kapat)")
@@ -886,6 +886,49 @@ def load_fault_lines():
 
 FAULT_LINES = load_fault_lines()
 
+# PB2002 (Peter Bird 2003) plaka sınır tipleri — Türkiye + komşu Mediterranean odaklı
+# convergent = yaklaşan (subduction/collision) — kırmızı
+# divergent  = ayrılan (rift/MOR) — mavi
+# transform  = yanal kayan (strike-slip) — sarı
+PB2002_BOUNDARY_TYPES = {
+    # Türkiye merkezli
+    ("AT", "EU"): ("transform",  "Kuzey Anadolu Fay Zonu (NAFZ)"),
+    ("AR", "AT"): ("transform",  "Doğu Anadolu Fay Zonu (EAFZ)"),
+    ("AS", "AT"): ("divergent",  "Batı Anadolu Açılma Zonu"),
+    ("AF", "AT"): ("convergent", "Kıbrıs Yayı (Cyprean Arc)"),
+    ("AS", "EU"): ("convergent", "Helenik Yay — Kuzey"),
+    ("AF", "AS"): ("convergent", "Helenik Hendeği (subduction)"),
+    ("AF", "AR"): ("transform",  "Ölüdeniz Fay Zonu (DSFZ)"),
+    ("AR", "EU"): ("convergent", "Bitlis-Zagros Sıkışma Zonu"),
+    # Diğer büyük dünya sınırları (ana hatlar, kullanıcı zoom out yaparsa)
+    ("EU", "NA"): ("divergent",  "Mid-Atlantic Ridge — Kuzey"),
+    ("NA", "PA"): ("transform",  "San Andreas + Aleut"),
+    ("CO", "NA"): ("convergent", "Cocos subduction"),
+    ("CO", "SA"): ("divergent",  "East Pacific Rise — Kuzey"),
+    ("NZ", "SA"): ("convergent", "Nazca-Güney Amerika (Andlar)"),
+    ("PA", "AU"): ("convergent", "Tonga-Kermadec"),
+    ("PA", "SA"): ("convergent", "Doğu Pasifik"),
+    ("AF", "EU"): ("convergent", "Akdeniz — batı"),
+    ("AF", "SA"): ("divergent",  "Mid-Atlantic Ridge — Güney"),
+    ("IN", "EU"): ("convergent", "Himalaya kuşağı"),
+    ("AU", "EU"): ("convergent", "Australia-Eurasia"),
+    ("AN", "PA"): ("divergent",  "Pacific-Antarctic Ridge"),
+}
+
+BOUNDARY_TYPE_STYLE = {
+    "convergent": {"color": "#ff5252", "width": 3.5},  # kırmızı, kalın — subduction/collision
+    "divergent":  {"color": "#42a5f5", "width": 2.8},  # mavi — rift/MOR
+    "transform":  {"color": "#ffd54f", "width": 3.0},  # sarı — strike-slip
+    "unknown":    {"color": "#90a4ae", "width": 1.8},  # gri ince — etiketsiz
+}
+
+def classify_boundary(plate_a, plate_b):
+    """PB2002 plaka çiftini sınıflandır: tip + okunabilir isim."""
+    key = tuple(sorted([plate_a or "", plate_b or ""]))
+    if key in PB2002_BOUNDARY_TYPES:
+        return PB2002_BOUNDARY_TYPES[key]
+    return ("unknown", "")
+
 @st.cache_resource(show_spinner=False)
 def load_tectonic_plates():
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tectonic_plates.geojson")
@@ -904,13 +947,29 @@ def load_tectonic_plates():
         else:
             continue
         props = feat.get("properties") or {}
+        plate_a = props.get("PlateA") or ""
+        plate_b = props.get("PlateB") or ""
+        b_type, b_name = classify_boundary(plate_a, plate_b)
+        style = BOUNDARY_TYPE_STYLE[b_type]
         for coords in segments:
             if len(coords) < 2:
                 continue
+            label_parts = [f"{plate_a}-{plate_b} Plaka Sınırı"]
+            if b_name:
+                label_parts.append(b_name)
+            label_parts.append({
+                "convergent": "Tip: Yaklaşan (subduction/çarpışma)",
+                "divergent":  "Tip: Ayrılan (rift/sırt)",
+                "transform":  "Tip: Yanal Kayan (strike-slip)",
+                "unknown":    "Tip: Sınıflandırılmamış",
+            }[b_type])
             lines.append({
-                "isim": f"{props.get('PlateA', '')}-{props.get('PlateB', '')} Plaka Sınırı",
-                "lats": [c[1] for c in coords],
-                "lons": [c[0] for c in coords],
+                "isim":  " — ".join(label_parts),
+                "lats":  [c[1] for c in coords],
+                "lons":  [c[0] for c in coords],
+                "type":  b_type,
+                "color": style["color"],
+                "width": style["width"],
             })
     return lines
 
@@ -1175,26 +1234,47 @@ def _render_canli_radar():
                 ))
 
         if show_plates and PLATE_LINES:
-            plate_lats, plate_lons, plate_labels = [], [], []
+            # Tip bazında grupla — convergent kırmızı, divergent mavi, transform sarı
+            plates_by_type = {"convergent": [], "divergent": [], "transform": [], "unknown": []}
             for plate in PLATE_LINES:
-                plate_lats.extend(plate["lats"] + [None])
-                plate_lons.extend(plate["lons"] + [None])
-                plate_labels.extend([plate["isim"]] * len(plate["lats"]) + [None])
-            
-            # Kalın gölge
+                plates_by_type.setdefault(plate.get("type", "unknown"), []).append(plate)
+
+            # Tüm tipler için ortak siyah gölge (önce çizilir, altta kalır)
+            all_lats, all_lons = [], []
+            for plates_in_type in plates_by_type.values():
+                for plate in plates_in_type:
+                    all_lats.extend(plate["lats"] + [None])
+                    all_lons.extend(plate["lons"] + [None])
             fig_map.add_trace(go.Scattermapbox(
-                lat=plate_lats, lon=plate_lons, mode="lines",
+                lat=all_lats, lon=all_lons, mode="lines",
                 showlegend=False, hoverinfo="skip",
-                line=dict(color="rgba(0,0,0,0.8)", width=6),
+                line=dict(color="rgba(0,0,0,0.7)", width=5),
             ))
-            # Ana çizgi (Açık mavi veya neon mavi)
-            fig_map.add_trace(go.Scattermapbox(
-                lat=plate_lats, lon=plate_lons, mode="lines",
-                name="Plaka Sınırı", showlegend=False,
-                line=dict(color="#00E5FF", width=3),
-                text=plate_labels,
-                hovertemplate="<b>%{text}</b><extra></extra>",
-            ))
+
+            # Her tip için ayrı renkli trace (sıralama: önce unknown alta, sonra üst)
+            type_display = {
+                "unknown":    "Plaka Sınırı (sınıflandırılmamış)",
+                "convergent": "🔺 Yaklaşan Sınır (subduction/çarpışma)",
+                "divergent":  "🔻 Ayrılan Sınır (rift/sırt)",
+                "transform":  "↔ Yanal Kayan Sınır (strike-slip)",
+            }
+            for b_type in ["unknown", "convergent", "divergent", "transform"]:
+                plates_in_type = plates_by_type.get(b_type, [])
+                if not plates_in_type:
+                    continue
+                style = BOUNDARY_TYPE_STYLE[b_type]
+                t_lats, t_lons, t_labels = [], [], []
+                for plate in plates_in_type:
+                    t_lats.extend(plate["lats"] + [None])
+                    t_lons.extend(plate["lons"] + [None])
+                    t_labels.extend([plate["isim"]] * len(plate["lats"]) + [None])
+                fig_map.add_trace(go.Scattermapbox(
+                    lat=t_lats, lon=t_lons, mode="lines",
+                    name=type_display[b_type], showlegend=True,
+                    line=dict(color=style["color"], width=style["width"]),
+                    text=t_labels,
+                    hovertemplate="<b>%{text}</b><extra></extra>",
+                ))
 
             # Plaka İtme Yönleri (Oklar)
             plate_motions = [
