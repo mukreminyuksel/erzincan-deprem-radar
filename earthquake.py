@@ -50,7 +50,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.26"
+APP_VERSION = "1.27"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -866,6 +866,7 @@ _MENU_LABELS = [
     "📉 b-Değeri Zaman Serisi",
     "💥 Coulomb Stres",
     "🛰️ InSAR Deformasyon",
+    "📜 Tarihsel Sismisite",
     "🏛️ Erzincan Arşivi",
     "🎓 Bilgi Havuzu",
     "⚙️ Sistem & Veri",
@@ -874,7 +875,7 @@ _MENU_LABELS = [
 _MENU_ICONS = [
     "globe", "bar-chart-line", "compass", "globe-americas", "moon-stars",
     "exclamation-triangle", "graph-up-arrow", "exclamation-octagon-fill",
-    "broadcast-pin", "map-fill", "circle-half", "graph-down", "lightning-charge", "satellite", "archive", "mortarboard", "gear", "file-text",
+    "broadcast-pin", "map-fill", "circle-half", "graph-down", "lightning-charge", "satellite", "journal-text", "archive", "mortarboard", "gear", "file-text",
 ]
 with st.container(key="sticky_nav"):
     active_menu = option_menu(
@@ -7182,6 +7183,234 @@ def _render_insar():
 
 if active_menu == "🛰️ InSAR Deformasyon":
     _render_insar()
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# 📜 TARİHSEL SİSMİSİTE — F-49 / v1.27 — 2000 Yıllık Türkiye Deprem Atlası
+# ────────────────────────────────────────────────────────────────────────────
+# Bilimsel temel:
+#   • Ambraseys, N.N. (2009). Earthquakes in the Mediterranean and Middle
+#       East: A Multidisciplinary Study of Seismicity up to 1900.
+#       Cambridge University Press. ISBN:9780521872928
+#   • Ambraseys, N.N. & Finkel, C.F. (1995). Seismicity of Turkey and
+#       Adjacent Areas, 1500-1800. Eren Yayıncılık.
+#   • Guidoboni, E. et al. (1994). Catalogue of ancient earthquakes in the
+#       Mediterranean area up to the 10th century. ING-SGA, Rome.
+#   • Sbeinati, M.R. et al. (2005). The historical earthquakes of Syria.
+#       Annals of Geophysics 48(3), 347-435.
+#   • NOAA NCEI Significant Earthquakes Database
+# ════════════════════════════════════════════════════════════════════════════
+
+# Türkiye + yakın Doğu Akdeniz tarihsel depremler (Ambraseys 2009, Guidoboni 1994)
+# Mw tahminleri makro-sismik şiddet kayıtlarından (Ambraseys & Jackson 2000)
+_TARIHSEL_OLAYLAR = [
+    # MS 1-500
+    {"yil": 17,   "ay": 9,  "yer": "Sardes (Lydia)",     "lat": 38.49, "lon": 28.04, "mw": 7.0, "kaynak": "Tacitus; Guidoboni 1994"},
+    {"yil": 115,  "ay": 12, "yer": "Antakya (Antioch)",  "lat": 36.20, "lon": 36.15, "mw": 7.5, "kaynak": "Cassius Dio; Guidoboni 1994"},
+    {"yil": 358,  "ay": 8,  "yer": "Nicomedia (İzmit)",  "lat": 40.77, "lon": 29.92, "mw": 7.4, "kaynak": "Ammianus Marcellinus; Ambraseys 2009"},
+    {"yil": 365,  "ay": 7,  "yer": "Girit (Megatsunami)","lat": 35.50, "lon": 23.50, "mw": 8.4, "kaynak": "Stiros 2001 J. Struct. Geol.; megatsunami"},
+    {"yil": 484,  "ay": 9,  "yer": "İznik (Nicaea)",     "lat": 40.42, "lon": 29.72, "mw": 7.0, "kaynak": "Ambraseys 2009 Tablo 1.3"},
+
+    # 500-1000
+    {"yil": 526,  "ay": 5,  "yer": "Antakya",            "lat": 36.20, "lon": 36.16, "mw": 7.0, "kaynak": "Procopius; 250.000+ ölü tahmini"},
+    {"yil": 542,  "ay": 8,  "yer": "Konstantinopolis",   "lat": 41.01, "lon": 28.98, "mw": 6.5, "kaynak": "Theophanes Chronicle"},
+    {"yil": 740,  "ay": 10, "yer": "Konstantinopolis",   "lat": 40.85, "lon": 28.20, "mw": 7.1, "kaynak": "Ambraseys 2009; bizans surları yıkıldı"},
+    {"yil": 859,  "ay": 4,  "yer": "Antakya",            "lat": 36.20, "lon": 36.16, "mw": 7.0, "kaynak": "Arap kronikleri; Sbeinati 2005"},
+
+    # 1000-1500
+    {"yil": 1063, "ay": 9,  "yer": "Marmara",            "lat": 40.80, "lon": 28.50, "mw": 7.2, "kaynak": "Skylitzes; Ambraseys 2002"},
+    {"yil": 1114, "ay": 11, "yer": "Maraş-Antakya",      "lat": 37.30, "lon": 36.80, "mw": 7.8, "kaynak": "Mateos of Edessa; DAF kuzey"},
+    {"yil": 1202, "ay": 5,  "yer": "Doğu Akdeniz",       "lat": 33.50, "lon": 35.50, "mw": 7.5, "kaynak": "Sbeinati 2005; Suriye-Lübnan"},
+    {"yil": 1268, "ay": 6,  "yer": "Erzincan",           "lat": 39.75, "lon": 39.50, "mw": 7.5, "kaynak": "Ermeni vakanüvis; Ambraseys 2009"},
+    {"yil": 1303, "ay": 8,  "yer": "Rodos (Tsunami)",    "lat": 35.50, "lon": 27.50, "mw": 8.0, "kaynak": "Guidoboni 2004; Doğu Akdeniz mega"},
+    {"yil": 1354, "ay": 3,  "yer": "Gelibolu",           "lat": 40.40, "lon": 26.65, "mw": 7.2, "kaynak": "Bizans + Osmanlı kayıtları"},
+
+    # 1500-1800
+    {"yil": 1509, "ay": 9,  "yer": "İstanbul (Kıyamet-i Sugra)", "lat": 41.00, "lon": 28.97, "mw": 7.2, "kaynak": "Osmanlı vakanüvis; 'Küçük Kıyamet'"},
+    {"yil": 1668, "ay": 8,  "yer": "Amasya-Kuzey Anadolu",       "lat": 40.65, "lon": 35.80, "mw": 8.0, "kaynak": "Ambraseys & Finkel 1995; KAF 400+ km kırık"},
+    {"yil": 1719, "ay": 5,  "yer": "İzmit",              "lat": 40.75, "lon": 30.00, "mw": 7.4, "kaynak": "Ambraseys & Finkel 1995"},
+    {"yil": 1754, "ay": 9,  "yer": "İzmit-Doğu Marmara", "lat": 40.80, "lon": 29.50, "mw": 6.9, "kaynak": "Ambraseys & Finkel 1995"},
+    {"yil": 1766, "ay": 5,  "yer": "İstanbul-Marmara (büyük)", "lat": 40.80, "lon": 29.00, "mw": 7.1, "kaynak": "Ambraseys 2002 J. Seism.; Marmara seismic gap başlangıcı"},
+    {"yil": 1766, "ay": 8,  "yer": "Saros Körfezi",      "lat": 40.65, "lon": 27.00, "mw": 7.4, "kaynak": "Ambraseys 2002"},
+    {"yil": 1784, "ay": 7,  "yer": "Erzincan",           "lat": 39.80, "lon": 39.30, "mw": 7.6, "kaynak": "Ambraseys & Finkel 1988"},
+
+    # 1800-1900
+    {"yil": 1822, "ay": 8,  "yer": "Halep-Antakya",      "lat": 36.20, "lon": 36.80, "mw": 7.4, "kaynak": "DAF; Ambraseys 2009"},
+    {"yil": 1855, "ay": 2,  "yer": "Bursa",              "lat": 40.18, "lon": 29.07, "mw": 7.1, "kaynak": "Ambraseys & Finkel 1987 Disasters"},
+    {"yil": 1859, "ay": 6,  "yer": "Erzurum",            "lat": 39.90, "lon": 41.27, "mw": 6.5, "kaynak": "Ambraseys 2009"},
+    {"yil": 1872, "ay": 4,  "yer": "Antakya-Amik Gölü",  "lat": 36.40, "lon": 36.50, "mw": 7.2, "kaynak": "DAF güney; Ambraseys 1989"},
+    {"yil": 1881, "ay": 4,  "yer": "Sakız Adası (Sakız)","lat": 38.40, "lon": 26.10, "mw": 7.3, "kaynak": "Ambraseys 2001"},
+    {"yil": 1894, "ay": 7,  "yer": "İstanbul",           "lat": 40.70, "lon": 28.65, "mw": 7.0, "kaynak": "Ambraseys & Finkel 1991; aletsel öncü"},
+
+    # 1900+ aletsel (referans için)
+    {"yil": 1903, "ay": 4,  "yer": "Malazgirt",          "lat": 39.20, "lon": 42.50, "mw": 7.0, "kaynak": "Aletsel başlangıç"},
+    {"yil": 1912, "ay": 8,  "yer": "Mürefte-Saros",      "lat": 40.75, "lon": 27.20, "mw": 7.4, "kaynak": "Ambraseys & Jackson 2000"},
+    {"yil": 1939, "ay": 12, "yer": "Erzincan",           "lat": 39.80, "lon": 39.51, "mw": 7.8, "kaynak": "Barka 1996 BSSA; KAF batı göç başlangıcı"},
+    {"yil": 1942, "ay": 12, "yer": "Niksar-Erbaa",       "lat": 40.65, "lon": 36.95, "mw": 7.0, "kaynak": "KAF batıya göç"},
+    {"yil": 1943, "ay": 11, "yer": "Tosya-Ladik",        "lat": 41.00, "lon": 34.00, "mw": 7.6, "kaynak": "KAF"},
+    {"yil": 1944, "ay": 2,  "yer": "Bolu-Gerede",        "lat": 40.85, "lon": 32.30, "mw": 7.4, "kaynak": "KAF"},
+    {"yil": 1957, "ay": 5,  "yer": "Abant (Bolu)",       "lat": 40.65, "lon": 31.00, "mw": 7.1, "kaynak": "KAF"},
+    {"yil": 1967, "ay": 7,  "yer": "Adapazarı-Mudurnu",  "lat": 40.65, "lon": 30.70, "mw": 7.1, "kaynak": "KAF"},
+    {"yil": 1976, "ay": 11, "yer": "Çaldıran-Van",       "lat": 39.05, "lon": 44.04, "mw": 7.3, "kaynak": "Doğu Anadolu"},
+    {"yil": 1983, "ay": 10, "yer": "Erzurum-Kars",       "lat": 40.32, "lon": 42.18, "mw": 6.9, "kaynak": "Doğu Anadolu"},
+    {"yil": 1992, "ay": 3,  "yer": "Erzincan",           "lat": 39.71, "lon": 39.60, "mw": 6.8, "kaynak": "Grosser 1998 PAGEOPH 152"},
+    {"yil": 1999, "ay": 8,  "yer": "İzmit (Gölcük)",     "lat": 40.75, "lon": 29.86, "mw": 7.6, "kaynak": "KAF; ~17.000 ölü"},
+    {"yil": 1999, "ay": 11, "yer": "Düzce",              "lat": 40.79, "lon": 31.21, "mw": 7.2, "kaynak": "KAF batı segment"},
+    {"yil": 2011, "ay": 10, "yer": "Van",                "lat": 38.72, "lon": 43.51, "mw": 7.1, "kaynak": "Doğu Anadolu ters fay"},
+    {"yil": 2020, "ay": 10, "yer": "İzmir-Samos",        "lat": 37.90, "lon": 26.79, "mw": 6.9, "kaynak": "Ege normal fay"},
+    {"yil": 2023, "ay": 2,  "yer": "Pazarcık (Maraş)",   "lat": 37.17, "lon": 37.04, "mw": 7.8, "kaynak": "DAF + Sürgü; ~55.000 ölü"},
+    {"yil": 2023, "ay": 2,  "yer": "Elbistan",           "lat": 38.02, "lon": 37.20, "mw": 7.7, "kaynak": "Sürgü fayı (9 saat sonra)"},
+]
+
+
+def _yuzyil_renk(yuzyil: int) -> str:
+    # 1. yy → 21. yy, viridis-türevi
+    palette = ["#440154", "#481B6D", "#46337E", "#3F4889", "#365C8D",
+               "#2E6E8E", "#277F8E", "#21908C", "#1FA187", "#2DB27D",
+               "#4AC16D", "#6ECE58", "#9FDA3A", "#CFE11C", "#FDE725",
+               "#FEC829", "#F89441", "#EB6453", "#D43F71", "#A52A85",
+               "#7A1F8B"]  # 21 element
+    idx = max(0, min(20, yuzyil - 1))
+    return palette[idx]
+
+
+@st.fragment
+def _render_tarihsel_sismisite():
+    st.markdown(
+        '<div class="chart-title">📜 Tarihsel Sismisite — Türkiye 2000 Yıllık Atlas (F-49 / v1.27)</div>',
+        unsafe_allow_html=True,
+    )
+    st.info(
+        "📜 **Tarihsel Sismisite:** Aletsel öncesi (1900 öncesi) büyük depremler, "
+        "Bizans/Osmanlı vakanüvisleri, Arap kronikleri ve arkeo-sismik izlerden "
+        "derlenmiştir. Teorik temel: **Ambraseys (2009), Cambridge Univ. Press**; "
+        "**Guidoboni et al. (1994)**; **Sbeinati et al. (2005), Ann. Geophys.**."
+    )
+
+    # ── Yüzyıl filtresi ────────────────────────────────────────────────────
+    col_yy, col_mag = st.columns([2, 1])
+    with col_yy:
+        yuzyil_range = st.slider(
+            "Yüzyıl aralığı",
+            min_value=1, max_value=21, value=(1, 21), step=1,
+            key="tarihsel_yy_range",
+        )
+    with col_mag:
+        min_mw = st.slider(
+            "Min. Mw",
+            min_value=6.5, max_value=8.0, value=6.8, step=0.1,
+            key="tarihsel_min_mw",
+        )
+
+    yy_min, yy_max = yuzyil_range
+    df_h = pd.DataFrame(_TARIHSEL_OLAYLAR)
+    df_h["yuzyil"] = ((df_h["yil"] - 1) // 100) + 1
+    df_filt = df_h[(df_h["yuzyil"] >= yy_min) & (df_h["yuzyil"] <= yy_max) & (df_h["mw"] >= min_mw)]
+    df_filt = df_filt.sort_values("yil").reset_index(drop=True)
+
+    if df_filt.empty:
+        st.warning("Bu filtreye uygun olay bulunamadı.")
+        return
+
+    # ── Harita ─────────────────────────────────────────────────────────────
+    fig_map = go.Figure()
+    for _, ev in df_filt.iterrows():
+        size = 8 + (ev["mw"] - 6.5) * 5
+        renk = _yuzyil_renk(int(ev["yuzyil"]))
+        hover = (
+            f"<b>{ev['yer']}</b> ({int(ev['yil'])})<br>"
+            f"Mw ~{ev['mw']:.1f}<br>"
+            f"Yüzyıl: {int(ev['yuzyil'])}.<br>"
+            f"Kaynak: {ev['kaynak']}"
+            "<extra></extra>"
+        )
+        fig_map.add_trace(go.Scattermapbox(
+            lat=[ev["lat"]], lon=[ev["lon"]],
+            mode="markers",
+            marker=dict(size=size, color=renk, opacity=0.85),
+            text=f"{int(ev['yil'])}",
+            hovertemplate=hover,
+            showlegend=False,
+        ))
+
+    fig_map.update_layout(
+        mapbox=dict(style="open-street-map", center=dict(lat=39.0, lon=33.0), zoom=4.7),
+        height=540,
+        margin=dict(l=0, r=0, t=10, b=0),
+        paper_bgcolor=BG2,
+    )
+    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": False})
+
+    # ── Zaman çizelgesi (scatter) ──────────────────────────────────────────
+    st.markdown('<div class="chart-title">⏳ Zaman Çizelgesi (yıl × Mw)</div>', unsafe_allow_html=True)
+    fig_time = go.Figure()
+    fig_time.add_trace(go.Scatter(
+        x=df_filt["yil"], y=df_filt["mw"],
+        mode="markers",
+        marker=dict(
+            size=8 + (df_filt["mw"] - 6.5) * 5,
+            color=df_filt["yuzyil"].apply(_yuzyil_renk).tolist(),
+            opacity=0.85,
+            line=dict(color="#000", width=0.4),
+        ),
+        text=df_filt["yer"],
+        hovertemplate="<b>%{text}</b><br>Yıl: %{x}<br>Mw ~%{y:.1f}<extra></extra>",
+        showlegend=False,
+    ))
+    # Ortalama tekrar referansı
+    fig_time.add_hline(y=7.5, line=dict(color="#E24B4A", width=1, dash="dash"),
+                       annotation_text="Mw 7.5 eşiği", annotation_font_color="#E24B4A",
+                       annotation_position="top right")
+    fig_time.update_layout(
+        xaxis=dict(title="Yıl (MS)", color=TEXT, gridcolor=BORDER),
+        yaxis=dict(title="Mw (tahminî)", color=TEXT, gridcolor=BORDER, range=[6.4, 8.6]),
+        height=320,
+        margin=dict(l=10, r=10, t=10, b=40),
+        paper_bgcolor=BG2, plot_bgcolor=BG2,
+    )
+    st.plotly_chart(fig_time, use_container_width=True, config={"displayModeBar": False})
+
+    # ── Bilgi kartları ─────────────────────────────────────────────────────
+    biggest = df_filt.loc[df_filt["mw"].idxmax()]
+    yy_count = df_filt["yuzyil"].nunique()
+    span = int(df_filt["yil"].max()) - int(df_filt["yil"].min())
+    mean_interval = span / max(1, len(df_filt) - 1)
+
+    c1, c2, c3, c4 = st.columns(4)
+    kartlar = [
+        (c1, f"{len(df_filt)}",                  "#FFD700", f"Olay sayısı ({yy_min}.→{yy_max}. yy)"),
+        (c2, f"M{biggest['mw']:.1f}",            "#A32D2D", f"En büyük ({int(biggest['yil'])} {biggest['yer'].split(' ')[0]})"),
+        (c3, f"~{mean_interval:.0f} yıl",        "#EF9F27", "Ortalama olaylar arası"),
+        (c4, f"{yy_count}",                      "#1976D2", "Kapsanan yüzyıl"),
+    ]
+    for col, val, color, label in kartlar:
+        with col:
+            st.markdown(
+                f'<div class="stat-box">'
+                f'<div style="font-size:1.35rem;font-weight:800;color:{color}">{val}</div>'
+                f'<div style="font-size:0.7rem;opacity:0.55;margin-top:2px">{label}</div>'
+                f'</div>', unsafe_allow_html=True)
+
+    # ── Tablo ─────────────────────────────────────────────────────────────
+    st.markdown('<div class="chart-title">📋 Tarihsel Olaylar Listesi</div>', unsafe_allow_html=True)
+    df_show = df_filt[["yil", "yer", "mw", "kaynak"]].copy()
+    df_show.columns = ["Yıl (MS)", "Yer", "Mw (tahmin)", "Tarihsel kaynak"]
+    df_show = df_show.sort_values("Yıl (MS)").reset_index(drop=True)
+    st.dataframe(df_show, use_container_width=True, hide_index=True, height=380)
+
+    st.caption(
+        "📚 **Ana Kaynaklar:** Ambraseys (2009) Cambridge Univ. Press, ISBN 9780521872928 | "
+        "Ambraseys & Finkel (1995) *Seismicity of Turkey 1500-1800* | "
+        "Guidoboni et al. (1994) ING-SGA Rome | "
+        "Sbeinati et al. (2005) *Annals of Geophysics* 48(3), 347-435 | "
+        "Stiros (2001) *J. Struct. Geol.* (365 AD Girit megatsunami). "
+        "⚠️ 1900 öncesi Mw değerleri makro-sismik şiddet kayıtlarından türetilmiştir; "
+        "±0.3 belirsizlik içerir (Ambraseys & Jackson 2000)."
+    )
+
+
+if active_menu == "📜 Tarihsel Sismisite":
+    _render_tarihsel_sismisite()
 
 # ─── Footer ─────────────────────────────────────────────────────────────────
 st.markdown(f"""
