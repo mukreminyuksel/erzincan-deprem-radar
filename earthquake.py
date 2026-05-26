@@ -79,7 +79,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.44.3"
+APP_VERSION = "1.45"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -878,71 +878,127 @@ last1h  = df[df["zaman"] >= now_utc - timedelta(hours=1)]
 last24h = df[df["zaman"] >= now_utc - timedelta(hours=24)]
 big4    = df[df["buyukluk"] >= 4.0]
 
-# ─── ANA MENÜ — üst horizontal pill (v1.16: tam sticky) ───────────────────────
+# ─── ANA MENÜ — v1.45 2-katmanlı kategori yapısı (kullanıcı + Codex önerisi) ──
+# 35 panel tek pill bar'da overload edildi → 6 ana kategori altına gruplandı.
 # st.container(key="sticky_nav") → ".st-key-sticky_nav" → position:sticky (v1.16 fix)
-_MENU_LABELS = [
-    "🌍 Canlı Radar",
-    "📊 İstatistik & Analiz",
-    "🧭 Fay Sistemleri",
-    "🌍 Plaka Simülasyonu",
-    "🔭 Astronomik Analiz",
-    "🚨 Erken Uyarı",
-    "📈 Artçı Tahmin",
-    "🔴 Sismik Açık",
-    "🌊 ShakeMap",
-    "🗺️ Sismik Tehlike",
-    "🥎 Odak Mekanizması",
-    "📉 b-Değeri Zaman Serisi",
-    "💥 Coulomb Stres",
-    "🛰️ InSAR Deformasyon",
-    "📜 Tarihsel Sismisite",
-    "🔄 Sismik Döngü",
-    "🌐 Dinamik Tetikleme",
-    "📡 InSAR Zaman Serisi",
-    "🔒 Fay Kilitlenme",
-    "🌋 Moho Derinliği",
-    "🌀 SKS Splitting",
-    "🌊 Tsunami Kataloğu",
-    "⏱️ Tsunami Varış",
-    "🎬 Ambraseys Animasyon",
-    "⛏️ Paleosismik Kazı",
-    "🗺️ Tsunami Tehlike",
-    "🏔️ Vs30 Zemin",
-    "🏚️ HAZUS Kayıp",
-    "🏺 Erzincan Paleo",
-    "🗾 Erzincan Mikrozon",
-    "🏛️ Erzincan Arşivi",
-    "🎓 Bilgi Havuzu",
-    "📚 Akademik Kütüphane",
-    "⚙️ Sistem & Veri",
-    "📝 Raporlar",
-]
-_MENU_ICONS = [
-    "globe", "bar-chart-line", "compass", "globe-americas", "moon-stars",
-    "exclamation-triangle", "graph-up-arrow", "exclamation-octagon-fill",
-    "broadcast-pin", "map-fill", "circle-half", "graph-down", "lightning-charge", "satellite", "journal-text", "arrow-repeat", "globe2", "broadcast", "lock-fill", "layers-half", "compass-fill", "water", "stopwatch", "film", "hammer", "tsunami", "bricks", "building-x", "tree", "grid-3x3", "archive", "mortarboard", "journal-bookmark-fill", "gear", "file-text",
-]
+# Panel ISIMLERI KORUNDU — mevcut `if active_menu == "..."` blokları DOKUNULMADI.
+_KATEGORILER = {
+    "🔴 Canlı İzleme": {
+        "icon": "broadcast-pin",
+        "panels": [
+            ("🌍 Canlı Radar",  "globe"),
+            ("🌊 ShakeMap",      "broadcast-pin"),
+            ("🔴 Sismik Açık",  "exclamation-octagon-fill"),
+            ("🚨 Erken Uyarı",  "exclamation-triangle"),
+            ("📈 Artçı Tahmin", "graph-up-arrow"),
+            ("🔄 Sismik Döngü", "arrow-repeat"),
+        ],
+    },
+    "🧭 Fay & Tektonik": {
+        "icon": "compass",
+        "panels": [
+            ("🧭 Fay Sistemleri",      "compass"),
+            ("🌍 Plaka Simülasyonu",   "globe-americas"),
+            ("🔒 Fay Kilitlenme",      "lock-fill"),
+            ("💥 Coulomb Stres",       "lightning-charge"),
+            ("🥎 Odak Mekanizması",   "circle-half"),
+            ("⛏️ Paleosismik Kazı",   "hammer"),
+            ("🏺 Erzincan Paleo",      "tree"),
+        ],
+    },
+    "📊 Analiz & Modeller": {
+        "icon": "bar-chart-line",
+        "panels": [
+            ("📊 İstatistik & Analiz",      "bar-chart-line"),
+            ("📉 b-Değeri Zaman Serisi",    "graph-down"),
+            ("🌐 Dinamik Tetikleme",        "globe2"),
+            ("🗺️ Sismik Tehlike",          "map-fill"),
+            ("🗺️ Tsunami Tehlike",         "tsunami"),
+            ("⏱️ Tsunami Varış",            "stopwatch"),
+            ("🌊 Tsunami Kataloğu",         "water"),
+            ("🏚️ HAZUS Kayıp",              "building-x"),
+        ],
+    },
+    "🛰️ Uydu & Jeofizik": {
+        "icon": "satellite",
+        "panels": [
+            ("🛰️ InSAR Deformasyon",  "satellite"),
+            ("📡 InSAR Zaman Serisi", "broadcast"),
+            ("🌋 Moho Derinliği",     "layers-half"),
+            ("🌀 SKS Splitting",      "compass-fill"),
+            ("🏔️ Vs30 Zemin",         "bricks"),
+            ("🗾 Erzincan Mikrozon",  "grid-3x3"),
+        ],
+    },
+    "🎓 Eğitim & Bilgi": {
+        "icon": "mortarboard",
+        "panels": [
+            ("📚 Akademik Kütüphane",   "journal-bookmark-fill"),
+            ("🎓 Bilgi Havuzu",          "mortarboard"),
+            ("📜 Tarihsel Sismisite",   "journal-text"),
+            ("🏛️ Erzincan Arşivi",      "archive"),
+            ("🎬 Ambraseys Animasyon",  "film"),
+            ("🔭 Astronomik Analiz",    "moon-stars"),
+            ("📝 Raporlar",              "file-text"),
+        ],
+    },
+    "⚙️ Sistem": {
+        "icon": "gear",
+        "panels": [
+            ("⚙️ Sistem & Veri", "gear"),
+        ],
+    },
+}
+
+# Geriye-uyum için flat listeler (eski testler/araçlar için)
+_MENU_LABELS = [p[0] for k in _KATEGORILER.values() for p in k["panels"]]
+_MENU_ICONS  = [p[1] for k in _KATEGORILER.values() for p in k["panels"]]
+
+# Hangi kategori → hangi panel listesi (lookup)
+_KATEGORI_LISTESI = list(_KATEGORILER.keys())
+_KATEGORI_IKONLARI = [_KATEGORILER[k]["icon"] for k in _KATEGORI_LISTESI]
+
+_PILL_STYLE = {
+    "container": {"padding": "0!important", "background-color": "transparent", "margin-top": "0"},
+    "icon": {"font-size": "0.95rem"},
+    "nav-link": {
+        "font-size": "0.82rem",
+        "text-align": "center",
+        "margin": "0 2px",
+        "padding": "6px 10px",
+        "border-radius": "8px",
+        "white-space": "nowrap",
+    },
+    "nav-link-selected": {"background-color": "#1976d2", "font-weight": "600"},
+}
+
 with st.container(key="sticky_nav"):
-    active_menu = option_menu(
+    # Üst: ana kategori pill bar (6 öğe — temiz)
+    secili_kategori = option_menu(
         menu_title=None,
-        options=_MENU_LABELS,
-        icons=_MENU_ICONS,
+        options=_KATEGORI_LISTESI,
+        icons=_KATEGORI_IKONLARI,
         orientation="horizontal",
         default_index=0,
-        key="main_nav",
-        styles={
-            "container": {"padding": "0!important", "background-color": "transparent", "margin-top": "0"},
-            "icon": {"font-size": "0.95rem"},
-            "nav-link": {
-                "font-size": "0.82rem",
-                "text-align": "center",
-                "margin": "0 2px",
-                "padding": "6px 10px",
-                "border-radius": "8px",
-                "white-space": "nowrap",
-            },
-            "nav-link-selected": {"background-color": "#1976d2", "font-weight": "600"},
-        },
+        key="ana_kategori",
+        styles=_PILL_STYLE,
+    )
+    # Alt: seçili kategorinin panel pill bar'ı
+    _alt_paneller = _KATEGORILER[secili_kategori]["panels"]
+    _alt_labels = [p[0] for p in _alt_paneller]
+    _alt_icons  = [p[1] for p in _alt_paneller]
+    # Stil — alt-pill daha yumuşak (ikincil seviye)
+    _alt_style = {**_PILL_STYLE,
+                  "nav-link-selected": {"background-color": "#43a047", "font-weight": "600"}}
+    active_menu = option_menu(
+        menu_title=None,
+        options=_alt_labels,
+        icons=_alt_icons,
+        orientation="horizontal",
+        default_index=0,
+        # Her kategorinin kendi state'i — kategori değiştirince alt pill default'a döner
+        key=f"alt_panel_{secili_kategori}",
+        styles=_alt_style,
     )
 
 # ─── Metrikler ──────────────────────────────────────────────────────────────
