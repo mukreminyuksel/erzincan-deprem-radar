@@ -62,9 +62,24 @@ try:
 except ImportError:
     _plate_velocity_vector_extern = None
 
+# v1.44 — Akademik bilgi havuzu (Ajan 7+8+9 standardı)
+try:
+    from knowledge_base import (
+        SCIENCE_NOTES as _SCIENCE_NOTES,
+        FUN_FACTS as _FUN_FACTS,
+        ANIMATION_CONFIG as _ANIMATION_CONFIG,
+        render_bilim_notu as _render_bilim_notu,
+    )
+except ImportError:
+    _SCIENCE_NOTES = {}
+    _FUN_FACTS = {}
+    _ANIMATION_CONFIG = {}
+    def _render_bilim_notu(*args, **kwargs):  # type: ignore # no-op fallback
+        return None
+
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.43"
+APP_VERSION = "1.44"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -4905,6 +4920,9 @@ def _render_artci_tahmin():
         "Hız modeli: Omori-Utsu yasası n(t) = K / (t + c)^p."
     )
 
+    with st.expander("🎓 Bilim Notu — b-Değeri & Gutenberg-Richter", expanded=False):
+        st.markdown(_SCIENCE_NOTES.get("b_degeri", ""))
+
     # ── Girdi bölümü ───────────────────────────────────────────────────────
     c1, c2, c3, c4 = st.columns(4)
     with c1:
@@ -5635,6 +5653,9 @@ def _render_sismik_acik():
         "Mapbox satellite-streets token yerine ücretsiz `open-street-map` zemin."
     )
 
+    with st.expander("🎓 Bilim Notu — KAF Sismik Açık & Slip Deficit", expanded=False):
+        st.markdown(_SCIENCE_NOTES.get("kaf_sismik_acik", ""))
+
     YIL_SIMDI = 2026
 
     # ── HARİTA: Plotly Scattermapbox lines + etiketler ─────────────────────
@@ -5693,6 +5714,19 @@ def _render_sismik_acik():
             textfont=dict(size=11, color="#ffffff"),
             hoverinfo="skip",
             showlegend=False,
+        ))
+
+    # ── GEM Aktif Fay Overlay — v1.43 ─────────────────────────────────────────
+    # GEM boş dönerse KAF_SEGMENTLER fallback zaten üstte çizildi.
+    _gem_faults = _cached_gem_faults_turkey()
+    if _gem_faults:
+        for _gem_tr in gem_fault_traces(_gem_faults, color="#FF6B35", width=1.2):
+            fig_map.add_trace(_gem_tr)
+        # GEM legend dummy
+        fig_map.add_trace(go.Scattermapbox(
+            lat=[None], lon=[None], mode="lines",
+            line=dict(color="#FF6B35", width=1.5),
+            name="GEM Aktif Fay (CC BY 4.0)", hoverinfo="skip",
         ))
 
     # Legend için 3 dummy trace (risk seviyeleri)
@@ -5969,6 +6003,9 @@ def _render_shakemap():
         "Teorik temel: **Worden & Wald (2016), USGS ShakeMap Manual**; "
         "PGA→MMI dönüşümü: **Wald et al. (1999), Earthquake Spectra 15(3)**."
     )
+
+    with st.expander("🎓 Bilim Notu — ShakeMap & MMI Ölçeği", expanded=False):
+        st.markdown(_SCIENCE_NOTES.get("shakemap", ""))
 
     # ── Bölüm A: Deprem seçici ─────────────────────────────────────────────
     col_sec, col_mag = st.columns([3, 1])
@@ -7019,6 +7056,9 @@ def _render_coulomb_stress():
         "**Okada (1992) dislokasyon modeli**."
     )
 
+    with st.expander("🎓 Bilim Notu — Coulomb Stres Transferi", expanded=False):
+        st.markdown(_SCIENCE_NOTES.get("coulomb", ""))
+
     # ── Senaryo seçici ─────────────────────────────────────────────────────
     sec = st.selectbox(
         "Senaryo seç",
@@ -7100,6 +7140,12 @@ def _render_coulomb_stress():
         name="Etkilenen hedef",
         hoverinfo="name+text",
     ))
+
+    # ── GEM Aktif Fay Overlay (CFS haritası) — v1.43 ──────────────────────────
+    _gem_faults_cfs = _cached_gem_faults_turkey()
+    if _gem_faults_cfs:
+        for _gem_tr_cfs in gem_fault_traces(_gem_faults_cfs, color="#FF6B35", width=1.0):
+            fig_map.add_trace(_gem_tr_cfs)
 
     fig_map.update_layout(
         mapbox=dict(
@@ -7530,6 +7576,9 @@ def _render_tarihsel_sismisite():
         "derlenmiştir. Teorik temel: **Ambraseys (2009), Cambridge Univ. Press**; "
         "**Guidoboni et al. (1994)**; **Sbeinati et al. (2005), Ann. Geophys.**."
     )
+
+    with st.expander("🎓 Bilim Notu — 2000 Yıllık Sismisite & Kataloglar", expanded=False):
+        st.markdown(_SCIENCE_NOTES.get("tarihi_sismisite", ""))
 
     # ── Yüzyıl filtresi ────────────────────────────────────────────────────
     col_yy, col_mag = st.columns([2, 1])
