@@ -39,7 +39,7 @@ Her panelin mevcut `st.caption`, `st.markdown`, `st.info`, `st.warning`, `st.suc
 | 🧭 Fay Sistemleri | 🟠 Temel | 2 | — |
 | 🌍 Plaka Simülasyonu | 🟢 Akademik ✅ (v1.64) | 1 (animasyon) | ✅ **Sprint 4a — V_rel formülü + NNR-MORVEL56** |
 | 🔒 Fay Kilitlenme | 🟠 Temel | 2 | — |
-| 💥 Coulomb Stres | 🟠 Temel | 2 | — |
+| 💥 Coulomb Stres | 🟢 Akademik ✅ (v1.65) | 2 | ✅ **Sprint 4b — King-Stein-Lin 1994 + Okada 1992** |
 | 🥎 Odak Mekanizması | 🟠 Temel | 2 | — |
 | ⛏️ Paleosismik Kazı | 🟠 Temel | 1 | — |
 | 🏺 Erzincan Paleo | 🟠 Temel | 2 | — |

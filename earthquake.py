@@ -78,7 +78,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.64"
+APP_VERSION = "1.65"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -9214,6 +9214,169 @@ def _render_coulomb_stress():
 
     # v1.44 — Akademik bilgi havuzu expander'ı
     _render_bilim_notu("coulomb", st, baslik="🎓 Bunu Öğren — Coulomb Stres Transferi")
+
+    # v1.65 — Sprint 4b: Coulomb Stres akademik standart (ACADEMIC_STANDARD v1.1)
+    st.markdown(
+        f"""<div style="
+            background:linear-gradient(90deg,{BG2} 0%,rgba(156,39,176,0.10) 100%);
+            border-left:3px solid #9C27B0;
+            border-radius:6px;
+            padding:0.55rem 0.9rem;
+            margin:0.4rem 0 0.8rem 0;
+            font-size:0.88rem;
+            color:{TEXT};
+            line-height:1.45;">
+            📊 <b>Mini rehber:</b> Kırmızı loblar (+ΔCFS) komşu fay segmentinde sürtünme eşiğinin <b>aşılma olasılığını
+            artırabilir</b>; mavi loblar (−ΔCFS) "stres gölgesi" geçici dinginleşmedir.
+            <b>Pozitif ΔCFS deprem tahmini DEĞİLDİR</b> — yalnızca olasılıksal eğilimdir; gerçek tetiklemede
+            kayma hızı, fay olgunluğu, gözenek basıncı ve yerel rejim belirleyicidir.
+            <i>Okada 1992 yarım-uzay dislokasyon teorisi, King-Stein-Lin 1994 ΔCFS formülü ve
+            1999 İzmit→Düzce örneği için aşağıdaki 📖 Akademik Açıklama panelini açın.</i>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+    render_academic_explanation(
+        title="📖 Akademik Açıklama — Coulomb Stres Transferi (ΔCFS)",
+        what=(
+            "**Coulomb Stres Transferi** (Coulomb Failure Stress, ΔCFS), bir depremin **komşu faylarda gerilim "
+            "alanını nasıl değiştirdiğini** ölçen bir modeldir. Geoffrey King, Ross Stein ve Jian Lin'in 1994 "
+            "yılında *BSSA*'da yayımladığı makale modern jeofiziğin temel çerçevesini kurmuştur. Bir fay kırılınca "
+            "kabukta elastik deformasyon değişimi olur; bu değişim bazı bölgelerde **Coulomb kayma eşiğine "
+            "yaklaşımı artırır** (+ΔCFS, kırmızı loblar), bazılarında **uzaklaştırır** (−ΔCFS, mavi 'stres "
+            "gölgesi'). Türkiye'de **1999 İzmit Mw 7.4 → 3 ay sonra Düzce Mw 7.2** kırılması bu mekanizmanın "
+            "en bilinen örneğidir (Stein, Barka & Dieterich 1997; Parsons et al. 2000)."
+        ),
+        how=(
+            "**ΔCFS haritası okunması:**\n\n"
+            "- **4-lob deseni:** Doğrultu-atımlı bir kaynak fay tipik olarak **iki pozitif** (kırılma uçlarında, "
+            "fay boyunca) ve **iki negatif** (fay yan kanatlarında, dik açıda) lob üretir. Bu desen Okada 1992 "
+            "dislokasyon modelinin elastik kabuk çözümüdür.\n"
+            "- **Kırmızı (+ΔCFS):** Hedef fayın Coulomb eşiğine **yaklaştığı** alan. > +0.1 bar 'anlamlı', "
+            "> +1.0 bar 'yüksek tetikleme olasılığı' (King 1994 eşiği).\n"
+            "- **Mavi (−ΔCFS):** Hedef fayda stres gölgesi — kırılma olasılığı **geçici** olarak düşer. "
+            "(Olay 'iptal' olmaz, sadece gecikir.)\n"
+            "- **Yıldız (★):** Kaynak deprem episentri.\n"
+            "- **Kırmızı daire:** Hedef segment (yorumlama için).\n\n"
+            "**Bilgi kartları:**\n"
+            "- **Hedef ΔCFS (bar):** Seçilen hedef noktada hesaplanan stres transferi.\n"
+            "- **Maks pozitif yüklenme (bar):** Tüm harita üzerinde en yüksek pozitif ΔCFS.\n"
+            "- **Maks negatif (gölgeleme):** En düşük negatif ΔCFS.\n"
+            "- **Pozitif lob alan oranı (%):** Haritanın yüzde kaçı +ΔCFS bölgesinde."
+        ),
+        science=(
+            "**Coulomb yenilme gerilmesi (King, Stein & Lin 1994):**\n\n"
+            r"$$\Delta CFS = \Delta\tau + \mu' \cdot \Delta\sigma_n$$"
+            "\n\nburada:\n"
+            "- $\\Delta\\tau$ = hedef fay üzerinde **kayma yönündeki gerilme değişimi** (**bar** veya **MPa**; "
+            "1 bar = 0.1 MPa = 10⁵ Pa)\n"
+            "- $\\Delta\\sigma_n$ = hedef faya **normal gerilme değişimi** (**bar**; pozitif = sıkışma)\n"
+            "- $\\mu'$ = etkin sürtünme katsayısı (**boyutsuz**, $\\mu' \\approx$ 0.4 normal fay için, 0.6–0.85 "
+            "doğrultu-atımlı için; Byerlee 1978 + gözenek basıncı düzeltmesi)\n\n"
+            "**Yenilme kriteri:** $\\Delta CFS > 0$ → fay üzerindeki kayma daha olası (Coulomb kriteri "
+            "$\\tau \\geq \\mu \\sigma_n$ eşiğine yaklaşılır).\n\n"
+            "**Okada 1992 yarım-uzay dislokasyon teorisi:** Tam ΔCFS hesabı için kaynak fay üzerinde Volterra "
+            "tipi dislokasyon (homojen elastik yarım-uzayda) — analitik formüller Okada 1992 *BSSA* Tablo 1–4'te "
+            "verilmiştir. Bu panel **basitleştirilmiş 4-lob deseni** kullanır; tam Okada hesabı için Toda et al. "
+            "2011 *USGS OFR* **Coulomb 3** veya Wang et al. 2006 **PSCMP** kullanılır.\n\n"
+            "**Tipik değer aralıkları (King 1994 + Stein 1999):**\n"
+            "- $\\Delta CFS > 1$ bar: 'yüksek' tetikleme olasılığı (yakın segment, kısa süre)\n"
+            "- $0.1 < \\Delta CFS \\leq 1$ bar: 'anlamlı' yüklenme (klasik 0.1 bar eşik)\n"
+            "- $|\\Delta CFS| \\leq 0.1$ bar: ihmal edilebilir\n"
+            "- $\\Delta CFS < -0.1$ bar: stres gölgesi (geçici sessizlik)"
+        ),
+        interpretation=(
+            "**Türkiye/Erzincan örnekleri — DİKKAT: korelasyon ≠ nedensellik:**\n\n"
+            "- **1999 İzmit Mw 7.4 → Düzce Mw 7.2 (3 ay sonra):** Düzce segmenti İzmit episentrinin ~85 km "
+            "doğusunda. İzmit kırılması Düzce segmentinde ΔCFS ≈ **+2 bar** üretti (Parsons et al. 2000 "
+            "*Science*). Düzce 3 ay sonra kırıldı. **Bu nedensellik gibi sunulmamalı:** ΔCFS yalnızca "
+            "*olasılığı artırdı*; Düzce segmenti zaten 'olgun' durumdaydı (Hubert-Ferrari 2002 — son olay 1719, "
+            "280 yıl önce).\n"
+            "- **KAF batıya göç dizisi (Stein-Barka-Dieterich 1997):** 1939 Erzincan'dan 1999 İzmit'e 60 yıl "
+            "boyunca 9 büyük olay batıya 'dama taşı' gibi ilerledi. ΔCFS bu olayların **çoğunu** retrospektif "
+            "olarak açıklar (% 7–10 olay öncesi pozitif yüklenmede; King-Stein 1996 *Nature*).\n"
+            "- **2023 Kahramanmaraş Mw 7.8 → 9 saat sonra Mw 7.5:** Doğu Anadolu Fay Zonu üzerinde çift "
+            "kırılma. İlk olay (Pazarcık) Sürgü-Çardak fayında ΔCFS > +1 bar üretti; ikinci kırılma orada "
+            "gerçekleşti (Melgar et al. 2023 *SRL*). Bu Coulomb tetikleme bir ders kitabı örneği — ama "
+            "**'tahmin' değil, post-hoc analiz**.\n\n"
+            "**Pratik yorum:**\n"
+            "- ΔCFS > +1 bar + olgun segment + yakın zaman: **artırılmış izleme** (AFAD pratiği).\n"
+            "- ΔCFS < 0 (gölgeleme) → segment 'güvende' DEĞİLDİR; sadece **geciktirici etki**.\n"
+            "- Tetikleme tipik olarak **saatler ile yıllar** içinde gerçekleşir; 1999 İzmit→Düzce gibi 3 ay "
+            "tipik bir aralıktır.\n"
+            "- **Statik ΔCFS:** Sadece *kırılmadan kaynaklı kalıcı* gerilme değişimi. **Dinamik tetikleme** "
+            "(geçici sismik dalga gerilmesi) ayrı bir mekanizmadır (Hill et al. 1993)."
+        ),
+        limitations=(
+            "1. **Bu panel 4-lob basitleştirilmiş model, tam Okada değildir:** Gerçek ΔCFS hesabı için "
+            "**Coulomb 3** (Toda 2011, USGS OFR 2011-1060) veya **PSCMP** (Wang 2006) kullanılır. Buradaki "
+            "görsel kavramsal eğitim amaçlıdır; mühendislik kararı için elverişli değildir.\n"
+            "2. **'+ΔCFS = deprem yakında' YANLIŞ:** ΔCFS olasılığı *değiştirir*, **kesin sonuç vermez**. "
+            "Birçok pozitif yükleme alanında olay olmadan onlarca yıl geçer; bazı 'gölgelenmiş' fayda hâlâ "
+            "kırılma olur. Mevcut bilimsel uzlaşı: deterministik deprem tahmini henüz mümkün değildir "
+            "(Geller 1997).\n"
+            "3. **$\\mu'$ etkin sürtünme katsayısı belirsiz:** Gözenek basıncı (Pf), sıvı varlığı, fay zonu "
+            "kalınlığı $\\mu'$ değerini 0.2–0.85 aralığında değiştirir. Bu panel sabit varsayım kullanır.\n"
+            "4. **Statik model — zaman bağımlı değişim hesaba katılmaz:** Postseismik viskoelastik gevşeme "
+            "(Bürgmann & Dresen 2008), afterslip ve gözenek basıncı difüzyonu (Bosl & Nur 2002) ΔCFS'i "
+            "zamanla değiştirir; bu panel yalnızca **olay-anı** statik resmidir.\n"
+            "5. **Dinamik tetikleme görmezden gelinir:** Geçici sismik dalga genliği uzak mesafede (1000+ km) "
+            "geç tetikleme yapabilir (Hill et al. 1993 *Science*, 1992 Landers→Mammoth Lakes). Bu panel "
+            "yalnızca statik ΔCFS gösterir.\n"
+            "6. **Olgunluk faktörü olmadan ΔCFS yetersiz:** +1 bar yükleme 'asla kırılmaz' bir segmente "
+            "(genç fay, çoktan-kırıldı) etkili olmaz. Hedef fayın **olgunluğu (slip-deficit)** ile birlikte "
+            "yorumlanmalıdır (Elastik Geri Tepme / Reid 1910 panelinde).\n"
+            "7. **Yaygın hata — '−ΔCFS gölgelenmiş, güvendeyiz':** Gölgeleme **geçicidir** ve **gerilme yeniden "
+            "birikecektir**. Hatta postseismik gevşeme bu gölgelemeyi 10–100 yıl içinde tersine çevirebilir."
+        ),
+        references=[
+            "**King, G. C. P., Stein, R. S., & Lin, J. (1994).** Static stress changes and the triggering of "
+            "earthquakes. *BSSA*, 84(3), 935–953. "
+            "[doi.org/10.1785/BSSA0840030935](https://doi.org/10.1785/BSSA0840030935) "
+            "— *ΔCFS formülasyonunun orijinal makalesi.*",
+            "**Stein, R. S. (1999).** The role of stress transfer in earthquake occurrence. *Nature*, 402, "
+            "605–609. DOI: [10.1038/45144](https://doi.org/10.1038/45144) "
+            "— *Coulomb stres transferinin kavramsal derlemesi.*",
+            "**Okada, Y. (1992).** Internal deformation due to shear and tensile faults in a half-space. *BSSA*, "
+            "82(2), 1018–1040. "
+            "[doi.org/10.1785/BSSA0820021018](https://doi.org/10.1785/BSSA0820021018) "
+            "— *Yarım-uzay elastik dislokasyon formülleri (CFS hesabının temeli).*",
+            "**Stein, R. S., Barka, A. A., & Dieterich, J. H. (1997).** Progressive failure on the North "
+            "Anatolian fault since 1939 by earthquake stress triggering. *GJI*, 128(3), 594–604. DOI: "
+            "[10.1111/j.1365-246X.1997.tb05321.x](https://doi.org/10.1111/j.1365-246X.1997.tb05321.x) "
+            "— *KAF batıya göç dizisinin ΔCFS açıklaması.*",
+            "**Parsons, T., Toda, S., Stein, R. S., Barka, A., & Dieterich, J. H. (2000).** Heightened "
+            "odds of large earthquakes near Istanbul: An interaction-based probability calculation. *Science*, "
+            "288(5466), 661–665. DOI: "
+            "[10.1126/science.288.5466.661](https://doi.org/10.1126/science.288.5466.661) "
+            "— *1999 İzmit sonrası Marmara ΔCFS analizi.*",
+            "**Toda, S., Stein, R. S., Sevilgen, V., & Lin, J. (2011).** Coulomb 3.3 graphic-rich deformation "
+            "and stress-change software for earthquake, tectonic, and volcano research and teaching. "
+            "*USGS Open-File Report 2011-1060*. "
+            "[pubs.usgs.gov/of/2011/1060](https://pubs.usgs.gov/of/2011/1060/) "
+            "— *Coulomb 3 yazılımı (referans hesap aracı).*",
+            "**Melgar, D., et al. (2023).** Sub- and super-shear ruptures during the 2023 Mw 7.8 and Mw 7.5 "
+            "earthquake doublet in SE Türkiye. *Seismological Research Letters*. DOI: "
+            "[10.1785/0220230193](https://doi.org/10.1785/0220230193) "
+            "— *2023 Maraş ikili kırılmada Coulomb tetiklemenin rolü.*",
+            "**Hill, D. P., et al. (1993).** Seismicity remotely triggered by the magnitude 7.3 Landers, "
+            "California, earthquake. *Science*, 260(5114), 1617–1623. DOI: "
+            "[10.1126/science.260.5114.1617](https://doi.org/10.1126/science.260.5114.1617) "
+            "— *Dinamik (uzak) tetikleme — bu panelin GÖZARDI ettiği mekanizma.*",
+            "**Geller, R. J. (1997).** Earthquake prediction: a critical review. *GJI*, 131(3), 425–450. "
+            "DOI: [10.1111/j.1365-246X.1997.tb06588.x](https://doi.org/10.1111/j.1365-246X.1997.tb06588.x)",
+        ],
+        disclaimer=(
+            "⚠️ **Pozitif ΔCFS deprem tahmini DEĞİLDİR.** Coulomb stres transferi, komşu fay segmentinde "
+            "kırılma **olasılığını yorumlayan** bir kavramsal modeldir; **kesin zaman/yer/büyüklük öngörmez**. "
+            "1999 İzmit → 3 ay sonra Düzce gibi örnekler **post-hoc (geriye dönük) analizdir**; ileriye dönük "
+            "tahmin gücü %20–40 yanlış-pozitif oranıyla sınırlıdır. Mevcut bilimsel uzlaşı: deterministik deprem "
+            "tahmini henüz mümkün değildir (Geller 1997). Bu panel **basitleştirilmiş 4-lob desenidir**; tam "
+            "ΔCFS analizi için **Coulomb 3** (Toda 2011) yazılımı kullanılmalıdır. ΔCFS bilgisi yalnızca "
+            "**olasılıksal tehlike değerlendirmesinin** (PSHA, AFAD/TBDY-2018) bir bileşeni olarak ele "
+            "alınmalıdır."
+        ),
+        expanded=False,
+    )
 
 
 if active_menu == "💥 Coulomb Stres":
