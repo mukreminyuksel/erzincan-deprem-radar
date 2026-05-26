@@ -79,7 +79,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.53"
+APP_VERSION = "1.54"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -3012,6 +3012,46 @@ if active_menu == "🎓 Bilgi Havuzu":
             st.warning("Bu çıktı resmi deprem senaryosu, yapı tasarım girdisi veya afet tahmini değildir; yalnızca eğitim amaçlı nitel bir görselleştirmedir.")
 
     _render_edu()
+
+# ════════════════════════════════════════════════════════════════════════════
+# v1.54 — Faz 0 Akademik Açıklama Helper (Codex + kullanıcı onaylı standart)
+# Belge: features/ACADEMIC_STANDARD.md (6 bölüm + kaynak disiplini)
+# ════════════════════════════════════════════════════════════════════════════
+def render_academic_explanation(
+    title: str = "📖 Akademik Açıklama",
+    what: str = None,
+    how: str = None,
+    science: str = None,
+    interpretation: str = None,
+    limitations: str = None,
+    references: list = None,
+    disclaimer: str = None,
+    expanded: bool = False,
+) -> None:
+    """6-bölümlü akademik açıklama kartı. Eksik bölüm → 🔴 placeholder (dev uyarısı)."""
+    with st.expander(title, expanded=expanded):
+        st.markdown("#### 🎯 Ne Gösteriyor?")
+        st.markdown(what or ":red[🔴 EKSİK — `what` parametresi boş (Faz 0 ihlali)]")
+        st.markdown("#### 👁️ Nasıl Okunur?")
+        st.markdown(how or ":red[🔴 EKSİK — `how` parametresi boş]")
+        st.markdown("#### 🔬 Formül / Teori")
+        st.markdown(science or ":red[🔴 EKSİK — `science` parametresi boş]")
+        st.markdown("#### 💡 Yorumlama Rehberi")
+        st.markdown(interpretation or ":red[🔴 EKSİK — `interpretation` parametresi boş]")
+        st.markdown("#### ⚠️ Sınırlamalar ve Yaygın Hatalar")
+        st.markdown(limitations or ":red[🔴 EKSİK — `limitations` parametresi boş]")
+        st.markdown("#### 📚 Kaynaklar")
+        if references:
+            if not isinstance(references, list):
+                references = [references]
+            for ref in references:
+                st.markdown(f"- {ref}")
+        else:
+            st.markdown(":red[🔴 EKSİK — `references` parametresi boş (kaynak disiplini ihlali)]")
+        if disclaimer:
+            st.markdown("---")
+            st.warning(disclaimer)
+
 
 # v1.47 — Ajan 3 (Codex önceliği 2): ephem per-event memoize cache
 # Cache key: yuvarlanmış timestamp (1 saat) + lat/lon (3 ondalık ≈ 100m).
@@ -11555,6 +11595,10 @@ def _render_akademik_kutuphane():
     # v1.44.3 — defensive import: knowledge_base.py eksik/yarısı yazılmış olabilir
     # (yarış kondisyonu, hot-reload cache, vb.). ImportError → kullanıcıya açıklayıcı uyarı.
     try:
+        import importlib
+        import knowledge_base as _knowledge_base
+
+        importlib.reload(_knowledge_base)
         from knowledge_base import (
             TOPICS, REFERENCES, ACIKLAMALAR, PLOTLY_CONFIG, COLORS,
             # Animasyon fonksiyonları — v3.1
