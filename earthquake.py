@@ -79,7 +79,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.44.1"
+APP_VERSION = "1.44.2"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -5118,6 +5118,46 @@ if active_menu == "📈 Artçı Tahmin":
 # Kaynaklar: Ambraseys & Finkel 1995, Barka 1996, Özalaybey 1993, Grosser 1998,
 #            Reilinger 2006 (GPS), Wallace-Schwartz-Coppersmith 1984 (paleoseismik)
 # ════════════════════════════════════════════════════════════════════════════
+# v1.44.2 — KAF segment → MTA Diri Fay (AFAD 2013) segment isim eşlemesi.
+# Hem Erzincan Arşivi (F-66) hem KAF Sismik Açık (F-63) panelleri kullanır,
+# o yüzden Erzincan Arşivi (line ~5121)'den ÖNCE tanımlanır (NameError fix v1.44.2).
+# FAULT_LINES (turkey_faults.geojson) AFAD/MTA Diri Fay 2013 verisidir; 38 KAF
+# alt-segmenti (Erzincan/Yedisu/Düzce/...) içerir.
+KAF_MTA_MAPPING = {
+    "S01": ["Erzincan", "Yedisu", "Refahiye", "Suşehri", "Kargapazarı"],  # 1939
+    "S02": ["Niksar", "Erbaa", "Reşadiye", "Ezinepazar"],                  # 1942
+    "S03": ["Havza", "Kargı", "İsmetpaşa", "Ilgaz", "Bayramören", "Destek", "Köprübaşı"],  # 1943
+    "S04": ["Düzce", "Bolu", "Karadere", "Gerede", "Dokurcun", "Yeniçağa", "Taşkesti"],   # 1944+1999
+    "S05": ["Çınarcık", "Adalar", "Kumburgaz", "Avcılar", "Karamürsel",
+            "Tepetarla", "Arifiye", "Sarıalan", "Darıca", "Gölcük"],       # 1766
+    "S06": ["Saros", "Ganos", "Tekirdağ", "Kamil"],                        # 1912
+}
+
+@st.cache_resource(show_spinner=False)
+def _kaf_mta_polylines():
+    """Her S0X grubu için MTA Diri Fay (AFAD) polyline'larını topla.
+    id → {lats, lons, mid_lat, mid_lon, vertex_sayisi}"""
+    out = {}
+    for seg_id, segment_names in KAF_MTA_MAPPING.items():
+        lats, lons = [], []
+        for fault in FAULT_LINES:
+            name = (fault.get("fay_adi") or "").upper()
+            if "KUZEY ANADOLU" not in name and "NORTH ANATOLIAN" not in name:
+                continue
+            seg = (fault.get("segment") or "").lower()
+            if any(m.lower() in seg for m in segment_names):
+                lats.extend(fault["lats"] + [None])
+                lons.extend(fault["lons"] + [None])
+        valid_lats = [la for la in lats if la is not None]
+        valid_lons = [lo for lo in lons if lo is not None]
+        mid_lat = sum(valid_lats) / len(valid_lats) if valid_lats else None
+        mid_lon = sum(valid_lons) / len(valid_lons) if valid_lons else None
+        out[seg_id] = {"lats": lats, "lons": lons,
+                       "mid_lat": mid_lat, "mid_lon": mid_lon,
+                       "vertex_sayisi": len(valid_lats)}
+    return out
+
+
 ERZINCAN_TARIHI = [
     {
         "yil": 1939, "tarih": "26 Aralık 1939", "mw": 7.8, "ms": 7.8,
@@ -5564,44 +5604,6 @@ KAF_SEGMENTLER = [
         "kaynak": "Ambraseys & Jackson 2000 GJI; AFAD",
     },
 ]
-
-# v1.41.1 — KAF segment → MTA Diri Fay (AFAD 2013) segment isim eşlemesi (kullanıcı talebi)
-# "koordinatları AFAD ve Kandilli/KOERI'dan kullansan daha iyi olur"
-# FAULT_LINES (turkey_faults.geojson) AFAD/MTA Diri Fay 2013 verisidir; 38 KAF
-# alt-segmenti (Erzincan/Yedisu/Düzce/...) içerir → burada gruplanır.
-KAF_MTA_MAPPING = {
-    "S01": ["Erzincan", "Yedisu", "Refahiye", "Suşehri", "Kargapazarı"],  # 1939
-    "S02": ["Niksar", "Erbaa", "Reşadiye", "Ezinepazar"],                  # 1942
-    "S03": ["Havza", "Kargı", "İsmetpaşa", "Ilgaz", "Bayramören", "Destek", "Köprübaşı"],  # 1943
-    "S04": ["Düzce", "Bolu", "Karadere", "Gerede", "Dokurcun", "Yeniçağa", "Taşkesti"],   # 1944+1999
-    "S05": ["Çınarcık", "Adalar", "Kumburgaz", "Avcılar", "Karamürsel",
-            "Tepetarla", "Arifiye", "Sarıalan", "Darıca", "Gölcük"],       # 1766
-    "S06": ["Saros", "Ganos", "Tekirdağ", "Kamil"],                        # 1912
-}
-
-@st.cache_resource(show_spinner=False)
-def _kaf_mta_polylines():
-    """Her S0X grubu için MTA Diri Fay (AFAD) polyline'larını topla.
-    id → {lats, lons, mid_lat, mid_lon, vertex_sayisi}"""
-    out = {}
-    for seg_id, segment_names in KAF_MTA_MAPPING.items():
-        lats, lons = [], []
-        for fault in FAULT_LINES:
-            name = (fault.get("fay_adi") or "").upper()
-            if "KUZEY ANADOLU" not in name and "NORTH ANATOLIAN" not in name:
-                continue
-            seg = (fault.get("segment") or "").lower()
-            if any(m.lower() in seg for m in segment_names):
-                lats.extend(fault["lats"] + [None])
-                lons.extend(fault["lons"] + [None])
-        valid_lats = [la for la in lats if la is not None]
-        valid_lons = [lo for lo in lons if lo is not None]
-        mid_lat = sum(valid_lats) / len(valid_lats) if valid_lats else None
-        mid_lon = sum(valid_lons) / len(valid_lons) if valid_lons else None
-        out[seg_id] = {"lats": lats, "lons": lons,
-                       "mid_lat": mid_lat, "mid_lon": mid_lon,
-                       "vertex_sayisi": len(valid_lats)}
-    return out
 
 _KAF_RISK_RENK = {
     "yuksek": "#E24B4A",
