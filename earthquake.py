@@ -79,7 +79,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.45.7"
+APP_VERSION = "1.45.8"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -782,6 +782,50 @@ st.markdown(f"""
 # çalışmadı. Yeni yaklaşım: CSS ile sidebar'ı zorla her zaman görünür tut,
 # collapse butonunu da gizle. Kullanıcı yanlışlıkla kapatamaz → açma sorunu yok.
 
+# ─── v1.45.8 — Sidebar state KALICI (URL query params ile) ───────────────
+# Kullanıcı: "ayarlarda bazı seçimler yapıyorum, her sayfa yenilemede seçimlerim
+# kayboluyor". Çözüm: st.query_params (URL bazlı persistence) — refresh'te
+# kaybolmaz, URL paylaşılabilir state ile birlikte.
+def _sb_init_state_from_url():
+    """Sayfa ilk açıldığında URL query params'tan session_state'i doldur."""
+    if st.session_state.get("_sb_qp_loaded"):
+        return
+    qp = st.query_params
+
+    def _try(key, default, caster):
+        if key in qp:
+            try: return caster(qp[key])
+            except Exception: return default
+        return default
+
+    defaults = {
+        "sb_radius": _try("sb_radius", 100, int),
+        "sb_min_mag": _try("sb_min_mag", 1.0, float),
+        "sb_zaman":  _try("sb_zaman", "Son 7 gün", str),
+        "sb_refresh": _try("sb_refresh", 60, int),
+        "sb_harita":  _try("sb_harita", "Uydu", str),
+        "sb_show_faults": _try("sb_show_faults", True, lambda v: v in ("1","true","True")),
+        "sb_show_plates": _try("sb_show_plates", True, lambda v: v in ("1","true","True")),
+    }
+    for k, v in defaults.items():
+        if k not in st.session_state:
+            st.session_state[k] = v
+
+    # Tema (özel state key)
+    if "sb_tema" in qp:
+        st.session_state.tema = qp["sb_tema"]
+    # Aktif kaynaklar (CSV)
+    if "sb_sources" in qp:
+        st.session_state.active_sources = [s for s in qp["sb_sources"].split(",") if s]
+    # Özel gün sayısı
+    if "sb_days" in qp:
+        try: st.session_state.custom_days = int(qp["sb_days"])
+        except Exception: pass
+
+    st.session_state["_sb_qp_loaded"] = True
+
+_sb_init_state_from_url()
+
 # ─── Sidebar — v1.15b: Filtreler açıkta + 3 expander grup ──────────────────
 # Mimari: Sık değişen filtreler en üstte açık, daha az değişenler expander içinde.
 # Görünüm/Veri Kaynakları/Sistem expanded=False ile başlar — kullanıcı tıklayınca açılır.
@@ -789,11 +833,18 @@ with st.sidebar:
     st.markdown("### 🎯 Ayarlar")
 
     # ─── FİLTRELER (her zaman görünür — kullanıcının ana etkileşim noktası) ──
-    radius_km = st.slider("Yarıçap (km)", 50, 600, 100, 10)
-    min_mag   = st.slider("Min. Büyüklük", 0.5, 5.0, 1.0, 0.5)
+    # key= ile session_state'e bağlı (URL persistence için zorunlu)
+    radius_km = st.slider("Yarıçap (km)", 50, 600, step=10, key="sb_radius")
+    min_mag   = st.slider("Min. Büyüklük", 0.5, 5.0, step=0.5, key="sb_min_mag")
 
     zaman_secenekleri = list(QUICK_WINDOWS.keys()) + ["Özel gün sayısı", "Özel Tarih Aralığı"]
-    zaman_secim = st.selectbox("Zaman Aralığı", zaman_secenekleri, index=6)
+    # İlk açılışta URL'den gelen string sözcüğü options içinde olmayabilir → fallback
+    _z_default = st.session_state.get("sb_zaman", "Son 7 gün")
+    if _z_default not in zaman_secenekleri:
+        _z_default = "Son 7 gün"
+    zaman_secim = st.selectbox("Zaman Aralığı", zaman_secenekleri,
+                                index=zaman_secenekleri.index(_z_default),
+                                key="sb_zaman")
 
     if zaman_secim == "Özel Tarih Aralığı":
         today = utc_now_naive().date()
@@ -857,20 +908,33 @@ with st.sidebar:
         query_start = query_end - duration_from_quick_window(zaman_secim)
         days_label  = zaman_secim
 
+    _refresh_opts = [30, 60, 120, 180, 240, 300]  # tekrar eden 60 temizlendi
+    _refresh_default = st.session_state.get("sb_refresh", 60)
+    if _refresh_default not in _refresh_opts:
+        _refresh_default = 60
     refresh_s = st.selectbox("Otomatik Yenileme",
-                              [60, 30,60,120,180,240,300],
-                              format_func=lambda x: f"Her {x} saniye")
+                              _refresh_opts,
+                              index=_refresh_opts.index(_refresh_default),
+                              format_func=lambda x: f"Her {x} saniye",
+                              key="sb_refresh")
 
     # ─── 🎨 GÖRÜNÜM (expander — kapalı başla) ──────────────────────────────
     with st.expander("🎨 Görünüm", expanded=False):
         tema_secim = st.radio("Tema", ["Karanlik", "Aydinlik"],
-                              index=0 if DARK else 1, horizontal=True)
+                              index=0 if DARK else 1, horizontal=True,
+                              key="sb_tema_radio")
         if (tema_secim == "Karanlik") != DARK:
             st.session_state.tema = "dark" if tema_secim == "Karanlik" else "light"
             st.rerun()
-        harita_stil = st.selectbox("Harita Stili", ["Uydu", "Uydu+Yol", "Koyu", "Acik"], index=0)
-        show_faults = st.checkbox("Fay Hatlarını Göster", value=True)
-        show_plates = st.checkbox("Kıta / Plaka Sınırlarını Göster", value=True)
+        _harita_opts = ["Uydu", "Uydu+Yol", "Koyu", "Acik"]
+        _harita_default = st.session_state.get("sb_harita", "Uydu")
+        if _harita_default not in _harita_opts:
+            _harita_default = "Uydu"
+        harita_stil = st.selectbox("Harita Stili", _harita_opts,
+                                    index=_harita_opts.index(_harita_default),
+                                    key="sb_harita")
+        show_faults = st.checkbox("Fay Hatlarını Göster", key="sb_show_faults")
+        show_plates = st.checkbox("Kıta / Plaka Sınırlarını Göster", key="sb_show_plates")
 
     # ─── 📡 VERİ KAYNAKLARI (expander — kapalı başla, 9 checkbox) ──────────
     with st.expander("📡 Veri Kaynakları (9 ağ)", expanded=False):
@@ -897,6 +961,24 @@ with st.sidebar:
     if not has_active_sources(active_sources):
         st.warning("En az bir kaynak seçilmeli!")
         st.stop()
+
+    # ─── v1.45.8 — Sidebar state'ini URL query params'a yansıt ─────────────
+    # Refresh sonrası state geri yüklensin (init fonksiyonu bunları okur).
+    try:
+        st.query_params["sb_radius"]      = str(radius_km)
+        st.query_params["sb_min_mag"]     = str(min_mag)
+        st.query_params["sb_zaman"]       = zaman_secim
+        st.query_params["sb_refresh"]     = str(refresh_s)
+        st.query_params["sb_harita"]      = harita_stil
+        st.query_params["sb_show_faults"] = "1" if show_faults else "0"
+        st.query_params["sb_show_plates"] = "1" if show_plates else "0"
+        st.query_params["sb_tema"]        = st.session_state.get("tema", "dark")
+        if active_sources:
+            st.query_params["sb_sources"] = ",".join(active_sources)
+        if "custom_days" in st.session_state:
+            st.query_params["sb_days"] = str(int(st.session_state.custom_days))
+    except Exception:
+        pass  # query_params sync hatası uygulamayı bozmamalı
 
     # ─── ℹ️ SİSTEM & SÜRÜM NOTLARI (expander — kapalı başla) ───────────────
     with st.expander("ℹ️ Sistem & Sürüm Notları", expanded=False):
