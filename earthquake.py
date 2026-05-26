@@ -79,7 +79,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.54"
+APP_VERSION = "1.55"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -1704,6 +1704,86 @@ def calc_b_grid_cache(df_mc_dict, bg_n, bg_sr, bg_min, radius_km, ERZ_LAT, ERZ_L
 
 @st.fragment
 def _render_canli_radar():
+    # v1.55 — Faz 1 Pilot A: Canlı Radar haritası akademik açıklama
+    # ACADEMIC_STANDARD.md 6 bölüm + kaynak disiplini uygulandı.
+    render_academic_explanation(
+        title="📖 Canlı Radar Haritası — Akademik Açıklama",
+        what=(
+            "Harita üzerindeki her renkli daire, seçili zaman penceresinde (sidebar **Zaman Aralığı**) "
+            "ve yarıçap içinde (sidebar **Yarıçap**) Erzincan referans noktasına göre kaydedilmiş bir "
+            "**deprem olayını** temsil eder. Veri 9 paralel kaynaktan (USGS, EMSC, AFAD API + Web, "
+            "Kandilli/KOERI, GFZ, IRIS, INGV, USGS-Fast) toplanır, tekilleştirilir ve haritada "
+            "gösterilir. Amaç: zamansal-uzamsal sismik aktiviteyi tek bakışta görmek; ek olarak "
+            "MTA Diri Fay Haritası 2013 ve PB2002 plaka sınırları tektonik bağlamı verir."
+        ),
+        how=(
+            "**Konum:** Coğrafi enlem-boylam (WGS84). Hover → ayrıntılı bilgi.\n\n"
+            "**Daire boyutu:** Magnitude'a **kuadratik** orantılı (`size = max(6, M^2.1)`). "
+            "Bu, enerji ölçeğine yakın çünkü sismik moment $M_0 \\propto 10^{1.5 M_w}$ → büyük "
+            "olaylar gözle baskın hale gelir.\n\n"
+            "**Renk:** Magnitude bandı — açık mavi (M<1), açık yeşil (M1-2), parlak yeşil (M2-3), "
+            "sarı (M3-4), turuncu (M4-5), kırmızı (M5-6), koyu kırmızı (M6+).\n\n"
+            "**Fay çizgileri:** Kayma türüne göre renklendirilmiş (sağ-yanal/SAD = mor, sol-yanal/SOD = "
+            "turuncu, normal/N = sarı, ters/T = mavi). MTA Diri Fay Haritası 2013 (14.500 segment).\n\n"
+            "**Plaka sınırları:** PB2002 (Bird 2003) — convergent kırmızı (▲ subduction), divergent "
+            "mavi (◇ rift), transform sarı (↔ strike-slip).\n\n"
+            "**Modebar (sağ üst):** Zoom in/out, pan, reset, PNG indir, fullscreen. Scroll-wheel ile "
+            "harita üzerinde yakınlaştırma."
+        ),
+        science=(
+            "**Magnitude tanımı (Hanks & Kanamori 1979):** Moment magnitude $M_w$ sismik momentten "
+            "türetilir:\n\n"
+            "$$M_w = \\frac{2}{3}\\log_{10}(M_0) - 10.7$$\n\n"
+            "Burada $M_0 = \\mu \\cdot A \\cdot D$ (kayaç sertliği × kırılma alanı × ortalama kayma).\n\n"
+            "**Mesafe hesabı (Sinnott 1984 — haversine formülü):** İki coğrafi nokta arası büyük "
+            "daire mesafesi:\n\n"
+            "$$d = 2R \\arcsin\\left(\\sqrt{\\sin^2\\left(\\tfrac{\\Delta\\varphi}{2}\\right) + "
+            "\\cos\\varphi_1 \\cos\\varphi_2 \\sin^2\\left(\\tfrac{\\Delta\\lambda}{2}\\right)}\\right)$$\n\n"
+            "$R = 6371$ km. NumPy vektörleştirilmiş (~28× hızlı, v1.13).\n\n"
+            "**Dedup algoritması:** Aynı olayın farklı kaynaklarda raporlanmış kopyaları sliding-window "
+            "yöntemiyle elenir (Δt < 120s, Δlat/Δlon < 0.15°, ΔM < 0.5)."
+        ),
+        interpretation=(
+            "**Magnitude → hissedilme ilişkisi (USGS / MMI):**\n\n"
+            "| Magnitude | MMI | Beklenen etki |\n"
+            "|---|---|---|\n"
+            "| M < 2.0 | I | Sadece sismograflarda kayıt |\n"
+            "| M 2.0-3.5 | II-III | Bina içinde hassas kişilerce hissedilir |\n"
+            "| M 3.5-4.5 | IV-V | Herkes hisseder, eşyalar sallanır |\n"
+            "| M 4.5-6.0 | VI-VII | Yüzeysel hasar, çatlaklar |\n"
+            "| M 6.0-7.5 | VIII-IX | Ciddi yapı hasarı, yıkıcı |\n"
+            "| M 7.5+ | X+ | Felaket boyutu (1939 Erzincan 7.8, 1999 İzmit 7.6, 2023 Kahramanmaraş 7.8)|\n\n"
+            "**Kümelenme örüntüsü:** Olayların KAF/EAF gibi büyük fay zonları boyunca **lineer** "
+            "dizilmesi → tektonik kontrol kanıtı. Erzincan basını içinde **kümelenme** → 1992 "
+            "deprem sonrası artçı dizisi veya günlük mikrosismik aktivite.\n\n"
+            "**Yaygın yanlış yorumlama:** Çok deprem = büyük deprem yakında DEĞİL. Sismik döngü "
+            "uzun süreli (yüzyıllar). Aktif fay üstündeki düşük sismisite **suskunluk anomalisi** "
+            "olabilir (Sobolev 1995 RTL yöntemi)."
+        ),
+        limitations=(
+            "**Katalog eksiksizlik (Mc):** Türkiye için tipik $M_c \\approx 2.5-3.0$ (Bayrak 2002). Bu "
+            "eşiğin altındaki olaylar tüm kaynaklarda kaydedilmez — küçük olaylar görece az gösterilir.\n\n"
+            "**Magnitude tipi karışıklığı:** USGS $M_w$, Kandilli sıklıkla $M_L$ (Richter), AFAD-Web "
+            "$M_L/M_w$ karışık. Scordilis 2006 dönüşümü Bilgi Havuzu'ndaki magnitude dönüştürücüde.\n\n"
+            "**Coğrafi merkez konumu:** Hipocenter (gerçek kaynak noktası) yer kabuğunun içinde "
+            "derinde olabilir; harita 2D projeksiyon, hipocenter derinliği renk olarak ek bilgi.\n\n"
+            "**Veri kaynağı önyargısı:** Her kaynağın algılama eşiği ve coğrafi kapsamı farklı. "
+            "Aktif kaynak listesi sidebar'da → kullanıcı görsün.\n\n"
+            "**Bu panel resmi tehlike değerlendirmesi DEĞİLDİR.** Yapı tasarımı veya afet planlaması "
+            "için TBDY-2018 ve AFAD tehlike haritaları kullanılmalıdır."
+        ),
+        references=[
+            "Hanks, T.C., & Kanamori, H. (1979). A moment magnitude scale. *J. Geophys. Res.* 84(B5), 2348-2350. [DOI:10.1029/JB084iB05p02348](https://doi.org/10.1029/JB084iB05p02348)",
+            "Sinnott, R.W. (1984). Virtues of the Haversine. *Sky and Telescope* 68(2), 159.",
+            "Bayrak, Y., et al. (2002). A quantitative appraisal of earthquake hazard parameters computed from Gutenberg-Richter relation. *Bull. Seismol. Soc. Am.* 92(2), 537-547. [DOI:10.1785/0120000748](https://doi.org/10.1785/0120000748)",
+            "Bird, P. (2003). An updated digital model of plate boundaries (PB2002). *Geochem. Geophys. Geosyst.* 4(3). [DOI:10.1029/2001GC000252](https://doi.org/10.1029/2001GC000252)",
+            "Emre, Ö., et al. (2013). Active Fault Map of Turkey (MTA). *Mineral Research and Exploration General Directorate*.",
+            "Sucuoğlu, H., & Akkar, S. (2014). *Basic Earthquake Engineering: From Seismology to Analysis and Design*. Springer. Bölüm 2 (sismoloji temelleri), Bölüm 3 (magnitude ölçekleri).",
+            "USGS Earthquake Hazards Program — Magnitude Types: [usgs.gov](https://www.usgs.gov/programs/earthquake-hazards/magnitude-types)",
+        ],
+        disclaimer=None,  # Canlı veri görüntü — disclaimer zaten sayfa üstünde
+    )
+
     # ─── Harita + Kayan Liste ───────────────────────────────────────────────────
     col_map, col_list = st.columns([2.8, 1])
 
