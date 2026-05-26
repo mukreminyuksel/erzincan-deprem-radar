@@ -78,7 +78,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.63"
+APP_VERSION = "1.64"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -5820,6 +5820,151 @@ def _render_plaka_simulasyon():
             "Ω×P kartezyen rotasyonu) ile ötelenir.\n\n"
             "**Uydu zemin:** ESRI World Imagery (raster tile, MapBox token gerektirmez)."
         )
+
+    # v1.64 — Sprint 4a: Plaka Simülasyonu akademik standart (ACADEMIC_STANDARD v1.1)
+    st.markdown(
+        f"""<div style="
+            background:linear-gradient(90deg,{BG2} 0%,rgba(156,39,176,0.10) 100%);
+            border-left:3px solid #9C27B0;
+            border-radius:6px;
+            padding:0.55rem 0.9rem;
+            margin:0.4rem 0 0.8rem 0;
+            font-size:0.88rem;
+            color:{TEXT};
+            line-height:1.45;">
+            📊 <b>Mini rehber:</b> Görüntülenen hız <b>seçili referans çerçevesine göre göreceli</b> hızdır
+            (varsayılan EU/Avrasya-sabit, Türkiye tektoniği için doğru çerçeve);
+            farklı referans seçince Anadolu plakasının yönü/büyüklüğü değişir.
+            <b>Vektörler matematiksel olarak toplanmaz</b> — iki ayrı plaka hızı eklenirse sonuç anlamsızdır.
+            <i>V_relative = V_target − V_reference türetimi, NNR-MORVEL56 vs. Eurasia-fixed karşılaştırması ve
+            "mutlak hız" kavramının fiziksel anlamsızlığı için aşağıdaki 📖 Akademik Açıklama panelini açın.</i>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+    render_academic_explanation(
+        title="📖 Akademik Açıklama — Plaka Hareketi ve Referans Çerçeveleri",
+        what=(
+            "Plaka hareketi **tek başına bir 'mutlak' fiziksel anlamı olmayan**, daima bir **referans çerçevesine "
+            "göre** tanımlanan vektörel büyüklüktür. Bu panel iki ana çerçeve sunar: **EU (Eurasia-fixed)** — "
+            "Avrasya plakası sabit tutulur (Türkiye için doğal seçim çünkü ölçümler EU üzerinden yapılır); "
+            "**NNR (No-Net-Rotation)** — toplam yüzey momentumu sıfır olacak şekilde global denge "
+            "(Argus, Gordon & DeMets 2011 *MORVEL56*). Anadolu plakasının (AT/AN) 'batıya kaçışı' KAF üzerindeki "
+            "sağ-yanal kayma rejimini açıklar; bu hareket **Arabistan kuzey baskısı + Hellenik subduction geri "
+            "çekilme** dengelenmesinden doğar (McClusky 2000, Reilinger 2006)."
+        ),
+        how=(
+            "**Panelin okunması:**\n\n"
+            "- **Üst sol — Erzincan/Türkiye fokus haritası:** Seçili yıl boyunca plaka sınırlarının ve Erzincan "
+            "pininin görseli ötelenmiş hali. Yıldız = bugünkü konum; arkadaş izi (trail) = geçmiş.\n"
+            "- **Metrik kartları:**\n"
+            "  * **Yıl:** stops zaman damgası (1 yıldan 100 milyon yıla)\n"
+            "  * **{city} kayması:** Seçili şehrin **NNR mutlak** çerçevedeki konum değişimi (km)\n"
+            "  * **Plaka kodu + hız:** Seçili plakanın referans çerçevedeki yıllık hızı (mm/yr)\n"
+            "- **Görsel ölçek faktörü (mode'a göre):** Bilimsel mod (≤10K yıl) gerçek-ölçek; soyutlama "
+            "(10K–1M yıl) 11×; spekülatif (>1M yıl) 222× büyütülmüş — fizik hesabı doğru, sadece görselleştirme "
+            "için.\n"
+            "- **Kuplaj okları (checkbox):** Kırmızı = AR → AN baskı (Bitlis-Zagros); mavi = Hellenik subduction "
+            "geri çekilme (Girit güneyi).\n\n"
+            "**Referans çerçevesi seçimi:**\n"
+            "- **EU varsayılan** (Türkiye için doğru): AT plakası ≈ **24 mm/yr WSW**, kuzey-anadolu boyunca "
+            "sağ-yanal kayma sergiler. KAF/DAF sismolojisi bu çerçeveye göre yapılır.\n"
+            "- **NNR (mutlak):** Aynı AT plakası farklı yön ve hız gösterir; Avrasya'nın kendi hareketi "
+            "(NNR'da ~5–10 mm/yr) eklendiğinden farkı oluşur."
+        ),
+        science=(
+            "**Göreceli plaka hızı — KRİTİK formül:**\n\n"
+            r"$$\vec{V}_{target}^{ref} = \vec{V}_{target}^{NNR} - \vec{V}_{ref}^{NNR}$$"
+            "\n\nyani bir plakanın seçili referansa göre hızı = mutlak (NNR) hızı eksi referans plakanın mutlak "
+            "hızı. **Türkiye için $V_{AT}^{EU} = V_{AT}^{NNR} - V_{EU}^{NNR}$.** Bu çıkarım çünkü:\n"
+            "- $V_{EU}^{NNR}$ ≈ 5–8 mm/yr (Avrasya kendi hareketi global ortalama içinde)\n"
+            "- $V_{AT}^{NNR}$ ≈ 15–20 mm/yr (Anadolu mutlak hızı)\n"
+            "- $V_{AT}^{EU}$ ≈ 22–25 mm/yr WSW (Reilinger 2006 GPS değeri, jeofizikte standart)\n\n"
+            "**Euler kutbu rotasyonu (Argus 2011 NNR-MORVEL56):**\n\n"
+            r"$$\vec{V}(P) = \vec{\omega} \times \vec{r}(P)$$"
+            "\n\nburada $\\vec{\\omega}$ Euler dönme vektörü (**rad/yr**, yön = dönme ekseni, büyüklük = açısal hız), "
+            "$\\vec{r}(P)$ Dünya merkezinden gözlem noktası P'ye yarıçap vektörü (**m**, ≈ 6.371×10⁶). Sonuç "
+            "$\\vec{V}(P)$ yüzey hız vektörü (**m/yr** veya **mm/yr**). Tipik kıta plakası $\\omega$ ≈ "
+            "10⁻⁷ rad/yr (Argus 2011, MORVEL56 Tablo 1).\n\n"
+            "**Yer değiştirme integrasyonu (panel formülü):**\n\n"
+            r"$$\Delta\phi = \dot{\phi} \cdot t, \quad \Delta\lambda = \dot{\lambda} \cdot t$$"
+            "\n\nburada $\\dot{\\phi}, \\dot{\\lambda}$ derece/yıl bileşenleri (Euler'den türetilmiş), $t$ yıl. "
+            "**Lineer ekstrapolasyon** varsayımı sadece ≤ 10⁴ yıl için geçerlidir."
+        ),
+        interpretation=(
+            "**Türkiye/Erzincan örnekleri:**\n\n"
+            "- **Erzincan (KAF üstü):** EU referansta plaka göreli hızı $V_{AT}^{EU} \\approx$ 22–24 mm/yr "
+            "**WSW** (batı-güneybatı). 1939 Mw 7.9 olayından bu yana 87 yıl × 22 mm/yr ≈ 1.9 m birikmiş kayma "
+            "(paleoseismik 4–5 m karakteristik atımın yaklaşık %38–48'i; Hubert-Ferrari 2002). "
+            "**NOT:** Kayma hızı **18–24 mm/yr** aralığında yöntem-bağımlı; Kozacı 2015 GJI bunu detaylı verir.\n"
+            "- **İstanbul/Marmara:** Aynı 22 mm/yr ortalama; Adapazarı–Avcılar segmenti 1719/1766/1999 sekansı.\n"
+            "- **DAFZ (Doğu Anadolu Fay Zonu):** $V \\approx$ 6–10 mm/yr sol-yanal, AR-AT konvergans karşılığı "
+            "transform; 2023 Maraş Mw 7.8 + 7.5 bu zonun çok-segment kırılması.\n"
+            "- **Hellenik subduction (Girit güneyi):** Afrika plakası kuzeye dalar (~10 mm/yr); ama yay 'geri "
+            "çekilir' (slab rollback), Ege batıya **30+ mm/yr** açılır.\n\n"
+            "**Pratik yorum:**\n"
+            "- '24 mm/yr' bir **ortalama**dır; yıldan yıla %20 değişebilir (postseismik gevşeme, sessiz kayma "
+            "olayları).\n"
+            "- Aktif fay üzerindeki '0 mm/yr' (kilitlenme) gerçekte enerjinin biriktiği yerdir → büyük deprem "
+            "riski."
+        ),
+        limitations=(
+            "1. **Vektörler TOPLANMAZ — yaygın yanlış:** İki plaka hızını matematiksel olarak toplamak (örn. "
+            "$V_{AR} + V_{AT}$) **anlamsızdır**. Plaka sınırındaki göreli hareket $V_{AR}^{AT} = V_{AR} - V_{AT}$ "
+            "olarak hesaplanır. Bu panelin 'kuplaj okları' kavramsal bir özettir, fiziksel toplam değildir.\n"
+            "2. **Lineer ekstrapolasyon ≤ 10⁴ yıl:** Bilimsel modda doğru, soyutlama/spekülatif modlarda fay "
+            "döngüleri, viskoelastik gevşeme ve manto akışı yok sayılır → 'gerçek' rekonstrüksiyon değildir. "
+            "10⁶+ yıl için **PALEOMAP** (Scotese 2016) veya **GPlates** (Müller 2018) gerekir.\n"
+            "3. **'Mutlak' hız fiziksel olarak yoktur:** NNR-MORVEL56 *bir konvansiyon*dur (toplam yüzey momentumu "
+            "= 0). Hotspot referans çerçevesi (HS3-NUVEL1A, Gripp & Gordon 2002) farklı 'mutlak' hızlar verir; "
+            "her ikisi de 'doğru'dur, sadece tanımlar farklı.\n"
+            "4. **Anadolu rijit-blok varsayımı:** AT plakası rijit (sabit-şekil) varsayılır; gerçekte iç "
+            "deformasyon (mikrobloklar, doğu-batı şekil değişimi) %10–20 düzeyinde vardır (Reilinger 2006).\n"
+            "5. **NNR-MORVEL56 plaka kümeleri sınırlı:** 56 plaka modellenmiş; Ege-Anadolu mikrobloku ayrı "
+            "çözümlenmemiş — AT olarak kullanılan kod aslında Anadolu+Ege kombinasyonudur.\n"
+            "6. **Yaygın hata — 'Türkiye Avrupa'dan ayrılıyor':** AT plakası Avrasya'dan ayrılmıyor; **kuzeyinden "
+            "KAF ile sınır, kuzeyde Avrasya'ya bağlı.** AT batıya doğru kayıyor ve Ege'de açılıyor (Hellenik "
+            "subduction sayesinde). Doğru cümle: 'Anadolu, Arabistan'ın baskısıyla batıya kaçıyor.'"
+        ),
+        references=[
+            "**Reilinger, R., et al. (2006).** GPS constraints on continental deformation in the Africa-Arabia-"
+            "Eurasia continental collision zone and implications for the dynamics of plate interactions. *JGR*, "
+            "111, B05411. DOI: [10.1029/2005JB004051](https://doi.org/10.1029/2005JB004051) "
+            "— *Türkiye ve çevresi GPS hız alanı; standart referans.*",
+            "**Argus, D. F., Gordon, R. G., & DeMets, C. (2011).** Geologically current motion of 56 plates "
+            "relative to the no-net-rotation reference frame. *Geochemistry, Geophysics, Geosystems*, 12, Q11001. "
+            "DOI: [10.1029/2011GC003751](https://doi.org/10.1029/2011GC003751) "
+            "— *NNR-MORVEL56 modeli — bu panelin Euler kutupları kaynağı.*",
+            "**McClusky, S., et al. (2000).** Global positioning system constraints on plate kinematics and "
+            "dynamics in the eastern Mediterranean and Caucasus. *JGR*, 105(B3), 5695–5719. DOI: "
+            "[10.1029/1999JB900351](https://doi.org/10.1029/1999JB900351) "
+            "— *Türkiye GPS hız ağı temel kaynağı.*",
+            "**DeMets, C., Gordon, R. G., & Argus, D. F. (2010).** Geologically current plate motions. *GJI*, "
+            "181(1), 1–80. DOI: "
+            "[10.1111/j.1365-246X.2009.04491.x](https://doi.org/10.1111/j.1365-246X.2009.04491.x) "
+            "— *MORVEL global plaka hareketleri modeli.*",
+            "**Şengör, A. M. C., et al. (2005).** The North Anatolian Fault: A new look. *Annual Review of "
+            "Earth and Planetary Sciences*, 33, 37–112. DOI: "
+            "[10.1146/annurev.earth.32.101802.120415](https://doi.org/10.1146/annurev.earth.32.101802.120415) "
+            "— *KAF tektoniği derlemesi.*",
+            "**Müller, R. D., et al. (2018).** GPlates: building a virtual Earth through deep time. "
+            "*Geochemistry, Geophysics, Geosystems*, 19(7), 2243–2261. DOI: "
+            "[10.1029/2018GC007584](https://doi.org/10.1029/2018GC007584) "
+            "— *Paleotektonik rekonstrüksiyon yazılımı (spekülatif mod için doğru araç).*",
+            "**Hubert-Ferrari, A., et al. (2002).** Morphology, displacement, and slip rates along the North "
+            "Anatolian Fault, Turkey. *JGR*, 107(B10), 2235. DOI: "
+            "[10.1029/2001JB000393](https://doi.org/10.1029/2001JB000393) "
+            "— *KAF kayma hızı yöntem-bağımlı değerleri.*",
+        ],
+        disclaimer=(
+            "⚠️ **Seçilen referans çerçevesine göre göreceli hızdır.** Tek bir plaka hızı 'mutlak' değildir — "
+            "referansa bağlı yorumlanmalıdır. **Vektörler TOPLANMAZ** (matematiksel olarak yanlış); plaka "
+            "sınırındaki göreli hareket $V_A^B = V_A - V_B$ olarak hesaplanır. Lineer ekstrapolasyon ≤ 10⁴ yıl "
+            "geçerlidir; uzun zaman ölçeklerinde fay döngüleri, viskoelastik gevşeme ve manto akışı yok sayılır. "
+            "Bu panel **eğitim/kavram amaçlıdır**; jeofizik araştırma için GPS kataloğu (Reilinger 2006) ve "
+            "GPlates (Müller 2018) gibi araçlar kullanılmalıdır."
+        ),
+        expanded=False,
+    )
 
 if active_menu == "🌍 Plaka Simülasyonu":
     _render_plaka_simulasyon()

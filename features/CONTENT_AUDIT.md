@@ -37,7 +37,7 @@ Her panelin mevcut `st.caption`, `st.markdown`, `st.info`, `st.warning`, `st.suc
 | Panel | Mevcut Seviye | Grafik Sayısı | Pilot? |
 |---|---|---:|---|
 | 🧭 Fay Sistemleri | 🟠 Temel | 2 | — |
-| 🌍 Plaka Simülasyonu | 🟡 Orta (v1.46 güncellendi) | 1 (animasyon) | — |
+| 🌍 Plaka Simülasyonu | 🟢 Akademik ✅ (v1.64) | 1 (animasyon) | ✅ **Sprint 4a — V_rel formülü + NNR-MORVEL56** |
 | 🔒 Fay Kilitlenme | 🟠 Temel | 2 | — |
 | 💥 Coulomb Stres | 🟠 Temel | 2 | — |
 | 🥎 Odak Mekanizması | 🟠 Temel | 2 | — |
