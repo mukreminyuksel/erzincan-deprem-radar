@@ -79,7 +79,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.47"
+APP_VERSION = "1.48"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -2915,6 +2915,45 @@ def _ephem_features_one(zaman_ts: float, lat: float, lon: float) -> dict:
     }
 
 
+# v1.48 — Ajan 5A (Codex önceliği 3): Plotly figure cache.
+# Korelasyon matrisi heatmap pahalı (text array + 10×10 hücre render).
+# Cache key: matrix bytes (np.float64 raw) + columns tuple + 3 tema rengi.
+# Aynı korelasyon ile rerun → cache hit, anlık görüntü.
+@st.cache_data(ttl=300, show_spinner=False, max_entries=20)
+def _build_corr_heatmap(z_bytes: bytes, labels: tuple,
+                       bg: str, bg2: str, text: str):
+    """Korelasyon heatmap figure üreticisi (cache'li).
+    z_bytes: corr.values.tobytes() — hashable raw bytes
+    labels: tuple(columns) — hashable
+    bg/bg2/text: theme renkleri (string)"""
+    import numpy as _np
+    n = len(labels)
+    z = _np.frombuffer(z_bytes, dtype=_np.float64).reshape(n, n)
+    text_arr = [[f"{v:.2f}" for v in row] for row in z]
+    fig = go.Figure(go.Heatmap(
+        z=z, x=list(labels), y=list(labels),
+        colorscale="RdBu_r", zmin=-1, zmax=1,
+        text=text_arr, texttemplate="%{text}",
+        textfont=dict(size=10, color=text),
+        hovertemplate="<b>%{y} ↔ %{x}</b><br>r = %{z:.3f}<extra></extra>",
+        showscale=True,
+        colorbar=dict(
+            title=dict(text="r", font=dict(color=text)),
+            tickfont=dict(color=text),
+            thickness=14, len=0.85,
+        ),
+    ))
+    fig.update_layout(
+        paper_bgcolor=bg, plot_bgcolor=bg2,
+        font=dict(color=text, size=10, family="Arial"),
+        height=550,
+        margin=dict(t=10, b=10, l=10, r=60),
+        xaxis=dict(tickfont=dict(color=text), tickangle=-45),
+        yaxis=dict(tickfont=dict(color=text)),
+    )
+    return fig
+
+
 def compute_environmental_features(row, full_df):
     """Korelasyon matrisi / Astronomik panel için event environmental features.
     Astronomik kısım cache'li (_ephem_features_one), haftalık aktivite runtime."""
@@ -3123,31 +3162,13 @@ def _render_istatistik_bottom():
 
                 with col_hm:
                     st.markdown('<div class="chart-title">🟥 Korelasyon Matrisi</div>', unsafe_allow_html=True)
-                    # Renk: kırmızı=pozitif, mavi=negatif korelasyon
-                    fig_corr = go.Figure(go.Heatmap(
-                        z=corr_matrix.values,
-                        x=corr_matrix.columns.tolist(),
-                        y=corr_matrix.columns.tolist(),
-                        colorscale="RdBu_r",
-                        zmin=-1, zmax=1,
-                        text=[[f"{v:.2f}" for v in row] for row in corr_matrix.values],
-                        texttemplate="%{text}",
-                        textfont=dict(size=10, color=TEXT),
-                        hovertemplate="<b>%{y} ↔ %{x}</b><br>r = %{z:.3f}<extra></extra>",
-                        showscale=True,
-                        colorbar=dict(
-                            title=dict(text="r", font=dict(color=TEXT)),
-                            tickfont=dict(color=TEXT),
-                            thickness=14, len=0.85,
-                        ),
-                    ))
-                    fig_corr.update_layout(
-                        paper_bgcolor=BG, plot_bgcolor=BG2,
-                        font=dict(color=TEXT, size=10, family="Arial"),
-                        height=550,
-                        margin=dict(t=10, b=10, l=10, r=60),
-                        xaxis=dict(tickfont=dict(color=TEXT), tickangle=-45),
-                        yaxis=dict(tickfont=dict(color=TEXT)),
+                    # v1.48 — Ajan 5A (Codex önceliği 3): cache wrapper.
+                    # Cache key: matrix bytes + columns + tema. Aynı korelasyon
+                    # matrisi ile rerun'da figure yeniden üretilmez (anlık).
+                    fig_corr = _build_corr_heatmap(
+                        corr_matrix.values.tobytes(),
+                        tuple(corr_matrix.columns.tolist()),
+                        BG, BG2, TEXT,
                     )
                     st.plotly_chart(fig_corr, use_container_width=True,
                                     config={"displayModeBar": True, "displaylogo": False})
