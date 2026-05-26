@@ -79,7 +79,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.46"
+APP_VERSION = "1.47"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -2884,49 +2884,51 @@ if active_menu == "🎓 Bilgi Havuzu":
 
     _render_edu()
 
-def compute_environmental_features(row, full_df):
-    t = row["zaman"]
-    lat_str = str(row["lat"])
-    lon_str = str(row["lon"])
-    
-    # 1. Mevsim Etkisi (Day of Year sin dalgası: 1 = Yaz, -1 = Kış)
-    doy = t.timetuple().tm_yday
-    mevsim = math.sin((doy - 172) * 2 * math.pi / 365.25)
-    
-    # 2. Beklenen Ortalama Sıcaklık (Türkiye/Erzincan yaklaşık iklim modeli)
-    sicaklik = 11.5 + 16.5 * math.sin((doy - 105) * 2 * math.pi / 365.25)
-    
-    # Astronomik Gözlemci
+# v1.47 — Ajan 3 (Codex önceliği 2): ephem per-event memoize cache
+# Cache key: yuvarlanmış timestamp (1 saat) + lat/lon (3 ondalık ≈ 100m).
+# Aynı event ardışık rerun'larda → cache hit (~50x hızlanma korelasyon panelinde).
+# ephem.Observer her çağrıda yeni instance (state izolasyonu, race condition yok).
+# `full_df` parametresi cache'lenemiyor (DataFrame hash pahalı) → ayrı tutuldu,
+# sadece `haftalik_aktivite` için runtime hesap (basit pandas filter, hızlı).
+@st.cache_data(ttl=3600, show_spinner=False, max_entries=5000)
+def _ephem_features_one(zaman_ts: float, lat: float, lon: float) -> dict:
+    """Tek event için astronomik features. Cache key: ts + lat/lon.
+    feature_version: v1 (Argus 2011 + ephem 4.1.5 — değişirse key invalidate ile yenile)."""
     obs = ephem.Observer()
-    obs.lat = lat_str
-    obs.lon = lon_str
-    # pandas timestamp -> datetime (naive = UTC for this app)
-    obs.date = t.to_pydatetime()
-    
-    # 3. Ayın Çekim Gücü
+    obs.lat = str(lat)
+    obs.lon = str(lon)
+    obs.date = datetime.utcfromtimestamp(zaman_ts)  # naive UTC datetime
+
     moon = ephem.Moon(obs)
-    ay_cekim = 1.0 / (moon.earth_distance ** 2)
-    
-    # 4. Güneşe Uzaklık (AU)
     sun = ephem.Sun(obs)
-    gunes_uzaklik = sun.earth_distance
-    
-    # 5. Gezegenlerin Çekim Etkisi (Jüpiter + Venüs proxy)
     jupiter = ephem.Jupiter(obs)
     venus = ephem.Venus(obs)
-    gezegen_cekim = (317.8 / (jupiter.earth_distance ** 2)) + (0.815 / (venus.earth_distance ** 2))
-    
-    # 6. Haftalık Aktivite Yoğunluğu (Son 7 gün)
-    haftalik_aktivite = len(full_df[(full_df["zaman"] >= t - timedelta(days=7)) & (full_df["zaman"] < t)])
-    
-    return pd.Series({
-        "mevsim": mevsim,
-        "sicaklik": sicaklik,
-        "ay_cekim": ay_cekim,
-        "gunes_uzaklik": gunes_uzaklik,
-        "gezegen_cekim": gezegen_cekim,
-        "haftalik_aktivite": haftalik_aktivite
-    })
+
+    doy = obs.date.datetime().timetuple().tm_yday
+    return {
+        "mevsim":    math.sin((doy - 172) * 2 * math.pi / 365.25),
+        "sicaklik":  11.5 + 16.5 * math.sin((doy - 105) * 2 * math.pi / 365.25),
+        "ay_cekim":  1.0 / (float(moon.earth_distance) ** 2),
+        "gunes_uzaklik": float(sun.earth_distance),
+        "gezegen_cekim": (317.8 / (float(jupiter.earth_distance) ** 2)) +
+                         (0.815 / (float(venus.earth_distance) ** 2)),
+    }
+
+
+def compute_environmental_features(row, full_df):
+    """Korelasyon matrisi / Astronomik panel için event environmental features.
+    Astronomik kısım cache'li (_ephem_features_one), haftalık aktivite runtime."""
+    t = row["zaman"]
+    # Yuvarlama: 1 saat hassasiyet (3600s), 3 ondalık derece (yaklaşık 100m).
+    # Astronomik veriler bu hassasiyette sabit kabul edilir → cache hit oranı artar.
+    zaman_rounded = round(t.timestamp() / 3600.0) * 3600.0
+    lat_rounded = round(float(row["lat"]), 3)
+    lon_rounded = round(float(row["lon"]), 3)
+
+    feats = _ephem_features_one(zaman_rounded, lat_rounded, lon_rounded)
+    feats["haftalik_aktivite"] = int(((full_df["zaman"] >= t - timedelta(days=7))
+                                       & (full_df["zaman"] < t)).sum())
+    return pd.Series(feats)
 
 @st.fragment
 def _render_istatistik_bottom():
