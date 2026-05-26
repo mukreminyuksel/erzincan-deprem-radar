@@ -79,7 +79,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.44.2"
+APP_VERSION = "1.44.3"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -10980,12 +10980,25 @@ if active_menu == "🗾 Erzincan Mikrozon":
 # ─── Akademik Kütüphane ───────────────────────────────────────────────────────
 @st.fragment
 def _render_akademik_kutuphane():
-    from knowledge_base import (
-        TOPICS, REFERENCES, ACIKLAMALAR, PLOTLY_CONFIG, COLORS,
-        anim_sismik_dalgalar, anim_elastik_geri_tepme,
-        anim_coulomb_stress, anim_tsunami_yayilim,
-        interaktif_gr_kanunu, interaktif_psha,
-    )
+    # v1.44.3 — defensive import: knowledge_base.py eksik/yarısı yazılmış olabilir
+    # (yarış kondisyonu, hot-reload cache, vb.). ImportError → kullanıcıya açıklayıcı uyarı.
+    try:
+        from knowledge_base import (
+            TOPICS, REFERENCES, ACIKLAMALAR, PLOTLY_CONFIG, COLORS,
+            anim_sismik_dalgalar, anim_elastik_geri_tepme,
+            anim_coulomb_stress, anim_tsunami_yayilim,
+            interaktif_gr_kanunu, interaktif_psha,
+        )
+    except ImportError as e:
+        st.error(
+            f"📚 **Akademik Kütüphane geçici olarak kullanılamıyor**: `{e}`\n\n"
+            "Sebep: `knowledge_base.py` modülü güncelleniyor olabilir veya bir sembol eksik. "
+            "Streamlit'i yeniden başlatın (sys.modules cache temizliği) veya birkaç saniye "
+            "bekleyip menüyü tekrar açın. Module yapısı: TOPICS, REFERENCES, ACIKLAMALAR, "
+            "PLOTLY_CONFIG, COLORS, ANIMATION_CONFIG, SCIENCE_NOTES, FUN_FACTS, render_bilim_notu, "
+            "anim_* ve interaktif_* fonksiyonları beklenir."
+        )
+        return
 
     st.markdown("## 📚 Akademik Öğrenim Kütüphanesi")
     st.markdown(
