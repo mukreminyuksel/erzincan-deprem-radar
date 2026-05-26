@@ -1461,7 +1461,7 @@ def anim_elastik_geri_tepme() -> go.Figure:
             xaxis=dict(
                 title="Yatay Konum", range=[-5.5, 5.5],
                 color="#e8f0fe", gridcolor="#1e3a5f", zeroline=True,
-                zerolinecolor="#ffffff44", zerolinewidth=2,
+                zerolinecolor="rgba(255,255,255,0.27)", zerolinewidth=2,
             ),
             yaxis=dict(
                 title="Fay Boyunca Konum", range=[-4, 4],

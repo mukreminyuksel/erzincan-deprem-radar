@@ -73,7 +73,7 @@ Her panelin mevcut `st.caption`, `st.markdown`, `st.info`, `st.warning`, `st.suc
 | Panel | Mevcut Seviye | Grafik Sayısı | Pilot? |
 |---|---|---:|---|
 | 📚 Akademik Kütüphane | 🟡 Orta (81 kaynak) | 0 (liste) | — |
-| 🎓 Bilgi Havuzu — 3D Fay Mekaniği | 🔴 Eksik | 1 (animasyon) | ✅ **PİLOT C** (Elastik Geri Tepme parçası) |
+| 🎓 Bilgi Havuzu — 3D Fay Mekaniği | 🟢 Akademik ✅ (v1.57) | 1 (animasyon) | ✅ **PİLOT C tamamlandı** — Reid 1910 + 12 referans |
 | 🎓 Bilgi Havuzu — P/S/Rayleigh Dalgalar | 🟡 Orta (v1.52 güncel) | 1 (animasyon) | — |
 | 🎓 Bilgi Havuzu — Erzincan Sahnesi | 🟠 Temel | 1 (3D) | — |
 | 📜 Tarihsel Sismisite | 🟠 Temel | 2 | — |

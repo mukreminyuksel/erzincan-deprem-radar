@@ -79,7 +79,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.56"
+APP_VERSION = "1.57"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -117,6 +117,43 @@ def mag_color(m):
     if m < 7.0: return "#D500F9"  # Parlak Mor
     if m < 8.0: return "#000000"  # Siyah
     return "#263238"  # Koyu Gri/Siyah (Mapbox sembol kısıtlaması nedeniyle sınır rengi vs UI'da halledilebilir)
+
+# v1.54 — Faz 0 Akademik Açıklama Helper (Codex + kullanıcı onaylı standart)
+# Belge: features/ACADEMIC_STANDARD.md (6 bölüm + kaynak disiplini)
+def render_academic_explanation(
+    title: str = "📖 Akademik Açıklama",
+    what: str = None,
+    how: str = None,
+    science: str = None,
+    interpretation: str = None,
+    limitations: str = None,
+    references: list = None,
+    disclaimer: str = None,
+    expanded: bool = False,
+) -> None:
+    """6-bölümlü akademik açıklama kartı. Eksik bölüm -> dev uyarısı."""
+    with st.expander(title, expanded=expanded):
+        st.markdown("#### 🎯 Ne Gösteriyor?")
+        st.markdown(what or ":red[🔴 EKSİK — `what` parametresi boş (Faz 0 ihlali)]")
+        st.markdown("#### 👁️ Nasıl Okunur?")
+        st.markdown(how or ":red[🔴 EKSİK — `how` parametresi boş]")
+        st.markdown("#### 🔬 Formül / Teori")
+        st.markdown(science or ":red[🔴 EKSİK — `science` parametresi boş]")
+        st.markdown("#### 💡 Yorumlama Rehberi")
+        st.markdown(interpretation or ":red[🔴 EKSİK — `interpretation` parametresi boş]")
+        st.markdown("#### ⚠️ Sınırlamalar ve Yaygın Hatalar")
+        st.markdown(limitations or ":red[🔴 EKSİK — `limitations` parametresi boş]")
+        st.markdown("#### 📚 Kaynaklar")
+        if references:
+            if not isinstance(references, list):
+                references = [references]
+            for ref in references:
+                st.markdown(f"- {ref}")
+        else:
+            st.markdown(":red[🔴 EKSİK — `references` parametresi boş (kaynak disiplini ihlali)]")
+        if disclaimer:
+            st.markdown("---")
+            st.warning(disclaimer)
 
 def mag_emoji(m):
     try: m = float(m)
@@ -2785,6 +2822,131 @@ if active_menu == "🎓 Bilgi Havuzu":
             )
             st.warning("Bu model kavramsaldır; gerçek fay yüzeyi, eğim, rake, segment süreksizlikleri ve yerel zemin koşulları hesaba katılmaz.")
 
+            # --- Faz 1 Pilot C (v1.57): Elastik Geri Tepme / Reid 1910 — AKADEMIK ---
+            render_academic_explanation(
+                title="📖 Akademik Açıklama — Elastik Geri Tepme Teorisi (Reid 1910)",
+                what=(
+                    "**Elastik geri tepme teorisi** (*elastic rebound theory*), Harry Fielding Reid'in 1906 San Francisco "
+                    "depremi sonrası yaptığı jeodezik gözlemlere dayanan ve modern sismolojinin **temel deprem modelidir** "
+                    "(Reid 1910). Yukarıdaki 3B animasyon bu teorinin görsel temsilidir: iki kabuk bloğu fay düzlemi "
+                    "boyunca tektonik kuvvetlerle yavaşça gerilir, kırılma anında **biriken elastik enerji aniden boşalır** "
+                    "ve bloklar denge konumlarına geri sıçrar. Bu döngü (yükleme → kırılma → boşalma → yeniden yükleme) "
+                    "**sismik döngü** (*seismic cycle*) olarak adlandırılır ve Schwartz & Coppersmith 1984'ün "
+                    "*characteristic earthquake* (karakteristik deprem) modelinin de teorik temelidir."
+                ),
+                how=(
+                    "**Animasyonun okunması (3 evre):**\n\n"
+                    "1. **Yükleme evresi (interseismic):** Bloklar fay düzleminden uzakta yavaşça hareket eder; "
+                    "fay yüzeyi sürtünme ile **kilitli** olduğundan kabuğun içinde elastik şekil değişimi (*strain*) birikir. "
+                    "GPS ölçümleri bu evrede yıllık birkaç mm–cm yer değiştirme kaydeder (Reilinger 2006, NAFZ ≈ 24 mm/yr).\n\n"
+                    "2. **Kırılma evresi (coseismic):** Birikmiş gerilme fayın sürtünme direncini aştığında fay **aniden kayar** "
+                    "(animasyondaki ani atım hareketi). Saniyeler içinde 10–100 yılda biriken enerji boşalır.\n\n"
+                    "3. **Boşalma/iyileşme evresi (postseismic):** Bloklar yeni denge konumuna oturur; viskoelastik gevşeme ve "
+                    "artçı kayma (*afterslip*) ile zaman bağımlı deformasyon devam eder (Bürgmann & Dresen 2008).\n\n"
+                    "**Atım miktarı kaydırıcısı** kırılma evresindeki blok deplasmanını temsil eder; gerçek depremlerde "
+                    "M7 için tipik atım ≈ 2–5 m, M7.9 için ≈ 4–8 m (Wells & Coppersmith 1994 ölçek bağıntıları)."
+                ),
+                science=(
+                    "**Elastik geri tepme — Hooke yasası (1B basitleştirme):**\n\n"
+                    r"$$\sigma = G \cdot \varepsilon$$"
+                    "\n\nburada $\\sigma$ kayma gerilmesi (Pa), $G$ kabuk kayma modülü (≈ 30 GPa, kıtasal kabuk için), "
+                    "$\\varepsilon$ kayma birim deformasyonu.\n\n"
+                    "**Kırılma için Coulomb-Mohr sürtünme kriteri:**\n\n"
+                    r"$$\tau \geq \mu \cdot (\sigma_n - P_f) + C$$"
+                    "\n\nburada $\\tau$ uygulanan kayma gerilmesi, $\\mu$ sürtünme katsayısı (≈ 0.6–0.85, Byerlee 1978), "
+                    "$\\sigma_n$ normal gerilme, $P_f$ gözenek basıncı, $C$ kohezyon. Bu eşik aşıldığında fay kayar.\n\n"
+                    "**Sismik moment (kırılma sırasında boşalan enerji):**\n\n"
+                    r"$$M_0 = G \cdot A \cdot \bar{D}$$"
+                    "\n\nburada $A$ kırılma alanı (m²), $\\bar{D}$ ortalama atım (m). Moment magnitüd (Hanks & Kanamori 1979):\n\n"
+                    r"$$M_w = \frac{2}{3} \log_{10}(M_0) - 6.07$$"
+                    "\n\n**Karakteristik deprem modeli (Schwartz & Coppersmith 1984):** Belirli bir fay segmenti, "
+                    "yaklaşık aynı magnitüde sahip depremleri **yarı-periyodik aralıklarla** üretir. Tekrar aralığı:\n\n"
+                    r"$$T_{rec} \approx \frac{D_{char}}{V_{slip}}$$"
+                    "\n\nKAF Erzincan segmenti için: $D_{char}\\approx$ 4–5 m, $V_{slip}\\approx$ 20–24 mm/yr → "
+                    "$T_{rec}\\approx$ 170–250 yıl (Ambraseys 1989; Hubert-Ferrari 2002)."
+                ),
+                interpretation=(
+                    "**Türkiye için elastik geri tepme örnekleri:**\n\n"
+                    "- **1939 Erzincan (M7.9):** KAF doğu segmentinde ≈ 360 km kırılma, 7–8 m sağ-yanal atım. "
+                    "Bir önceki büyük olay ≈ 1668 (yaklaşık 270 yıl tekrar aralığı; Hubert-Ferrari et al. 2002).\n"
+                    "- **1999 İzmit (M7.4):** KAF batı segmenti, ≈ 145 km kırılma, 2.5–5 m atım. Önceki olay 1719 (≈ 280 yıl).\n"
+                    "- **2023 Kahramanmaraş (Mw 7.8 + 7.5):** DAFZ üzerinde **çift kırılma** — Reid modelinin tek-fay "
+                    "varsayımının ötesine geçen, tetiklenmiş çoklu segment olayı (Melgar et al. 2023, *Seism. Res. Lett.*).\n\n"
+                    "**Slip-deficit (kayma açığı) yorumu:** Bir fay segmentinde son depremden bu yana geçen süre × tektonik "
+                    "kayma hızı = beklenen toplam atım. Bu açık ≥ karakteristik atımın %70'i olduğunda segment "
+                    "**'olgun'** (mature) kabul edilir. **Erzincan segmenti** için 1939'dan bu yana 87 yıl × 24 mm/yr ≈ 2.1 m "
+                    "birikmiş açık (karakteristik 4 m'nin %52'si) — yani şu an istatistiksel olarak henüz tam olgun değildir, "
+                    "ancak Kuzey Anadolu Fayı'nın **batı yönünde göç eden tetikleme** dizisi (Stein-Barka-Dieterich 1997) "
+                    "Erzincan-Tercan segmentini etkileyebilir."
+                ),
+                limitations=(
+                    "1. **Tekrar aralığı 'sabit' değildir:** Reid 1910'un orijinal modeli düzenli (periodic) tekrar varsayar; "
+                    "ancak Kagan & Jackson 1991 (BSSA) gibi sonraki çalışmalar **küme (clustering)** ve **uzun sessizlik** "
+                    "(supercycle) örüntülerini gösterir. KAF için %30–50 değişkenlik tipiktir.\n"
+                    "2. **Kayma açığı ≠ deprem tahmini:** Birikmiş kayma açığı *artmış olasılık* anlamına gelir, "
+                    "**ne zaman olacağını söylemez** (Geller 1997, *Science*: 'earthquakes cannot be predicted').\n"
+                    "3. **Modelin tekil-fay sınırı:** 2023 Maraş çift kırılması, 2002 Denali (M7.9, 3 fay zinciri) gibi olaylar "
+                    "Reid modelinin **segment-bazlı** varsayımının her zaman geçerli olmadığını gösterir.\n"
+                    "4. **Aseismic slip (sessiz kayma):** Bazı segmentler enerjiyi yavaş kayma (*slow slip events*, SSE) "
+                    "veya sürünme (creep) ile boşaltır → karakteristik deprem üretmeyebilir (Beroza & Ide 2011).\n"
+                    "5. **Animasyon homojen blok varsayar:** Gerçek kabukta heterojenlik, eğim, rake, segment "
+                    "süreksizlikleri ve gözenek basıncı dağılımı kırılma davranışını **non-lineer** kılar.\n"
+                    "6. **Yaygın hata — 'Fay artık boşaldı, güvendeyiz':** Büyük bir deprem sonrası Coulomb stres transferi "
+                    "**komşu segmentlerde** gerilmeyi artırabilir (King-Stein-Lin 1994). 1999 İzmit sonrası Düzce'ye "
+                    "(3 ay sonra M7.2) bu mekanizma ile transfer olmuştur."
+                ),
+                references=[
+                    "**Reid, H. F. (1910).** *The Mechanics of the Earthquake. The California Earthquake of April 18, 1906*, "
+                    "Report of the State Earthquake Investigation Commission, Vol. 2. Carnegie Institution of Washington. "
+                    "[archive.org/details/mechanicsofearth00reid](https://archive.org/details/mechanicsofearth00reid) "
+                    "— *Elastik geri tepme teorisinin orijinal kaynağı.*",
+                    "**Schwartz, D. P., & Coppersmith, K. J. (1984).** Fault behavior and characteristic earthquakes: "
+                    "Examples from the Wasatch and San Andreas fault zones. *Journal of Geophysical Research*, 89(B7), 5681–5698. "
+                    "DOI: [10.1029/JB089iB07p05681](https://doi.org/10.1029/JB089iB07p05681)",
+                    "**Kanamori, H., & Brodsky, E. E. (2004).** The physics of earthquakes. "
+                    "*Reports on Progress in Physics*, 67(8), 1429. DOI: "
+                    "[10.1088/0034-4885/67/8/R03](https://doi.org/10.1088/0034-4885/67/8/R03) "
+                    "— *Modern fay mekaniği derlemesi.*",
+                    "**Aki, K., & Richards, P. G. (2002).** *Quantitative Seismology* (2nd ed.), Bölüm 4: Source Theory. "
+                    "University Science Books. ISBN: 978-1-891389-63-4 — *Sismik kaynak teorisinin standart referansı.*",
+                    "**Hanks, T. C., & Kanamori, H. (1979).** A moment magnitude scale. *JGR*, 84(B5), 2348–2350. "
+                    "DOI: [10.1029/JB084iB05p02348](https://doi.org/10.1029/JB084iB05p02348)",
+                    "**Wells, D. L., & Coppersmith, K. J. (1994).** New empirical relationships among magnitude, rupture length, "
+                    "rupture width, rupture area, and surface displacement. *BSSA*, 84(4), 974–1002. "
+                    "[doi.org/10.1785/BSSA0840040974](https://doi.org/10.1785/BSSA0840040974)",
+                    "**Byerlee, J. (1978).** Friction of rocks. *Pure and Applied Geophysics*, 116, 615–626. "
+                    "DOI: [10.1007/BF00876528](https://doi.org/10.1007/BF00876528) "
+                    "— *Coulomb sürtünme katsayısı $\\mu \\approx$ 0.6–0.85 (Byerlee yasası).*",
+                    "**Stein, R. S., Barka, A. A., & Dieterich, J. H. (1997).** Progressive failure on the North Anatolian fault "
+                    "since 1939 by earthquake stress triggering. *Geophysical Journal International*, 128(3), 594–604. "
+                    "DOI: [10.1111/j.1365-246X.1997.tb05321.x](https://doi.org/10.1111/j.1365-246X.1997.tb05321.x) "
+                    "— *KAF batı yönlü göç ve tetikleme.*",
+                    "**Hubert-Ferrari, A., Armijo, R., King, G., Meyer, B., & Barka, A. (2002).** Morphology, displacement, "
+                    "and slip rates along the North Anatolian Fault, Turkey. *JGR*, 107(B10), 2235. "
+                    "DOI: [10.1029/2001JB000393](https://doi.org/10.1029/2001JB000393) "
+                    "— *KAF Erzincan segmenti kayma hızı ve karakteristik atım.*",
+                    "**Geller, R. J. (1997).** Earthquake prediction: a critical review. *Geophysical Journal International*, "
+                    "131(3), 425–450. DOI: "
+                    "[10.1111/j.1365-246X.1997.tb06588.x](https://doi.org/10.1111/j.1365-246X.1997.tb06588.x) "
+                    "— *'Earthquakes cannot be predicted' — modelin tahmin sınırı.*",
+                    "**Melgar, D., et al. (2023).** Sub- and super-shear ruptures during the 2023 Mw 7.8 and Mw 7.5 "
+                    "earthquake doublet in SE Türkiye. *Seismological Research Letters*. DOI: "
+                    "[10.1785/0220230193](https://doi.org/10.1785/0220230193)",
+                    "**Beroza, G. C., & Ide, S. (2011).** Slow earthquakes and nonvolcanic tremor. "
+                    "*Annual Review of Earth and Planetary Sciences*, 39, 271–296. DOI: "
+                    "[10.1146/annurev-earth-040809-152531](https://doi.org/10.1146/annurev-earth-040809-152531)",
+                ],
+                disclaimer=(
+                    "⚠️ **Bu model bir deprem tahmin aracı DEĞİLDİR.** Elastik geri tepme teorisi geriye dönük "
+                    "(*retrospective*) bir mekanik açıklamadır — fayın ne zaman kırılacağı, hangi magnitüdde olacağı veya "
+                    "tetiklenme zinciri sismolojinin **çözümsüz problemleridir** (Geller 1997). 'Slip-deficit', 'olgun fay' "
+                    "veya 'tekrar aralığı' kavramları **olasılıksal tehlike analizinde** (PSHA) girdidir, kesin tahmin değil. "
+                    "Kuzey Anadolu Fayı bilimsel olarak yüksek tehlikeli kabul edilir, ancak bu bilim **eylem için** "
+                    "(bina güçlendirme, AFAD afet planı, tatbikat) kullanılmalıdır."
+                ),
+                expanded=False,
+            )
+
 
         elif edu_mode == "P / S / Rayleigh Dalgaları":
             st.markdown(
@@ -3092,46 +3254,6 @@ if active_menu == "🎓 Bilgi Havuzu":
             st.warning("Bu çıktı resmi deprem senaryosu, yapı tasarım girdisi veya afet tahmini değildir; yalnızca eğitim amaçlı nitel bir görselleştirmedir.")
 
     _render_edu()
-
-# ════════════════════════════════════════════════════════════════════════════
-# v1.54 — Faz 0 Akademik Açıklama Helper (Codex + kullanıcı onaylı standart)
-# Belge: features/ACADEMIC_STANDARD.md (6 bölüm + kaynak disiplini)
-# ════════════════════════════════════════════════════════════════════════════
-def render_academic_explanation(
-    title: str = "📖 Akademik Açıklama",
-    what: str = None,
-    how: str = None,
-    science: str = None,
-    interpretation: str = None,
-    limitations: str = None,
-    references: list = None,
-    disclaimer: str = None,
-    expanded: bool = False,
-) -> None:
-    """6-bölümlü akademik açıklama kartı. Eksik bölüm → 🔴 placeholder (dev uyarısı)."""
-    with st.expander(title, expanded=expanded):
-        st.markdown("#### 🎯 Ne Gösteriyor?")
-        st.markdown(what or ":red[🔴 EKSİK — `what` parametresi boş (Faz 0 ihlali)]")
-        st.markdown("#### 👁️ Nasıl Okunur?")
-        st.markdown(how or ":red[🔴 EKSİK — `how` parametresi boş]")
-        st.markdown("#### 🔬 Formül / Teori")
-        st.markdown(science or ":red[🔴 EKSİK — `science` parametresi boş]")
-        st.markdown("#### 💡 Yorumlama Rehberi")
-        st.markdown(interpretation or ":red[🔴 EKSİK — `interpretation` parametresi boş]")
-        st.markdown("#### ⚠️ Sınırlamalar ve Yaygın Hatalar")
-        st.markdown(limitations or ":red[🔴 EKSİK — `limitations` parametresi boş]")
-        st.markdown("#### 📚 Kaynaklar")
-        if references:
-            if not isinstance(references, list):
-                references = [references]
-            for ref in references:
-                st.markdown(f"- {ref}")
-        else:
-            st.markdown(":red[🔴 EKSİK — `references` parametresi boş (kaynak disiplini ihlali)]")
-        if disclaimer:
-            st.markdown("---")
-            st.warning(disclaimer)
-
 
 # v1.47 — Ajan 3 (Codex önceliği 2): ephem per-event memoize cache
 # Cache key: yuvarlanmış timestamp (1 saat) + lat/lon (3 ondalık ≈ 100m).
