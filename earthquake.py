@@ -79,7 +79,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.45.1"
+APP_VERSION = "1.45.3"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -581,14 +581,34 @@ st.markdown(f"""
   [data-testid="stDecoration"],
   .stDeployButton,
   [data-testid="stAppDeployButton"] {{ display: none !important; }}
-  /* Sidebar açma/kapama butonunu görünür tut */
+  /* v1.45.3 — Sidebar açma/kapama butonunu HER ZAMAN görünür tut.
+     Sorun: sticky pill bar z-index 9999 → collapsed control'un üzerini örtüyordu.
+     Streamlit 1.50 yeni test-id'leri + aria-label selector'ler eklendi. */
   [data-testid="stSidebarCollapsedControl"],
   [data-testid="collapsedControl"],
-  [data-testid="stSidebarHeader"] button {{
+  [data-testid="stSidebarHeader"] button,
+  button[kind="header"],
+  button[kind="headerNoPadding"],
+  button[aria-label="Open sidebar"],
+  button[aria-label="Close sidebar"],
+  button[aria-label="Aç kenar çubuğu"],
+  button[aria-label="Kapat kenar çubuğu"] {{
     display: flex !important;
     visibility: visible !important;
     opacity: 1 !important;
-    z-index: 999 !important;
+    z-index: 10001 !important;          /* sticky pill bar 9999 üstünde */
+    pointer-events: auto !important;    /* tıklama eventleri pill bar yutmasın */
+  }}
+  /* Collapsed durumda buton sol-üst köşede sabit dursun (pill bar overlay etmesin) */
+  [data-testid="stSidebarCollapsedControl"] {{
+    position: fixed !important;
+    top: 10px !important;
+    left: 10px !important;
+    background: {BG3} !important;
+    border: 1px solid {BORDER} !important;
+    border-radius: 6px !important;
+    padding: 4px 6px !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5) !important;
   }}
 
   .radar-header {{
