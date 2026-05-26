@@ -302,15 +302,39 @@ Katı limit YOK, ama **hedef profiller**:
 
 ---
 
-## 4.8 Panel Üstü Mini Okuma Rehberi (Codex tavsiyesi)
+## 4.8 Mini Okuma Rehberi — Grafiğin Hemen Altında (Codex tavsiyesi)
 
-Akademik expander default `expanded=False`. Ama kullanıcı **expander'a tıklamadan da** grafiği yorumlayabilmeli. Bunun için her panelin **hemen üstünde** 1–2 cümlelik **mini rehber** bulunmak ZORUNDADIR.
+Akademik expander default `expanded=False`. Kullanıcı **expander'a tıklamadan da** grafiği yorumlayabilmeli. Bunun için her grafiğin **hemen altında**, expander'ın dışında 1–2 cümlelik **mini rehber** bulunmak ZORUNDADIR.
 
-**Şablon:**
-> 📊 **Mini rehber:** [Grafiğin ne gösterdiği — tek cümle.] [Nasıl okunur — tek cümle.] *Detaylı akademik açıklama, formüller ve kaynaklar için 📖 Akademik Açıklama panelini açın.*
+**Konum:** `st.plotly_chart(...)` çağrısının **hemen ardından**, mevcut açıklamalar/expander'dan önce.
 
-**Örnek (Canlı Radar için):**
-> 📊 **Mini rehber:** Her halka son 7 günde gerçekleşmiş bir depremi temsil eder; halka boyutu magnitüd ile kuadratik, rengi derinlik ile kodlanır. *Detaylı açıklama, USGS magnitude ölçeği ve haversine formülü için 📖 Akademik Açıklama panelini açın.*
+**İçerik kuralı (2 cümle):**
+1. **Cümle 1:** Grafik neyi gösteriyor (tek cümle, sade).
+2. **Cümle 2:** Dikkat edilmesi gereken ana yorum / yanlış kullanım uyarısı. Tahmin çağrıştıran panellerde "tahmin değildir" cümlesi şart.
+
+Ardından kapanış: *"Detaylı açıklama … için 📖 Akademik Açıklama panelini açın."*
+
+**Görsel:** Sol-kenar 3px renkli border + hafif gradient arka plan + 📊 ikon. Renk paneli kategorisini yansıtsın:
+- Canlı izleme: cyan (#00E5FF)
+- İstatistik/analiz: amber (#FFB300)
+- Teorik eğitim: kırmızı (#E53935)
+- Tektonik: mor (#9C27B0)
+- Uydu/jeofizik: yeşil (#4CAF50)
+
+**Şablon (HTML, `st.markdown(..., unsafe_allow_html=True)` ile):**
+```html
+<div style="background:linear-gradient(90deg,{BG2} 0%,rgba(R,G,B,0.08) 100%);
+            border-left:3px solid #HEX; border-radius:6px;
+            padding:0.55rem 0.9rem; margin:0.4rem 0 0.8rem 0;
+            font-size:0.88rem; color:{TEXT}; line-height:1.45;">
+  📊 <b>Mini rehber:</b> [Cümle 1.] [Cümle 2 — uyarı/disclaimer.]
+  <i>Detaylı açıklama için … 📖 Akademik Açıklama panelini açın.</i>
+</div>
+```
+
+**Örnek (Canlı Radar — v1.59):**
+> 📊 **Mini rehber:** Harita; olay yoğunluğunu, kaynak birleşimini ve fay/plaka bağlamını gösterir.
+> **Tekil noktalar tahmin veya uyarı değildir** — geçmiş olayların konum/büyüklük dağılımıdır.
 
 ---
 
@@ -344,3 +368,4 @@ Her panel/grafik için aşağıdaki 4 seviyeden biri atanır:
 
 - **v1.0** (2026-05-26) — İlk standart belgesi. Faz 0 onayı: kullanıcı + Codex.
 - **v1.1** (2026-05-26) — Faz 1 (3 pilot) sonrası Codex onaylı eklemeler: §4.5 (Türkiye örneği zorunlu / formül birimi / Geller disclaimer genişletilmiş kapsamı), §4.6 (LaTeX yoğunluğu rehberi), §4.7 (referans politikası — kalite>sayı, min 4 max 8–10), §4.8 (panel üstü mini rehber zorunlu), §4.9 (expander performans kısıtları).
+- **v1.1.1** (2026-05-26) — §4.8 netleştirildi: mini rehber **grafiğin hemen altında** (panel üstü değil), expander dışında. v1.59'da 3 pilota geriye dönük uygulandı: cyan/amber/red border + gradient + 📊 ikon. Kategori-bazlı renk paleti tanımlandı.

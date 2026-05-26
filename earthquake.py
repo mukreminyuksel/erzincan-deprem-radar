@@ -81,7 +81,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.58"
+APP_VERSION = "1.59"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -2135,6 +2135,24 @@ def _render_canli_radar():
                                 "modeBarButtonsToRemove": ["toImage"],
                                 "displaylogo": False})
 
+        # v1.59 — Mini okuma rehberi (ACADEMIC_STANDARD §4.8 — expander dışı, kalıcı görünür)
+        st.markdown(
+            f"""<div style="
+                background:linear-gradient(90deg,{BG2} 0%,rgba(0,229,255,0.08) 100%);
+                border-left:3px solid #00E5FF;
+                border-radius:6px;
+                padding:0.55rem 0.9rem;
+                margin:0.4rem 0 0.8rem 0;
+                font-size:0.88rem;
+                color:{TEXT};
+                line-height:1.45;">
+                📊 <b>Mini rehber:</b> Harita; olay yoğunluğunu, kaynak birleşimini ve fay/plaka bağlamını gösterir.
+                <b>Tekil noktalar tahmin veya uyarı değildir</b> — geçmiş olayların konum/büyüklük dağılımıdır.
+                <i>Detaylı açıklama, USGS magnitude ölçeği ve haversine formülü için yukarıdaki 📖 Akademik Açıklama panelini açın.</i>
+            </div>""",
+            unsafe_allow_html=True,
+        )
+
         # Fay hattı renk lejantı
         if show_faults:
             st.markdown(f"""
@@ -2861,6 +2879,24 @@ if active_menu == "🎓 Bilgi Havuzu":
                 )],
             )
             st.plotly_chart(fig_fault_demo, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+
+            # v1.59 — Mini okuma rehberi (ACADEMIC_STANDARD §4.8)
+            st.markdown(
+                f"""<div style="
+                    background:linear-gradient(90deg,{BG2} 0%,rgba(229,57,53,0.08) 100%);
+                    border-left:3px solid #E53935;
+                    border-radius:6px;
+                    padding:0.55rem 0.9rem;
+                    margin:0.4rem 0 0.8rem 0;
+                    font-size:0.88rem;
+                    color:{TEXT};
+                    line-height:1.45;">
+                    📊 <b>Mini rehber:</b> 3B animasyon, Reid 1910 elastik geri tepme döngüsünü (yükleme → kırılma → boşalma) gösterir.
+                    <b>Slip-deficit yalnızca lineer intersismik birikim ölçeğidir — deprem zamanı tahmini vermez</b> (Geller 1997).
+                    <i>Hooke yasası, Coulomb-Mohr eşiği, KAF Erzincan slip-rate aralığı (18–24 mm/yr) ve karakteristik deprem modeli için aşağıdaki 📖 Akademik Açıklama panelini açın.</i>
+                </div>""",
+                unsafe_allow_html=True,
+            )
 
             st.markdown("---")
             st.markdown(f"**Tanım:** {info['desc']}")
@@ -6661,8 +6697,50 @@ def _render_sismik_acik():
             index=1,
             key="kaf_sismik_acik_overlay_mode",
         )
+        _overlay_catalog = [
+            {"yil": 1268, "ay": 6, "lat": 39.75, "lon": 39.50, "mw": 7.5,
+             "yer": "Erzincan", "kaynak": "Ambraseys 2009", "confidence": "B",
+             "year_uncertainty": 30, "note": "Yaklaşık tarihsel episantr; kırık izi kesin değildir."},
+            {"yil": 1509, "ay": 9, "lat": 41.00, "lon": 28.97, "mw": 7.2,
+             "yer": "İstanbul", "kaynak": "Ambraseys 2009", "confidence": "B",
+             "note": "Tarihsel hasar kaydı; segment eşleşmesi yorumdur."},
+            {"yil": 1668, "ay": 8, "lat": 40.65, "lon": 35.80, "mw": 8.0,
+             "yer": "Amasya-Kuzey Anadolu", "kaynak": "Ambraseys & Finkel 1995", "confidence": "B",
+             "note": "KAF ana tarihsel sekansı için güçlü ama aletsel olmayan kayıt."},
+            {"yil": 1719, "ay": 5, "lat": 40.75, "lon": 30.00, "mw": 7.4,
+             "yer": "İzmit", "kaynak": "Ambraseys & Finkel 1995", "confidence": "B"},
+            {"yil": 1766, "ay": 5, "lat": 40.80, "lon": 29.00, "mw": 7.1,
+             "yer": "İstanbul-Marmara", "kaynak": "Ambraseys 2002", "confidence": "B"},
+            {"yil": 1784, "ay": 7, "lat": 39.80, "lon": 39.30, "mw": 7.6,
+             "yer": "Erzincan", "kaynak": "Ambraseys & Finkel 1988", "confidence": "B",
+             "year_uncertainty": 20, "note": "Tarihsel kayıt; kesin rupture trace bilinmez."},
+            {"yil": 1912, "ay": 8, "lat": 40.60, "lon": 27.00, "mw": 7.4,
+             "yer": "Saros (Mürefte)", "kaynak": "Ambraseys 2002", "confidence": "A"},
+            {"yil": 1939, "ay": 12, "lat": 39.80, "lon": 39.51, "mw": 7.8,
+             "yer": "Erzincan", "kaynak": "Barka 1996", "confidence": "A"},
+            {"yil": 1942, "ay": 12, "lat": 40.87, "lon": 36.47, "mw": 7.0,
+             "yer": "Niksar-Erbaa", "kaynak": "Barka 1996", "confidence": "A"},
+            {"yil": 1943, "ay": 11, "lat": 41.05, "lon": 33.72, "mw": 7.6,
+             "yer": "Tosya-Ladik", "kaynak": "Stein 1997", "confidence": "A"},
+            {"yil": 1944, "ay": 2, "lat": 41.05, "lon": 32.59, "mw": 7.4,
+             "yer": "Gerede-Bolu", "kaynak": "Stein 1997", "confidence": "A"},
+            {"yil": 1957, "ay": 5, "lat": 40.67, "lon": 31.00, "mw": 7.1,
+             "yer": "Abant", "kaynak": "Ambraseys 2002", "confidence": "A"},
+            {"yil": 1967, "ay": 7, "lat": 40.67, "lon": 30.69, "mw": 7.1,
+             "yer": "Mudurnu Vadisi", "kaynak": "Ambraseys 1988", "confidence": "A"},
+            {"yil": 1992, "ay": 3, "lat": 39.71, "lon": 39.60, "mw": 6.8,
+             "yer": "Erzincan", "kaynak": "Özalaybey 1993", "confidence": "A"},
+            {"yil": 1999, "ay": 8, "lat": 40.75, "lon": 29.86, "mw": 7.6,
+             "yer": "İzmit (Gölcük)", "kaynak": "USGS / Reilinger 2000", "confidence": "A"},
+            {"yil": 1999, "ay": 11, "lat": 40.79, "lon": 31.21, "mw": 7.2,
+             "yer": "Düzce", "kaynak": "Akyüz 2002", "confidence": "A"},
+            {"yil": 2023, "ay": 2, "lat": 37.17, "lon": 37.08, "mw": 7.8,
+             "yer": "Kahramanmaraş-Pazarcık", "kaynak": "AFAD / USGS", "confidence": "A"},
+            {"yil": 2023, "ay": 2, "lat": 38.02, "lon": 37.20, "mw": 7.5,
+             "yer": "Kahramanmaraş-Elbistan", "kaynak": "AFAD / USGS", "confidence": "A"},
+        ]
         _historic_events = [
-            ev for ev in filter_historical_events(_TARIHSEL_OLAYLAR, overlay_modu)
+            ev for ev in filter_historical_events(_overlay_catalog, overlay_modu)
             if float(ev.get("mw") or 0) >= 6.4
         ]
         _h_lats = [e["lat"] for e in _historic_events]
@@ -7913,6 +7991,25 @@ def _render_b_value_time_series():
         legend=dict(font=dict(color=TEXT, size=10), bgcolor="rgba(0,0,0,0.3)"),
     )
     st.plotly_chart(fig_b, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+
+    # v1.59 — Mini okuma rehberi (ACADEMIC_STANDARD §4.8)
+    st.markdown(
+        f"""<div style="
+            background:linear-gradient(90deg,{BG2} 0%,rgba(255,179,0,0.08) 100%);
+            border-left:3px solid #FFB300;
+            border-radius:6px;
+            padding:0.55rem 0.9rem;
+            margin:0.4rem 0 0.8rem 0;
+            font-size:0.88rem;
+            color:{TEXT};
+            line-height:1.45;">
+            📊 <b>Mini rehber:</b> b-değeri düşük bölgeler yüksek stres / kilitli fay, yüksek b-değeri ise küçük olay
+            yoğunluğu veya düşük stres olarak yorumlanır; ancak <b>katalog tamlığı (Mc)</b> her zaman birlikte değerlendirilmelidir.
+            <b>Bu panel deprem tahmini değildir</b> — istatistiksel bir ölçüdür (Geller 1997).
+            <i>MLE formülü, Türkiye Mc ≈ 2.5–3.0 ve detaylı yorumlama için yukarıdaki 📖 Akademik Açıklama panelini açın.</i>
+        </div>""",
+        unsafe_allow_html=True,
+    )
 
     # ── Grafik 2: Mc evolution ─────────────────────────────────────────────
     fig_mc = go.Figure()
