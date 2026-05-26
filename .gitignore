@@ -13,3 +13,6 @@ venv/
 # Geçici profilleme çıktıları
 earthquake_profiled.py
 /tmp/st_perf.log
+
+# Claude Code kişisel ayarları (repo'ya girmesin)
+.claude/settings.local.json
