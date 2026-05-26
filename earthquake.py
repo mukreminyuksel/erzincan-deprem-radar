@@ -79,7 +79,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.45.8"
+APP_VERSION = "1.46"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -4747,16 +4747,65 @@ def _render_plaka_simulasyon():
             index=0,
             key="plaka_sim_city",
         )
-    vels_for_select = load_plate_velocities(ERZ_LAT, ERZ_LON)
-    plate_options = list(vels_for_select.keys())
+    # v1.46 — Codex önerisi (Ajan 4A): "Plaka (hız vektörü kaynağı)" dropdown
+    # yanıltıcıydı → iki ayrı dropdown: Hareket eden plaka + Referans çerçevesi.
+    # Hesap: V_relative = V_target − V_reference (Reilinger 2006 metodolojisi).
+    # Backend zaten v1.31.1'de Eurasia-fixed default'lu hazır.
+    vels_for_select_nnr = load_plate_velocities(ERZ_LAT, ERZ_LON, reference_frame="NNR")
+    plate_options = list(vels_for_select_nnr.keys())
     default_plate = "AN" if "AN" in plate_options else plate_options[0]
     with col_p:
         plate_code = st.selectbox(
-            "Plaka (hız vektörü kaynağı)",
+            "🎯 Hareket eden plaka/blok",
             options=plate_options,
             index=plate_options.index(default_plate),
-            format_func=lambda c: f"{c} — {vels_for_select[c].get('name', c)}",
+            format_func=lambda c: f"{c} — {vels_for_select_nnr[c].get('name', c)}",
             key="plaka_sim_plate",
+            help="Hareketini izlemek istediğiniz plakayı seçin. Vektör, aşağıdaki "
+                 "referans çerçevesine göre göreceli hesaplanır.",
+        )
+
+    # Referans çerçevesi seçimi — Eurasia-fixed Türkiye için doğru anlatı
+    _ref_options = ["EU", "NNR"] + [p for p in plate_options if p not in ("EU",)]
+    _ref_labels = {
+        "EU":  "EU — Avrasya sabit (Türkiye tektoniği için doğru anlatı)",
+        "NNR": "NNR — Mutlak hız (NNR-MORVEL56, no-net-rotation)",
+        "AN":  "AN — Anadolu sabit (özel kıyaslama)",
+        "AR":  "AR — Arabistan sabit (özel kıyaslama)",
+        "AF":  "AF — Afrika sabit (özel kıyaslama)",
+    }
+    ref_frame = st.selectbox(
+        "🌍 Referans çerçevesi",
+        options=_ref_options,
+        index=0,  # EU varsayılan
+        format_func=lambda c: _ref_labels.get(c, c),
+        key="plaka_sim_ref_frame",
+        help="Seçilen plaka HANGİSİNE GÖRE hareket ediyor? Eurasia-sabit "
+             "(Reilinger 2006) Türkiye için bilimsel standart. NNR-MORVEL56 "
+             "(Argus 2011) mutlak referans.",
+    )
+
+    # Türkiye tektonik anlatısı (Codex önerisi — expander olarak ekle)
+    with st.expander("🇹🇷 Türkiye Tektoniği — Doğru Anlatı (Avrasya-sabit referansta)", expanded=False):
+        st.markdown(
+            """
+**Reilinger et al. (2006) GPS metodolojisiyle elde edilen göreceli hız vektörleri:**
+
+| Plaka / blok | Yön | Hız | Türkiye açısından anlamı |
+|---|---|---|---|
+| 🔺 **Arabistan (AR)** | Kuzey / KKB | ~23 mm/yıl | Doğu Anadolu'yu sıkıştırır, **Bitlis-Zagros çarpışmasını** üretir |
+| ↔ **Anadolu (AN)** | Batı / GB | ~21 mm/yıl | **KAF boyunca batıya kaçar** (sağ-yanal doğrultu atımlı) |
+| 🔻 **Ege/Batı Anadolu (AS)** | Güneybatı | ~30 mm/yıl | **Helenik dalma-batma** + gerilme, daha hızlı açılma |
+| 🔺 **Afrika/Nubia (AF)** | Kuzey / KKD | ~10 mm/yıl | Akdeniz'de Avrasya'ya yaklaşır, **Helenik-Kıbrıs yayları subduction** |
+| ⚓ **Avrasya (EU)** | — (referans) | 0 | Türkiye tektoniği için **arka plan çerçevesi** |
+
+**Özet anlatı:**
+> Arabistan kuzeye doğru Avrasya'ya çarpıyor → bu sıkıştırma Anadolu bloğunu **batıya/güneybatıya kaçırıyor** → KAF bu kaçışı sağ-yanal hareketle, DAF Arap-Anadolu sınırındaki sol-yanal hareketle karşılıyor → Batı Anadolu ve Ege ise daha çok güneybatıya açılıyor.
+
+**Kaynak:** Reilinger et al. JGR 2006 · McClusky et al. JGR 2000 · Barka & Reilinger Annales Tectonicae 1997.
+
+⚠️ **Bilimsel namus:** Tüm vektörler **seçilen referans çerçevesine göre göreceli hızdır**. Vektörler birbirine eklenmez (yanlış). Hareket eden plakanın hızı = `V_relative = V_target − V_reference`.
+            """
         )
 
     show_coupling = st.checkbox(
@@ -4787,12 +4836,15 @@ def _render_plaka_simulasyon():
     )
 
     fig = _plaka_build_figure(mode_key, focus_lat, focus_lon, city, plate_code,
-                              active_idx=active_idx, show_coupling=show_coupling)
+                              active_idx=active_idx, show_coupling=show_coupling,
+                              reference_frame=ref_frame)
     st.plotly_chart(fig, use_container_width=True,
-                    key=f"plaka_sim_{mode_key}_{city}_{years_total}_{plate_code}_{int(show_coupling)}")
+                    key=f"plaka_sim_{mode_key}_{city}_{years_total}_{plate_code}_{ref_frame}_{int(show_coupling)}")
 
     # Gerçek (görsel ölçekten bağımsız) kümülatif yer değiştirme
-    dlat_real, dlon_real = _plaka_displacement_deg(plate_code, focus_lat, focus_lon, years_total)
+    # V_relative = V_target − V_reference (Codex onaylı tek doğru hesap)
+    dlat_real, dlon_real = _plaka_displacement_deg(plate_code, focus_lat, focus_lon, years_total,
+                                                    reference_frame=ref_frame)
     real_m_lat = dlat_real * 111_320.0
     real_m_lon = dlon_real * 111_320.0 * math.cos(math.radians(focus_lat))
     disp_m = math.sqrt(real_m_lat**2 + real_m_lon**2)
@@ -4805,7 +4857,9 @@ def _render_plaka_simulasyon():
     else:
         disp_str = f"{disp_m/1000:,.0f} km"
 
-    vel_meta = vels_for_select.get(plate_code, {})
+    # Meta (isim, hız) referans çerçevesine göre — kullanıcı seçtiği frame'de değer görsün
+    _vels_rel = load_plate_velocities(focus_lat, focus_lon, reference_frame=ref_frame)
+    vel_meta = _vels_rel.get(plate_code, vels_for_select_nnr.get(plate_code, {}))
     plate_name = vel_meta.get("name", plate_code)
     speed_anno = vel_meta.get("approx_speed_mm_yr")
     speed_str  = f" (~{speed_anno} mm/yıl)" if speed_anno else ""
