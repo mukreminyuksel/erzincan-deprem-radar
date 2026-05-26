@@ -11113,24 +11113,28 @@ def _render_akademik_kutuphane():
 
     # ── Tab 4: Kaynaklar
     with tab_kaynaklar:
-        refs = REFERENCES.get(aktif, [])
-        if refs:
+        # topic["refs"] → REFERENCES key listesi; REFERENCES[key] → {yazar, baslik, yil, url?, doi?, not?}
+        ref_keys = topic.get("refs", [])
+        resolved = [REFERENCES[k] for k in ref_keys if k in REFERENCES]
+        if resolved:
             st.markdown("### 📑 Akademik Kaynaklar")
-            for ref in refs:
+            for ref in resolved:
                 if ref.get("doi"):
                     link_str = f" · [DOI: {ref['doi']}]({ref['url']})"
                 elif ref.get("url"):
                     link_str = f" · [Bağlantı]({ref['url']})"
                 else:
                     link_str = ""
+                aciklama = ref.get("not", "")
                 st.markdown(
                     f"**{ref['yazar']} ({ref['yil']})** — "
-                    f"*{ref['baslik']}*{link_str}\n\n"
-                    f"> {ref['ozet']}"
+                    f"*{ref['baslik']}*{link_str}"
                 )
+                if aciklama:
+                    st.markdown(f"> {aciklama}")
                 st.divider()
         else:
-            st.info("Bu konu için kaynaklar yükleniyor.")
+            st.info("Bu konu için kaynak bilgisi tanımlanmamış.")
 
 
 if active_menu == "📚 Akademik Kütüphane":

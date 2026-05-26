@@ -44,6 +44,7 @@ TOPICS: dict = {
         "kategori": "Temel Sismoloji",
         "ozet": "P ve S dalgaları depremi nasıl taşır? Yerkürenin içinden nasıl geçerler?",
         "seviye": "Başlangıç",
+        "refs": ["AkiRichards2002", "Shearer2019", "SteinWys2003", "Kanamori2015"],
     },
     "gutenberg_richter": {
         "baslik": "Gutenberg-Richter Yasası",
@@ -51,6 +52,7 @@ TOPICS: dict = {
         "kategori": "İstatistiksel Sismoloji",
         "ozet": "Küçük depremler büyüklerden neden çok daha fazla? b-değeri ne anlama gelir?",
         "seviye": "Orta",
+        "refs": ["GutenbergRichter1944", "Aki1965", "WiemerWyss2000", "Ozturk2011", "Akkar2010"],
     },
     "elastik_geri_tepme": {
         "baslik": "Elastik Geri Tepme Teorisi",
@@ -58,6 +60,7 @@ TOPICS: dict = {
         "kategori": "Fay Mekaniği",
         "ozet": "Reid'in 1910 teorisi: fay nasıl kilitlenir, gerilme nasıl birikir?",
         "seviye": "Orta",
+        "refs": ["Reid1910", "Matthews2002", "Reilinger2006", "SucuogluAkkar2014", "Kramer2024"],
     },
     "coulomb_stres": {
         "baslik": "Coulomb Stres Transferi",
@@ -65,6 +68,7 @@ TOPICS: dict = {
         "kategori": "Fay Mekaniği",
         "ozet": "Bir deprem komşu fayı nasıl tetikler? İzmit→Düzce örneği.",
         "seviye": "İleri",
+        "refs": ["King1994", "Stein1999", "Parsons2000", "Toda2011", "Wang2023_GRL", "Hussain2024_GJI"],
     },
     "moment_tensor": {
         "baslik": "Odak Mekanizması (Beach Ball)",
@@ -72,6 +76,7 @@ TOPICS: dict = {
         "kategori": "Kaynak Sismolojisi",
         "ozet": "Tek bakışta fay tipi: siyah-beyaz daire neyi anlatır?",
         "seviye": "Orta",
+        "refs": ["Ekstrom2012", "AkiRichards2002", "Hanks1979", "Kanamori2015"],
     },
     "psha": {
         "baslik": "Olasılıksal Sismik Tehlike (PSHA)",
@@ -79,6 +84,7 @@ TOPICS: dict = {
         "kategori": "Mühendislik Sismolojisi",
         "ozet": "475 yıl dönüş periyodu ne demek? Binanız için ne anlam taşıyor?",
         "seviye": "İleri",
+        "refs": ["Cornell1968", "McGuire2004", "Boore2014", "Woessner2015", "AFAD2018_TDTH", "Field2014", "SucuogluAkkar2014"],
     },
     "insar": {
         "baslik": "InSAR Yer Deformasyonu",
@@ -86,6 +92,7 @@ TOPICS: dict = {
         "kategori": "Uzaktan Algılama",
         "ozet": "Uydu milimetre hassasiyetle yeri nasıl ölçer? Interferogram nedir?",
         "seviye": "İleri",
+        "refs": ["Massonnet1998", "Xu2023_Science", "Hussain2024_GJI", "NatComm2019_Marmara"],
     },
     "tsunami_fizigi": {
         "baslik": "Tsunami Fiziği",
@@ -93,6 +100,7 @@ TOPICS: dict = {
         "kategori": "Deniz Sismolojisi",
         "ozet": "c = √(gd): derin okyanusta uçak hızında ilerler, kıyıda devleşir.",
         "seviye": "Başlangıç",
+        "refs": ["Papadopoulos2005", "Basili2021", "Synolakis2006"],
     },
     "kaf_tektonigi": {
         "baslik": "Kuzey Anadolu Fayı",
@@ -100,6 +108,7 @@ TOPICS: dict = {
         "kategori": "Türkiye Sismolojisi",
         "ozet": "Dünyanın en iyi incelenmiş sağ yönlü doğrultu atımlı fayı.",
         "seviye": "Orta",
+        "refs": ["Barka1997", "Barka1996", "Reilinger2006", "Ergintav2014", "NatComm2019_Marmara"],
     },
     "erzincan_tarihi": {
         "baslik": "Erzincan Deprem Tarihi",
@@ -107,6 +116,7 @@ TOPICS: dict = {
         "kategori": "Türkiye Sismolojisi",
         "ozet": "2500 yıllık paleosismik kayıt, 1939 felaketinin anatomisi.",
         "seviye": "Orta",
+        "refs": ["Hartleb2006", "Kozaci2007", "Ambraseys1998", "Ambraseys2009", "Barka1997", "Biblio2025_NatHaz"],
     },
 }
 
