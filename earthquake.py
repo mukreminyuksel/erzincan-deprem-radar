@@ -78,7 +78,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.62"
+APP_VERSION = "1.63"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -6165,6 +6165,154 @@ if active_menu == "🚨 Erken Uyarı":
             "MMI yaklaşımı: `I = 1.5·M − 1.5·log₁₀(R) − 3.5` (ham GMPE, bölgesel kalibrasyon yapılmamış)."
         )
 
+        # v1.63 — Sprint 3: Erken Uyarı akademik standart (ACADEMIC_STANDARD v1.1)
+        st.markdown(
+            f"""<div style="
+                background:linear-gradient(90deg,{BG2} 0%,rgba(229,57,53,0.10) 100%);
+                border-left:3px solid #E53935;
+                border-radius:6px;
+                padding:0.55rem 0.9rem;
+                margin:0.4rem 0 0.8rem 0;
+                font-size:0.88rem;
+                color:{TEXT};
+                line-height:1.45;">
+                📊 <b>Mini rehber:</b> "S − P uyarı penceresi" gözlemcinin P-dalgasını duyduktan sonra S-dalgası gelmeden
+                önce eylem yapabileceği saniyeleri gösterir; mesafe arttıkça pencere büyür.
+                <b>Bu panel operasyonel bir erken uyarı sistemi DEĞİLDİR</b> — gerçek-zamanlı alarm üretmez, sadece
+                eğitim/kavram simülasyonudur. Türkiye'de operasyonel EEW olarak AFAD-EQE/EWS çalışmaktadır.
+                <i>P/S/Rayleigh hızları, Akkar-Bommer 2010 GMPE, Allen-Kanamori 2003 EEW felsefesi ve operasyonel
+                sistem örnekleri için aşağıdaki 📖 Akademik Açıklama panelini açın.</i>
+            </div>""",
+            unsafe_allow_html=True,
+        )
+        render_academic_explanation(
+            title="📖 Akademik Açıklama — Erken Uyarı Sistemleri (EEW) Eğitim Simülasyonu",
+            what=(
+                "**Erken Uyarı Sistemi (Earthquake Early Warning, EEW)**, bir depremin **P-dalgası** (hızlı, hasarsız) "
+                "ile **S-dalgası** (yavaş, yıkıcı) arasındaki saniyelik gecikmeyi kullanır. Merkez üssüne yakın "
+                "sismometreler P'yi tespit eder, parametre kestirimi (Mw, konum) yapılır ve uzak şehirlere **S-dalgası "
+                "varmadan önce** uyarı gönderilir. Allen & Kanamori 2003 (*Science*) bu kavramın temel makalesidir. "
+                "Operasyonel sistemler: **Japonya JMA-EEW** (2007), **Meksika SASMEX** (1991), **ABD ShakeAlert** "
+                "(2018 üretim), **Türkiye AFAD-EQE/EWS** (Marmara için pilot çalışma; Erdik 2003 İstanbul EEW). "
+                "Bu panel **eğitim simülasyonudur** — gerçek bir EEW altyapısı (sismometre ağı, parametre kestirim, "
+                "telekom dağıtım) içermez."
+            ),
+            how=(
+                "**Sonuç kartlarının okunması:**\n\n"
+                "- **Yüzey mesafesi (km):** Merkez üssü ile gözlemci arası haversine mesafe.\n"
+                "- **Hipocenter mesafesi (km):** $R = \\sqrt{d_{yüzey}^2 + h^2}$ — derinlik dahil 3B mesafe.\n"
+                "- **P-dalga varışı (sn):** $t_p = R/V_p$, varsayılan $V_p = 6.0$ km/s (kıtasal kabuk üst).\n"
+                "- **S-dalga varışı (sn):** $t_s = R/V_s$, varsayılan $V_s = 3.5$ km/s.\n"
+                "- **S − P penceresi:** Gözlemcinin teorik uyarı süresi (gerçek EEW'de sismik ağ tespit + işlem "
+                "gecikmesi yüzünden 3–10 sn daha azdır).\n\n"
+                "**S − P pencere yorumu:**\n"
+                "- $< 3$ sn → kırmızı: anında sığın (drop-cover-hold).\n"
+                "- $3 – 10$ sn → turuncu: hızlı pozisyon al.\n"
+                "- $10 – 30$ sn → sarı: pozisyon al, dışarı çıkma (yangın söndür, asansörden çık).\n"
+                "- $> 30$ sn → yeşil: güvenli noktaya geç (uzak mesafede tipik).\n\n"
+                "**MMI kartı:** Beklenen sarsıntı şiddeti. Basit oyuncak formül veya **Akkar-Bommer 2010** "
+                "GMPE + **Worden 2012** PGA→MMI dönüşümü ile hesaplanır (checkbox)."
+            ),
+            science=(
+                "**P/S dalga hızları (kıtasal kabuk üst 30 km için tipik):**\n\n"
+                r"$$V_p \approx 6.0 \text{ km/s}, \quad V_s \approx 3.5 \text{ km/s}, \quad V_p/V_s \approx 1.73$$"
+                "\n\nburada $V_p/V_s \\approx \\sqrt{3}$ Poisson katsayısı 0.25 için. Mantoda (> 50 km derinlik) "
+                "hızlar artar ($V_p \\approx 8$ km/s), bu yüzden derin odaklı depremler (h > 200 km) için panel uyarısı "
+                "gösterilir.\n\n"
+                "**Hipocenter mesafesi:**\n\n"
+                r"$$R = \sqrt{d_{yüzey}^2 + h^2}$$"
+                "\n\nyüzey mesafesi $d_{yüzey}$ haversine (Sinnott 1984), $h$ odak derinliği (**km**).\n\n"
+                "**S − P uyarı penceresi:**\n\n"
+                r"$$\Delta t = t_s - t_p = R \cdot \left(\frac{1}{V_s} - \frac{1}{V_p}\right) \approx 0.12 \cdot R$$"
+                "\n\nyani **her 1 km mesafe → 0.12 sn pencere**. 100 km → ~12 sn; 250 km → ~30 sn. Bu fiziksel üst "
+                "sınırdır; operasyonel EEW'de **ağ tespit (~3–5 sn) + parametre kestirim (~1–2 sn) + telekom (~1–2 sn)** "
+                "düşülür → kullanılabilir uyarı = $\\Delta t - 5$ ila $\\Delta t - 10$ sn.\n\n"
+                "**Akkar-Bommer 2010 GMPE (opsiyonel toggle):**\n\n"
+                r"$$\log_{10}(PGA) = b_1 + b_2 M + b_3 M^2 + (b_4 + b_5 M) \log_{10}\sqrt{R^2 + b_6^2}$$"
+                "\n\nburada PGA = peak ground acceleration (**cm/s²**), $b_1 \\dots b_6$ Türkiye + Avrupa-Orta Doğu "
+                "kataloglarından regresyonla bulunmuş sabitler (Akkar & Bommer 2010 *BSSA* Tablo 3, rock site B/C). "
+                "**Worden et al. 2012** PGA→MMI parçalı dönüşümü:\n\n"
+                r"$$MMI = \begin{cases} 1.78 + 1.55 \log_{10}(PGA) & \text{PGA} < 37 \text{ cm/s}^2 \\ -1.60 + 3.70 \log_{10}(PGA) & \text{PGA} \geq 37 \text{ cm/s}^2 \end{cases}$$"
+            ),
+            interpretation=(
+                "**Türkiye/Erzincan örnekleri:**\n\n"
+                "- **1939 Erzincan M7.9:** Merkez üssü Erzincan, İstanbul'a yüzey mesafesi ≈ 690 km. "
+                "Hipocenter 690 km (yüzey kırığı), $\\Delta t \\approx 82$ sn teorik. O dönem EEW yoktu; bugün "
+                "modern bir sistem 1 dakika+ uyarı verebilirdi.\n"
+                "- **1999 İzmit Mw 7.4:** İstanbul-Avrupa yakası ≈ 85 km, $\\Delta t \\approx 10$ sn. Erdik 2003 "
+                "İstanbul EEW projesi bu olaydan sonra hızlandı (Marmaray, köprüler için kritik).\n"
+                "- **2023 Maraş Mw 7.8:** Adana ≈ 180 km, $\\Delta t \\approx 22$ sn. AFAD-EWS sistemi sınırlı bölgede "
+                "ön-uyarı verdi; ülke geneli kapsama henüz tam değil.\n\n"
+                "**Pratik EEW yetenekleri (literatür):**\n"
+                "- **0–30 km (epicenter zone):** uyarı 'imkânsız' — P ve S neredeyse aynı anda gelir. Bu bölge için "
+                "EEW devre dışıdır (zarar zaten merkez üssünden başlar).\n"
+                "- **30–200 km:** 5–20 sn faydalı pencere. Lift durdurma, gaz kesme, tren yavaşlatma, hassas üretim "
+                "duraklatma.\n"
+                "- **> 200 km:** 20+ sn pencere, ama büyük depremlerde Rayleigh yüzey dalgaları baskın gelir; "
+                "$\\Delta t$ formülü yanıltıcıdır."
+            ),
+            limitations=(
+                "1. **Bu panel operasyonel EEW DEĞİLDİR:** Türkiye'de gerçek EEW için **AFAD-EQE/EWS** "
+                "([deprem.afad.gov.tr](https://deprem.afad.gov.tr)) sorumludur. Bu panel kavramsal eğitim "
+                "simülasyonudur — sismometre ağı, parametre kestirim, telekom dağıtım içermez.\n"
+                "2. **Sabit hız varsayımı bozuk:** $V_p = 6.0$, $V_s = 3.5$ km/s kıtasal kabuk üstü için tipik; "
+                "derin odaklı (h > 50 km) veya manto yolculuk yapan dalgalar için yanlıştır. Panel bu durumda uyarı "
+                "verir ama hesap yine de sapar.\n"
+                "3. **Ağ tespit gecikmesi hesaba katılmaz:** Gerçek EEW'de tipik **3–8 sn** ek gecikme vardır "
+                "(sismometre tetikleme + parametre kestirim + uyarı dağıtımı). Bu panelin '$\\Delta t$' fiziksel "
+                "üst sınırdır; gerçek kullanılabilir uyarı **daha kısadır**.\n"
+                "4. **MMI tahmini Türkiye kalibrasyonsuz (basit modda):** Varsayılan formül $I = 1.5M - 1.5\\log R - 3.5$ "
+                "eğitsel oyuncak; gerçek MMI için Akkar-Bommer 2010 GMPE + Vs30 zemin amplifikasyonu gerekir. "
+                "Bu panelde toggle ile Akkar-Bommer 2010 mevcut.\n"
+                "5. **Directivity ve süre etkisi yok:** Büyük depremler (M ≥ 7) için kırılma yönelimi (directivity, "
+                "Somerville 1997) uyarı süresini ve şiddetini değiştirir; basit nokta-kaynak modeli bunu yansıtmaz.\n"
+                "6. **Yaygın hata — 'Telefonum uyarı versin':** Türkiye'de smartphone EEW (örn. Google Android EEW) "
+                "Marmara için 2023'ten itibaren pilot çalışıyor ama **garanti DEĞİLDİR** — sistem her zaman çalışmaz, "
+                "yanlış-pozitif veya gecikme olabilir."
+            ),
+            references=[
+                "**Allen, R. M., & Kanamori, H. (2003).** The potential for earthquake early warning in southern "
+                "California. *Science*, 300(5620), 786–789. DOI: "
+                "[10.1126/science.1080912](https://doi.org/10.1126/science.1080912) "
+                "— *Modern EEW felsefesinin temel makalesi.*",
+                "**Kanamori, H. (2005).** Real-time seismology and earthquake damage mitigation. *Annual Review of "
+                "Earth and Planetary Sciences*, 33, 195–214. DOI: "
+                "[10.1146/annurev.earth.33.092203.122626](https://doi.org/10.1146/annurev.earth.33.092203.122626) "
+                "— *EEW altyapısının modern derlemesi.*",
+                "**Satriano, C., Wu, Y. M., Zollo, A., & Kanamori, H. (2011).** Earthquake early warning: concepts, "
+                "methods and physical grounds. *Soil Dynamics and Earthquake Engineering*, 31(2), 106–118. DOI: "
+                "[10.1016/j.soildyn.2010.07.007](https://doi.org/10.1016/j.soildyn.2010.07.007) "
+                "— *EEW yöntemleri ve fiziksel temelleri.*",
+                "**Akkar, S., & Bommer, J. J. (2010).** Empirical equations for the prediction of PGA, PGV, and "
+                "spectral accelerations in Europe, the Mediterranean region, and the Middle East. *BSSA*, 100(6), "
+                "2828–2845. DOI: [10.1785/0120090056](https://doi.org/10.1785/0120090056) "
+                "— *Türkiye ve Avrupa için kalibre GMPE — bu panelin opsiyonel modeli.*",
+                "**Worden, C. B., Gerstenberger, M. C., Rhoades, D. A., & Wald, D. J. (2012).** Probabilistic "
+                "relationships between ground-motion parameters and modified Mercalli intensity in California. "
+                "*BSSA*, 102(1), 204–221. DOI: "
+                "[10.1785/0120110156](https://doi.org/10.1785/0120110156) "
+                "— *PGA → MMI dönüşüm formülü (Worden 2012).*",
+                "**Erdik, M., Fahjan, Y., Ozel, O., Alcik, H., Mert, A., & Gul, M. (2003).** Istanbul earthquake "
+                "rapid response and the early warning system. *Bulletin of Earthquake Engineering*, 1(1), 157–163. "
+                "DOI: [10.1023/A:1024813612366](https://doi.org/10.1023/A:1024813612366) "
+                "— *İstanbul/Marmara EEW pilot projesi.*",
+                "**Sinnott, R. W. (1984).** Virtues of the Haversine. *Sky and Telescope*, 68(2), 159. "
+                "— *Haversine yüzey mesafe formülü.*",
+                "**Geller, R. J. (1997).** Earthquake prediction: a critical review. *GJI*, 131(3), 425–450. "
+                "DOI: [10.1111/j.1365-246X.1997.tb06588.x](https://doi.org/10.1111/j.1365-246X.1997.tb06588.x) "
+                "— *EEW tahmin değil, tepki sistemidir — kavramsal ayrım için.*",
+            ],
+            disclaimer=(
+                "⚠️ **Bu panel operasyonel bir Erken Uyarı Sistemi DEĞİLDİR.** Gerçek zamanlı alarm üretmez, "
+                "sismometre ağı verisi kullanmaz, telefon/SMS uyarı göndermez. Sadece **eğitim/kavram simülasyonudur**. "
+                "Türkiye'de operasyonel EEW olarak **AFAD-EQE/EWS** ([deprem.afad.gov.tr](https://deprem.afad.gov.tr)) "
+                "çalışmaktadır; Marmara için pilot Android EEW da mevcuttur. EEW bir **deprem tahmini** de değildir "
+                "(Geller 1997) — yalnızca olay başladıktan sonra hızlı dalganın (P) yavaş dalgaya (S) göre avantajını "
+                "kullanan **tepki/uyarı** sistemidir. Afet hazırlığı için: AFAD-AKOM, ZAYDS, kurumsal acil durum planları."
+            ),
+            expanded=False,
+        )
+
 # ════════════════════════════════════════════════════════════════════════════
 # 📈 ARTÇI TAHMİN — F-51 / v1.19 — Reasenberg & Jones (1989) Olasılık Paneli
 # Kaynaklar: Reasenberg & Jones (1989), Science 243:1173-1176,
@@ -7601,6 +7749,154 @@ def _render_shakemap():
         "⚠️ Bu tahminî bir modeldir. Gerçek sarsıntı değerleri yerel zemin koşullarına, "
         "fay geometrisine ve yönelimli (directivity) etkilere göre değişir. "
         "Resmi ShakeMap için: earthquake.usgs.gov"
+    )
+
+    # v1.63 — Sprint 3: ShakeMap akademik standart (ACADEMIC_STANDARD v1.1)
+    st.markdown(
+        f"""<div style="
+            background:linear-gradient(90deg,{BG2} 0%,rgba(0,229,255,0.10) 100%);
+            border-left:3px solid #00E5FF;
+            border-radius:6px;
+            padding:0.55rem 0.9rem;
+            margin:0.4rem 0 0.8rem 0;
+            font-size:0.88rem;
+            color:{TEXT};
+            line-height:1.45;">
+                📊 <b>Mini rehber:</b> Eş-şiddet halkaları (izoseist) merkez üssünden uzaklaştıkça MMI'nın
+                Bakun-Wentworth 1997 yaklaşımıyla nasıl azaldığını gösterir; iç (kırmızı) halkalar yıkıcı, dış (sarı)
+                halkalar hissedilir.
+                <b>Bu resmi USGS ShakeMap veya AFAD hasar haritası DEĞİLDİR</b> — yerel zemin (Vs30), fay yönelimi
+                (directivity) ve süre etkisi içermeyen basitleştirilmiş yarıçap modelidir.
+                <i>Wald 1999 PGA→MMI dönüşümü, Worden 2012 piecewise, Türkiye için zemin belirsizliği ve resmi
+                kaynaklar için aşağıdaki 📖 Akademik Açıklama panelini açın.</i>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+    render_academic_explanation(
+        title="📖 Akademik Açıklama — ShakeMap & MMI İzoseist Haritası",
+        what=(
+            "**ShakeMap**, ABD Jeolojik Araştırma Servisi (USGS) tarafından 1997'de başlatılan, bir depremin "
+            "**yer hareketi şiddetini** (PGA, PGV, MMI) merkez üssünden uzaklaştıkça nasıl azaldığını gösteren bir "
+            "haritalama yöntemidir (Wald et al. 1999, *Earthquake Spectra*). Bu panel **basitleştirilmiş eğitim "
+            "versiyonudur**: USGS API'den canlı M ≥ 4.5 olaylar çekilir, **Bakun & Wentworth 1997** ampirik yarıçap "
+            "modeliyle MMI IV–IX seviyeleri için **eş-şiddet (izoseist) halkaları** hesaplanır. "
+            "**MMI (Modified Mercalli Intensity)**, sismik enerjinin değil **insan/yapı tarafından hissedilen** "
+            "sarsıntı şiddetinin **subjektif 12-seviyeli ölçeğidir** (I = hissedilmez, XII = total yıkım)."
+        ),
+        how=(
+            "**Haritanın okunması:**\n\n"
+            "- **Sarı yıldız (★):** Merkez üssü (epicenter). Tooltip'te Mw, tarih, koordinat.\n"
+            "- **Halkalar (içten dışa):** MMI IX → VIII → VII → VI → V → IV. İç halka daima en yüksek şiddet "
+            "(kırmızı/koyu), dış halka en zayıf (sarı). Halka rengi USGS standart MMI paletindendir.\n"
+            "- **Gri çizgiler:** GEM Global Active Faults overlay — deprem hangi fay üzerinde + komşu fay sistemleri.\n\n"
+            "**Bilgi kartları:**\n"
+            "- $M_w$: Moment magnitüd.\n"
+            "- **Merkez MMI (tahm.):** Epicenter üstündeki teorik MMI (Mw bağımlı eşik tablosu).\n"
+            "- **MMI IV+ etki yarıçapı (km):** En geniş hissedilir halka. Türkiye için tipik M6.0 → ~75 km, "
+            "M7.0 → ~200 km, M7.8 → ~430 km (Bakun-Wentworth 1997 + Türkiye kalibrasyonu yok).\n\n"
+            "**MMI–hasar tablosu** (aşağıda):\n"
+            "Hangi MMI seviyesinde hangi yapısal hasar beklenir; PGA (g) sütunu fiziksel ölçü ile bağlar."
+        ),
+        science=(
+            "**MMI izoseist yarıçap (Bakun & Wentworth 1997 ampirik):**\n\n"
+            r"$$M = 3.27 + 1.40 \cdot MMI + 0.00091 \cdot r$$"
+            "\n\nyani $r = (M - 3.27 - 1.40 \\cdot MMI) / 0.00091$ ile sabit MMI seviyesi için yarıçap (**km**) "
+            "elde edilir. $M$ moment magnitüd, $MMI$ hedef şiddet seviyesi. Tipik sabit: $M = 7.5$, $MMI = 6$ → "
+            "$r \\approx 290$ km.\n\n"
+            "**PGA → MMI dönüşümü (Worden et al. 2012, USGS ShakeMap standart):**\n\n"
+            r"$$MMI = \begin{cases} 1.78 + 1.55 \log_{10}(PGA) & PGA < 37 \text{ cm/s}^2 \\ -1.60 + 3.70 \log_{10}(PGA) & PGA \geq 37 \text{ cm/s}^2 \end{cases}$$"
+            "\n\nburada PGA = peak ground acceleration (**cm/s²**; 1 g = 981 cm/s²). Bu **parçalı (piecewise)** "
+            "ilişki Wald et al. 1999 (linear) ile başlamış, Worden et al. 2012'de hassaslaştırılmıştır.\n\n"
+            "**Sarsıntı eşikleri (USGS standart, mühendislik kullanımı):**\n"
+            "- MMI IV ≈ PGA 0.005 g → hafif hissedilir\n"
+            "- MMI VI ≈ PGA 0.05 g → mobilya hareket eder, hafif yapısal hasar\n"
+            "- MMI VIII ≈ PGA 0.25 g → orta-ağır hasar, yapısal hasar\n"
+            "- MMI IX+ ≈ PGA 0.5+ g → ağır hasar, total yıkım potansiyeli\n\n"
+            "**Akkar-Bommer 2010 GMPE** Türkiye için PGA tahmin formülü Erken Uyarı panelindekiyle aynıdır; "
+            "bu panel basit Bakun-Wentworth yarıçap modeli kullanır (canlı ShakeMap için Akkar-Bommer + Vs30 "
+            "amplifikasyonu gerekir)."
+        ),
+        interpretation=(
+            "**Türkiye/Erzincan örnekleri:**\n\n"
+            "- **1939 Erzincan Mw 7.9 (33.000+ ölü):** MMI IX+ alanı ≈ 5.000 km², MMI VI+ alanı ≈ 80.000 km². "
+            "Trabzon (~210 km) MMI V–VI hissetti, İstanbul (~690 km) MMI III–IV (hafif sallandı).\n"
+            "- **1999 İzmit Mw 7.4 (17.000+ ölü):** Adapazarı/Yalova/Gölcük üzerinde MMI IX–X (yıkıcı), İstanbul "
+            "Avcılar bölgesi MMI VIII (zemin yumuşaması nedeniyle uzakta da ağır hasar — Vs30 etkisi).\n"
+            "- **2023 Kahramanmaraş Mw 7.8 + 7.5 (50.000+ ölü):** Çift kırılma MMI IX–XI alanını **kırık boyunca** "
+            "uzattı (directivity etkisi); basit yarıçap modeli bunu **yansıtmaz** — bu panelin sınırı.\n\n"
+            "**Pratik yorumlama:**\n"
+            "- MMI IV–V → masa altı, alarm pozisyonu\n"
+            "- MMI VI–VII → kötü zemin + eski bina = ciddi risk; modern bina genelde dayanıklı\n"
+            "- MMI VIII+ → tüm binalar etkilenir; modern bile yapısal hasar görebilir\n"
+            "- MMI IX+ → yapısal kollaps tehlikesi; eski/yumuşak zemin binalar çöker (TBDY-2018 öncesi yapı stoku riski)\n\n"
+            "**'Yarıçap halkası' yanılsaması:** Gerçekte sarsıntı **eliptik** dağılır (fay yönelimine paralel uzar). "
+            "Bu panel daire varsayar — büyük depremlerde (M ≥ 7) gerçek MMI dağılımı **fay boyunca** çok daha geniştir."
+        ),
+        limitations=(
+            "1. **Bu panel resmi ShakeMap DEĞİLDİR:** USGS ShakeMap ([earthquake.usgs.gov/data/shakemap](https://earthquake.usgs.gov/data/shakemap/)) "
+            "gerçek sismograf verisi + Vs30 zemin sınıfı + ana fay geometrisi kullanır. Bu panel sadece **basit "
+            "Bakun-Wentworth yarıçap modeli**; eğitim amaçlıdır.\n"
+            "2. **Vs30 (zemin amplifikasyonu) hesaba katılmaz:** Yumuşak zemin (Vs30 < 360 m/s) PGA'yı **1.5–3×** "
+            "büyütür (NEHRP D/E sınıfı); sert kaya (Vs30 > 760 m/s, NEHRP B) ise düşürür. Bu panel hepsini rock site "
+            "varsayar — Avcılar/Adapazarı/Hatay gibi yumuşak zeminli bölgelerde gerçek MMI **daha yüksektir**.\n"
+            "3. **Directivity (yönelim) etkisi yok:** Büyük depremlerde kırılma yönüne paralel mesafelerde "
+            "sarsıntı **2–4×** daha şiddetlidir (Somerville et al. 1997). Bu panel daire varsayar.\n"
+            "4. **Süre etkisi (duration) gözardı edilir:** Aynı PGA'da uzun süreli sarsıntı (subduction Mw 9.0 gibi) "
+            "kısa süreli'den çok daha yıkıcıdır; MMI ölçeği bu farkı tam yakalamaz.\n"
+            "5. **MMI subjektif bir ölçektir:** Kişi tarafından hissedilen şiddet üzerine kurulu; aynı PGA için "
+            "kalabalık şehir (çok rapor) ve seyrek alan (az rapor) farklı MMI verir. Modern ShakeMap PGA-bazlı "
+            "objektif tahminle MMI subjektif raporları **birleştirir**.\n"
+            "6. **'Resmi ShakeMap' yanılgısı yaygındır:** Bu panel canlı USGS API'den olay çeker ama **resmi USGS "
+            "ShakeMap görüntüsünü göstermez** — kendi basit modelimizle yarıçap çizer. Mühendislik/sigorta kararları "
+            "için **USGS resmi ShakeMap, AFAD raporu ve TBDY-2018 spektrumu** kullanılmalıdır.\n"
+            "7. **Türkiye'ye kalibre değil:** Bakun-Wentworth 1997 Kaliforniya kataloğundan türetildi; Türkiye için "
+            "**Akkar-Bommer 2010 GMPE + Vs30 haritası** ile yeniden hesaplama gerekir."
+        ),
+        references=[
+            "**Wald, D. J., Quitoriano, V., Heaton, T. H., & Kanamori, H. (1999).** Relationships between peak "
+            "ground acceleration, peak ground velocity, and modified Mercalli intensity in California. "
+            "*Earthquake Spectra*, 15(3), 557–564. DOI: "
+            "[10.1193/1.1586058](https://doi.org/10.1193/1.1586058) "
+            "— *Klasik PGA-MMI ilişkisi.*",
+            "**Worden, C. B., Gerstenberger, M. C., Rhoades, D. A., & Wald, D. J. (2012).** Probabilistic "
+            "relationships between ground-motion parameters and modified Mercalli intensity in California. "
+            "*BSSA*, 102(1), 204–221. DOI: "
+            "[10.1785/0120110156](https://doi.org/10.1785/0120110156) "
+            "— *Modern parçalı PGA→MMI ShakeMap standartı.*",
+            "**Worden, C. B., & Wald, D. J. (2016).** *USGS ShakeMap Manual.* U.S. Geological Survey. "
+            "[usgs.github.io/shakemap](https://usgs.github.io/shakemap/) "
+            "— *ShakeMap algoritmasının resmi dökümantasyonu.*",
+            "**Bakun, W. H., & Wentworth, C. M. (1997).** Estimating earthquake location and magnitude from "
+            "seismic intensity data. *BSSA*, 87(6), 1502–1521. "
+            "[doi.org/10.1785/BSSA0870061502](https://doi.org/10.1785/BSSA0870061502) "
+            "— *İzoseist yarıçap modeli — bu panelin kullandığı formül.*",
+            "**Akkar, S., & Bommer, J. J. (2010).** Empirical equations for the prediction of PGA, PGV, and "
+            "spectral accelerations in Europe, the Mediterranean region, and the Middle East. *BSSA*, 100(6), "
+            "2828–2845. DOI: [10.1785/0120090056](https://doi.org/10.1785/0120090056) "
+            "— *Türkiye için kalibre GMPE — daha doğru ShakeMap için kullanılmalıdır.*",
+            "**Somerville, P. G., Smith, N. F., Graves, R. W., & Abrahamson, N. A. (1997).** Modification of "
+            "empirical strong ground motion attenuation relations to include the amplitude and duration effects "
+            "of rupture directivity. *Seismological Research Letters*, 68(1), 199–222. DOI: "
+            "[10.1785/gssrl.68.1.199](https://doi.org/10.1785/gssrl.68.1.199) "
+            "— *Directivity etkisi — bu panelin GÖZARDI ettiği faktör.*",
+            "**Sucuoğlu, H., & Akkar, S. (2014).** *Basic Earthquake Engineering: From Seismology to Analysis and "
+            "Design.* Springer. ISBN: 978-3-319-01026-7 "
+            "— *Türkiye için yer hareketi ve MMI kullanımı.*",
+            "**Erdik, M., et al. (2014).** Rapid earthquake hazard and loss assessment for Euro-Mediterranean "
+            "region. *Acta Geophysica*, 62(4), 859–882. DOI: "
+            "[10.2478/s11600-014-0210-0](https://doi.org/10.2478/s11600-014-0210-0) "
+            "— *Türkiye hızlı sarsıntı/kayıp değerlendirme metodolojisi.*",
+        ],
+        disclaimer=(
+            "⚠️ **Bu panel resmi ShakeMap / hasar haritası DEĞİLDİR.** USGS ShakeMap "
+            "([earthquake.usgs.gov/data/shakemap](https://earthquake.usgs.gov/data/shakemap/)) gerçek sismik veri + "
+            "Vs30 zemin sınıfı + fay geometrisi kullanır; bu panel ise yalnızca **Bakun-Wentworth 1997 ampirik "
+            "yarıçap modelidir** (rock site varsayım, directivity yok, süre yok). Türkiye için zemin amplifikasyonu "
+            "ve Akkar-Bommer 2010 GMPE entegre edilmemiştir. Bu panel **eğitim/kavram amaçlıdır**; sigorta, "
+            "mühendislik, afet planlama kararları için **USGS resmi ShakeMap + AFAD raporu + TBDY-2018** kullanın. "
+            "MMI tahmini hasar tahmini DEĞİLDİR (bina-bazlı analiz için detaylı yapısal değerlendirme gerekir)."
+        ),
+        expanded=False,
     )
 
 

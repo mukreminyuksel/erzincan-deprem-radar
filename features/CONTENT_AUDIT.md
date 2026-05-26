@@ -26,9 +26,9 @@ Her panelin mevcut `st.caption`, `st.markdown`, `st.info`, `st.warning`, `st.suc
 | Panel | Mevcut Seviye | Grafik Sayısı | Pilot? |
 |---|---|---:|---|
 | 🌍 Canlı Radar | 🟠 Temel | 5 (harita + saatlik + derinlik + scroll list + scoreboard) | ✅ **PİLOT A** |
-| 🌊 ShakeMap | 🟡 Orta | 3 | — |
+| 🌊 ShakeMap | 🟢 Akademik ✅ (v1.63) | 3 | ✅ **Sprint 3 — Wald 1999 + Worden 2012 + Bakun-Wentworth 1997** |
 | 🔴 Sismik Açık | 🟡 Orta | 2 (harita + Gantt) | — |
-| 🚨 Erken Uyarı | 🟠 Temel | 2 (timeline + skor kartları) | — |
+| 🚨 Erken Uyarı | 🟢 Akademik ✅ (v1.63) | 2 (timeline + skor kartları) | ✅ **Sprint 3 — Allen-Kanamori 2003 + AFAD-EWS** |
 | 📈 Artçı Tahmin | 🟠 Temel | 2 | — |
 | 🔄 Sismik Döngü | 🟠 Temel | 2 | — |
 
