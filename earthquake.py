@@ -79,7 +79,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.52"
+APP_VERSION = "1.53"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -5169,12 +5169,45 @@ if active_menu == "🚨 Erken Uyarı":
         t_r = hypo_km / VR
         warning_window = t_s - t_p  # S − P penceresi (gözlemcinin uyarı süresi)
 
-        # MMI tahmini (basitleştirilmiş GMPE)
-        # I = 1.5*M - 1.5*log10(R) - 3.5  (R = hypocenter mesafesi, km)
+        # v1.53 — Ajan 8 (Codex önceliği 8): GMPE toggle (Akkar & Bommer 2010)
+        # Codex teknik kararı: "Basit formül eğitsel oyuncak kalsın. Akkar &
+        # Bommer 2010 opsiyonel toggle olarak eklensin, default yapılmasın."
+        _gmpe_advanced = st.checkbox(
+            "🔬 Gelişmiş GMPE: Akkar & Bommer 2010 (Türkiye + Avrupa-Orta Doğu kalibre)",
+            value=False, key="erken_uyari_gmpe_advanced",
+            help="Varsayılan basit formül `I = 1.5M − 1.5log10(R) − 3.5` eğitsel "
+                 "oyuncak modeldir. Akkar & Bommer (2010) BSSA 100(6) Türkiye için "
+                 "kalibre edilmiş peer-reviewed GMPE — PGA (Peak Ground Acceleration) "
+                 "üzerinden MMI'ya çevrilir (Worden 2012). Mühendislik tehlike "
+                 "hesabı değildir; eğitim/karşılaştırma amaçlıdır."
+        )
+
         if hypo_km < 1:
             mmi = 12.0  # epicenter üstünde — maksimum
+            pga_cm_s2 = None
+        elif _gmpe_advanced:
+            # Akkar & Bommer 2010 BSSA Tablo 3, rock site (NEHRP B/C)
+            # log10(PGA cm/s²) = b1 + b2·M + b3·M² + (b4+b5·M)·log10(sqrt(R²+b6²)) + ...
+            # Sadeleştirilmiş (rock site, doğrultu atımlı varsayım):
+            b1, b2, b3 = 1.04159, 0.91333, -0.08109
+            b4, b5, b6 = -2.92257, 0.28116, 7.86638
+            R = hypo_km
+            log_pga = (b1 + b2 * eq_mag + b3 * eq_mag**2
+                      + (b4 + b5 * eq_mag) * math.log10(math.sqrt(R**2 + b6**2)))
+            pga_cm_s2 = 10**log_pga  # cm/s²
+            # Worden et al. 2012 PGA→MMI piecewise (USGS ShakeMap):
+            # MMI < 5 için:  MMI = 1.78 + 1.55·log10(PGA)
+            # MMI ≥ 5 için:  MMI = -1.60 + 3.70·log10(PGA)
+            # Breakpoint log10(PGA) ≈ 1.57 (PGA ≈ 37 cm/s²)
+            log_pga_safe = math.log10(max(pga_cm_s2, 0.1))
+            if log_pga_safe < 1.57:
+                mmi = 1.78 + 1.55 * log_pga_safe
+            else:
+                mmi = -1.60 + 3.70 * log_pga_safe
         else:
+            # Basit "oyuncak" formül (eğitsel)
             mmi = 1.5 * eq_mag - 1.5 * math.log10(hypo_km) - 3.5
+            pga_cm_s2 = None
         mmi = max(0.0, min(12.0, mmi))
 
         # MMI eşik renk + açıklama
@@ -5232,16 +5265,34 @@ if active_menu == "🚨 Erken Uyarı":
             unsafe_allow_html=True,
         )
 
-        # MMI kartı
+        # MMI kartı — v1.53: model adı + opsiyonel PGA satırı
+        _gmpe_label = "Akkar-Bommer 2010 + Worden 2012" if _gmpe_advanced else "basit oyuncak model"
+        _pga_line = (
+            f'<div style="font-size:0.78rem;color:#90caf9;margin-top:2px">'
+            f'PGA ≈ {pga_cm_s2:.1f} cm/s² ({pga_cm_s2/981:.3f} g)</div>'
+            if pga_cm_s2 is not None else ''
+        )
         st.markdown(
             f'<div style="background:{BG3};border-left:5px solid {mmi_color};border-radius:8px;padding:14px;margin:10px 0">'
             f'<div style="display:flex;justify-content:space-between;align-items:center">'
-            f'<div><div style="font-size:0.72rem;opacity:0.7;letter-spacing:1px">BEKLENEN ŞİDDET (MMI tahmini)</div>'
-            f'<div style="font-size:1.05rem;color:{mmi_color};font-weight:700">{mmi_level}</div></div>'
+            f'<div>'
+            f'<div style="font-size:0.72rem;opacity:0.7;letter-spacing:1px">BEKLENEN ŞİDDET (MMI tahmini, {_gmpe_label})</div>'
+            f'{_pga_line}'
+            f'<div style="font-size:1.05rem;color:{mmi_color};font-weight:700">{mmi_level}</div>'
+            f'</div>'
             f'<div style="font-size:2.6rem;font-weight:900;color:{mmi_color}">{mmi:.1f}</div>'
             f'</div></div>',
             unsafe_allow_html=True,
         )
+        if _gmpe_advanced:
+            st.caption(
+                "📚 **Akkar & Bommer 2010** Bull. Seismol. Soc. Am. 100(6), 2632-2645 — "
+                "Türkiye + Avrupa + Orta Doğu için kalibre edilmiş ground-motion model. "
+                "PGA → MMI dönüşümü **Worden et al. 2012** Bull. Seismol. Soc. Am. 102(1) "
+                "(USGS ShakeMap metodolojisi). ⚠️ Bu hesap eğitsel/karşılaştırma amaçlıdır, "
+                "resmi mühendislik tehlike değerlendirmesi DEĞİLDİR — yapı tasarımı için "
+                "TBDY-2018 (Türkiye Bina Deprem Yönetmeliği) ve AFAD resmi haritaları kullanın."
+            )
 
         # ────────────────────────────────────────────────────────────────────
         # Görsel zaman ekseni (Plotly)
