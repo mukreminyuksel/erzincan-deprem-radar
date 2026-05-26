@@ -79,7 +79,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.45.6"
+APP_VERSION = "1.45.7"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -599,49 +599,39 @@ st.markdown(f"""
     z-index: 10001 !important;          /* sticky pill bar 9999 üstünde */
     pointer-events: auto !important;    /* tıklama eventleri pill bar yutmasın */
   }}
-  /* Collapsed durumda Streamlit'in default butonu sol-üst köşede sabit dursun */
-  [data-testid="stSidebarCollapsedControl"] {{
-    position: fixed !important;
-    top: 10px !important;
-    left: 10px !important;
-    background: {BG3} !important;
-    border: 1px solid {BORDER} !important;
-    border-radius: 6px !important;
-    padding: 4px 6px !important;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.5) !important;
+  /* v1.45.7 — Sidebar HER ZAMAN açık, kullanıcı kapatamaz
+     Önceki tüm collapse/açma çözümleri (custom FAB, JS click) Streamlit
+     XSS koruması nedeniyle başarısız oldu. Pragmatik çözüm: sidebar'ın
+     kapanmasını CSS ile engelle, collapse butonunu da gizle. */
+  [data-testid="stSidebar"] {{
+    transform: none !important;
+    visibility: visible !important;
+    min-width: 244px !important;
+    max-width: 360px !important;
+    width: 244px !important;
+    margin-left: 0 !important;
   }}
-
-  /* v1.45.5 — Custom "☰ Menü" FAB (Floating Action Button)
-     Streamlit'in default collapse butonu bazı sürümlerde DOM'dan kayboluyor.
-     Bu manuel buton her zaman görünür ve JS ile sidebar'ı zorla açar.
-     Sidebar açıkken arkada kalır (sidebar üstünde olmasın diye z-index düşük tutuldu). */
-  #custom-sidebar-toggle {{
-    position: fixed !important;
-    top: 12px !important;
-    left: 12px !important;
-    z-index: 999999 !important;  /* her şeyin üstünde */
-    background: #1976d2 !important;
-    color: #fff !important;
-    border: 2px solid #90caf9 !important;
-    border-radius: 8px !important;
-    padding: 8px 14px !important;
-    font-size: 0.95rem !important;
-    font-weight: 700 !important;
-    cursor: pointer !important;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.6) !important;
-    text-decoration: none !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    gap: 6px !important;
+  [data-testid="stSidebar"] > div:first-child {{
+    transform: none !important;
+    width: 244px !important;
   }}
-  #custom-sidebar-toggle:hover {{
-    background: #1565c0 !important;
-    transform: scale(1.05) !important;
+  /* Collapse buton, header buton ve collapsedControl — TÜMÜNÜ gizle */
+  [data-testid="stSidebarCollapsedControl"],
+  [data-testid="collapsedControl"],
+  [data-testid="stSidebarHeader"] button,
+  [data-testid="stSidebarCollapseButton"],
+  button[kind="header"],
+  button[kind="headerNoPadding"],
+  button[aria-label="Open sidebar"],
+  button[aria-label="Close sidebar"],
+  button[aria-label*="kenar"],
+  button[aria-label*="enar çubuğu"] {{
+    display: none !important;
   }}
-  /* Sidebar açıkken FAB'i sol kenardan kaydır (sidebar'ın üstünde gözükmesin) */
-  [data-testid="stSidebar"][aria-expanded="true"] ~ * #custom-sidebar-toggle,
-  body:has([data-testid="stSidebar"]:not([aria-collapsed])) #custom-sidebar-toggle {{
-    opacity: 0.5 !important;
+  /* Ana içeriği sidebar genişliği kadar sağa kaydır (Streamlit normalde otomatik
+     yapar ama collapse engellendiğinde garantili tutmak için) */
+  [data-testid="stMain"] {{
+    margin-left: 0 !important;
   }}
 
   /* v1.45.4 — Plotly ModeBar (zoom/pan/reset/download) HER ZAMAN belirgin
@@ -787,32 +777,10 @@ st.markdown(f"""
 </style>
 """, unsafe_allow_html=True)
 
-# ─── v1.45.5 — Custom "☰ Menü" FAB (Floating Action Button) ──────────────
-# Streamlit'in default sidebar collapse butonu bazı sürümlerde DOM'dan kayboluyor.
-# Bu manuel buton her zaman görünür ve JS ile Streamlit'in iç collapse butonuna
-# tıklayarak sidebar'ı açar. Sidebar açıkken yarı saydam kalır (rahatsız etmez).
-st.markdown("""
-<button id="custom-sidebar-toggle" type="button"
-   onclick="(function(e){
-     if (e) { e.preventDefault(); e.stopPropagation(); }
-     var sb = window.parent.document.querySelector('[data-testid=stSidebar]')
-           || document.querySelector('[data-testid=stSidebar]');
-     var ctrl = (window.parent.document || document).querySelector('[data-testid=stSidebarCollapsedControl] button')
-             || (window.parent.document || document).querySelector('[data-testid=collapsedControl] button')
-             || (window.parent.document || document).querySelector('[data-testid=stSidebarHeader] button')
-             || (window.parent.document || document).querySelector('button[aria-label*=sidebar]')
-             || (window.parent.document || document).querySelector('button[aria-label*=enar]');
-     if (ctrl) { ctrl.click(); }
-     else if (sb) {
-       sb.style.transform = 'translateX(0)';
-       sb.style.visibility = 'visible';
-       sb.style.minWidth = '244px';
-       sb.setAttribute('aria-expanded', 'true');
-     }
-     return false;
-   })(event);"
-   title="Sol menüyü aç/kapat">☰ Menü</button>
-""", unsafe_allow_html=True)
+# ─── v1.45.7 — Sidebar her zaman görünür kalır (kullanıcı kapatamaz) ────
+# Önceki yaklaşım (custom ☰ Menü FAB inline JS) Streamlit XSS koruması nedeniyle
+# çalışmadı. Yeni yaklaşım: CSS ile sidebar'ı zorla her zaman görünür tut,
+# collapse butonunu da gizle. Kullanıcı yanlışlıkla kapatamaz → açma sorunu yok.
 
 # ─── Sidebar — v1.15b: Filtreler açıkta + 3 expander grup ──────────────────
 # Mimari: Sık değişen filtreler en üstte açık, daha az değişenler expander içinde.
