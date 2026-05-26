@@ -11082,9 +11082,18 @@ def _render_akademik_kutuphane():
     try:
         from knowledge_base import (
             TOPICS, REFERENCES, ACIKLAMALAR, PLOTLY_CONFIG, COLORS,
+            # Animasyon fonksiyonları — v3.1
             anim_sismik_dalgalar, anim_elastik_geri_tepme,
             anim_coulomb_stress, anim_tsunami_yayilim,
+            anim_gutenberg_richter, anim_moment_tensor,
+            anim_psha, anim_insar,
+            anim_kaf_tektonigi, anim_erzincan_tarihi,
+            # İnteraktif widget fonksiyonları — v3.1
             interaktif_gr_kanunu, interaktif_psha,
+            interaktif_sismik_dalgalar, interaktif_elastik_geri_tepme,
+            interaktif_coulomb_stres, interaktif_moment_tensor,
+            interaktif_insar, interaktif_tsunami_fizigi,
+            interaktif_kaf_tektonigi, interaktif_erzincan_tarihi,
         )
     except ImportError as e:
         st.error(
@@ -11177,6 +11186,12 @@ def _render_akademik_kutuphane():
             "elastik_geri_tepme": anim_elastik_geri_tepme,
             "coulomb_stres":      anim_coulomb_stress,
             "tsunami_fizigi":     anim_tsunami_yayilim,
+            "gutenberg_richter":  anim_gutenberg_richter,
+            "moment_tensor":      anim_moment_tensor,
+            "psha":               anim_psha,
+            "insar":              anim_insar,
+            "kaf_tektonigi":      anim_kaf_tektonigi,
+            "erzincan_tarihi":    anim_erzincan_tarihi,
         }
         fn = anim_map.get(aktif)
         if fn:
@@ -11187,26 +11202,27 @@ def _render_akademik_kutuphane():
                 "slider ile aşamalar arasında geçin.*"
             )
         else:
-            st.info(
-                "Bu konu için animasyon hazırlanıyor. "
-                "Mevcut animasyonlar: Sismik Dalgalar, Elastik Geri Tepme, "
-                "Coulomb Stres, Tsunami Yayılımı."
-            )
+            st.info("Bu konu için görsel hazırlanıyor.")
 
     # ── Tab 3: İnteraktif
     with tab_interaktif:
         interaktif_map = {
-            "gutenberg_richter": interaktif_gr_kanunu,
-            "psha":              interaktif_psha,
+            "gutenberg_richter":  interaktif_gr_kanunu,
+            "psha":               interaktif_psha,
+            "sismik_dalgalar":    interaktif_sismik_dalgalar,
+            "elastik_geri_tepme": interaktif_elastik_geri_tepme,
+            "coulomb_stres":      interaktif_coulomb_stres,
+            "moment_tensor":      interaktif_moment_tensor,
+            "insar":              interaktif_insar,
+            "tsunami_fizigi":     interaktif_tsunami_fizigi,
+            "kaf_tektonigi":      interaktif_kaf_tektonigi,
+            "erzincan_tarihi":    interaktif_erzincan_tarihi,
         }
         fn = interaktif_map.get(aktif)
         if fn:
             fn()
         else:
-            st.info(
-                "Bu konu için interaktif widget hazırlanıyor. "
-                "Mevcut widget'lar: Gutenberg-Richter, PSHA."
-            )
+            st.info("Bu konu için interaktif widget hazırlanıyor.")
 
     # ── Tab 4: Kaynaklar
     with tab_kaynaklar:

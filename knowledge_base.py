@@ -45,6 +45,8 @@ TOPICS: dict = {
         "ozet": "P ve S dalgaları depremi nasıl taşır? Yerkürenin içinden nasıl geçerler?",
         "seviye": "Başlangıç",
         "refs": ["AkiRichards2002", "Shearer2019", "SteinWys2003", "Kanamori2015"],
+        "animasyon_adi": "anim_sismik_dalgalar",
+        "aciklama": "P-dalgası (boyuna), S-dalgası (enine) ve yüzey dalgalarının (Rayleigh, Love) frekans ve hız özellikleri; S-P yöntemiyle mesafe hesaplama.",
     },
     "gutenberg_richter": {
         "baslik": "Gutenberg-Richter Yasası",
@@ -53,6 +55,8 @@ TOPICS: dict = {
         "ozet": "Küçük depremler büyüklerden neden çok daha fazla? b-değeri ne anlama gelir?",
         "seviye": "Orta",
         "refs": ["GutenbergRichter1944", "Aki1965", "WiemerWyss2000", "Ozturk2011", "Akkar2010"],
+        "animasyon_adi": "anim_gutenberg_richter",
+        "aciklama": "log10(N) = a - b·M ilişkisi; b-değerinin fiziksel anlamı (b<0.85 yüksek gerilme, b>1.1 düşük gerilme); Türkiye ve Erzincan bölgesi karşılaştırması.",
     },
     "elastik_geri_tepme": {
         "baslik": "Elastik Geri Tepme Teorisi",
@@ -61,6 +65,8 @@ TOPICS: dict = {
         "ozet": "Reid'in 1910 teorisi: fay nasıl kilitlenir, gerilme nasıl birikir?",
         "seviye": "Orta",
         "refs": ["Reid1910", "Matthews2002", "Reilinger2006", "SucuogluAkkar2014", "Kramer2024"],
+        "animasyon_adi": "anim_elastik_geri_tepme",
+        "aciklama": "Plaka hareketi → gerilme birikimi → kilitli fay → ani kırılma → elastik geri tepme döngüsünün 4 aşaması; KAF üzerinde 20-25 mm/yıl GPS hızı ile sismik döngü.",
     },
     "coulomb_stres": {
         "baslik": "Coulomb Stres Transferi",
@@ -69,6 +75,8 @@ TOPICS: dict = {
         "ozet": "Bir deprem komşu fayı nasıl tetikler? İzmit→Düzce örneği.",
         "seviye": "İleri",
         "refs": ["King1994", "Stein1999", "Parsons2000", "Toda2011", "Wang2023_GRL", "Hussain2024_GJI"],
+        "animasyon_adi": "anim_coulomb_stress",
+        "aciklama": "ΔCFS = Δτ + μ'·Δσn formülü; 1999 İzmit→Düzce tetiklemesi; tetikleme eşiği 0.1 bar; pozitif ΔCFS bölgeleri ve artçı dağılımı korelasyonu.",
     },
     "moment_tensor": {
         "baslik": "Odak Mekanizması (Beach Ball)",
@@ -77,6 +85,8 @@ TOPICS: dict = {
         "ozet": "Tek bakışta fay tipi: siyah-beyaz daire neyi anlatır?",
         "seviye": "Orta",
         "refs": ["Ekstrom2012", "AkiRichards2002", "Hanks1979", "Kanamori2015"],
+        "animasyon_adi": "anim_moment_tensor",
+        "aciklama": "P-dalga polarite diyagramı: siyah baskı (compressional), beyaz gerilme (dilatational); doğrultu atımlı (KAF tipi), normal (Ege tipi) ve ters fay beach ball şekilleri.",
     },
     "psha": {
         "baslik": "Olasılıksal Sismik Tehlike (PSHA)",
@@ -85,6 +95,8 @@ TOPICS: dict = {
         "ozet": "475 yıl dönüş periyodu ne demek? Binanız için ne anlam taşıyor?",
         "seviye": "İleri",
         "refs": ["Cornell1968", "McGuire2004", "Boore2014", "Woessner2015", "AFAD2018_TDTH", "Field2014", "SucuogluAkkar2014"],
+        "animasyon_adi": "anim_psha",
+        "aciklama": "Cornell (1968) dört bileşeni: kaynak modeli, tekrar süresi, zemin hareketi tahmini (GMPE), tehlike entegrasyonu; TBDY-2018 DD-1/DD-2/DD-3 seviyeleri.",
     },
     "insar": {
         "baslik": "InSAR Yer Deformasyonu",
@@ -93,6 +105,8 @@ TOPICS: dict = {
         "ozet": "Uydu milimetre hassasiyetle yeri nasıl ölçer? Interferogram nedir?",
         "seviye": "İleri",
         "refs": ["Massonnet1998", "Xu2023_Science", "Hussain2024_GJI", "NatComm2019_Marmara"],
+        "animasyon_adi": "anim_insar",
+        "aciklama": "Sentinel-1 C-band (5.6 cm dalga boyu); faz farkı her 2π = 2.8 cm yer değişimi; interferogram renk döngüsü; Kahramanmaraş 2023'te 7 m yatay, 3 m düşey yerdeğişim tespiti.",
     },
     "tsunami_fizigi": {
         "baslik": "Tsunami Fiziği",
@@ -101,6 +115,8 @@ TOPICS: dict = {
         "ozet": "c = √(gd): derin okyanusta uçak hızında ilerler, kıyıda devleşir.",
         "seviye": "Başlangıç",
         "refs": ["Papadopoulos2005", "Basili2021", "Synolakis2006"],
+        "animasyon_adi": "anim_tsunami_yayilim",
+        "aciklama": "Sığ su dalgası c = √(g·d) formülü; derin okyanusta ~720 km/h, kıta sahanlığında ~140 km/h, kıyıda ~35 km/h; shoaling etkisiyle dalga yüksekliği artışı (H ∝ d^-1/4).",
     },
     "kaf_tektonigi": {
         "baslik": "Kuzey Anadolu Fayı",
@@ -109,6 +125,8 @@ TOPICS: dict = {
         "ozet": "Dünyanın en iyi incelenmiş sağ yönlü doğrultu atımlı fayı.",
         "seviye": "Orta",
         "refs": ["Barka1997", "Barka1996", "Reilinger2006", "Ergintav2014", "NatComm2019_Marmara"],
+        "animasyon_adi": "anim_kaf_tektonigi",
+        "aciklama": "Karlıova çarpışma zonundan Kuzey Ege'ye ~1500 km uzunluk; 1939-1999 batıya göç eden M>7 deprem dizisi; GPS hız alanı 20-25 mm/yıl; Marmara'da ~5.7 m kayma açığı.",
     },
     "erzincan_tarihi": {
         "baslik": "Erzincan Deprem Tarihi",
@@ -117,6 +135,8 @@ TOPICS: dict = {
         "ozet": "2500 yıllık paleosismik kayıt, 1939 felaketinin anatomisi.",
         "seviye": "Orta",
         "refs": ["Hartleb2006", "Kozaci2007", "Ambraseys1998", "Ambraseys2009", "Barka1997", "Biblio2025_NatHaz"],
+        "animasyon_adi": "anim_erzincan_tarihi",
+        "aciklama": "Paleosismik kazılar (Hartleb 2006): son 2500 yılda 9 büyük deprem; ortalama tekrar süresi ~280 ± 60 yıl; 1939 M7.8 son büyük olay; 1992 M6.8; BPT modeli ile güncel kırılma olasılığı.",
     },
 }
 
@@ -1951,6 +1971,1507 @@ def interaktif_psha() -> None:
             font=dict(color="#e8f0fe"),
             legend=dict(bgcolor="rgba(0,0,0,0.5)"),
             height=380,
+        )
+        st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG)
+
+
+# ─── EK ANİMASYON FONKSİYONLARI (v3.1) ──────────────────────────────────────
+
+def anim_gutenberg_richter() -> go.Figure:
+    """Gutenberg-Richter: animasyonlu frekans-büyüklük dağılımı + b-değeri eğimi."""
+    M = np.linspace(2.0, 8.5, 200)
+
+    frames = []
+    b_values = np.round(np.linspace(0.60, 1.40, 17), 2)
+    for b in b_values:
+        a = 7.5
+        logN = a - b * M
+        frames.append(go.Frame(
+            data=[
+                go.Scatter(x=M, y=logN, mode="lines",
+                           line=dict(color="#4fc3f7", width=3),
+                           name=f"b={b:.2f}"),
+                go.Scatter(x=M, y=7.5 - 0.92 * M, mode="lines",
+                           line=dict(color="#f39c12", width=1.5, dash="dash"),
+                           name="Türkiye ort. b=0.92"),
+                go.Scatter(x=M, y=7.3 - 0.87 * M, mode="lines",
+                           line=dict(color="#e74c3c", width=1.5, dash="dot"),
+                           name="Erzincan b=0.87"),
+            ],
+            name=str(b),
+            layout=go.Layout(title_text=f"G-R Yasası: log₁₀(N) = 7.5 − {b:.2f}·M"),
+        ))
+
+    # Histogram arka planı: gerçekçi deprem büyüklük dağılımı
+    rng = np.random.default_rng(42)
+    sample_M = np.concatenate([
+        rng.exponential(0.7, 800) + 2.0,
+        rng.uniform(5.0, 7.5, 30),
+    ])
+    sample_M = sample_M[sample_M <= 8.0]
+
+    fig = go.Figure(
+        data=[
+            go.Histogram(x=sample_M, nbinsx=30,
+                         marker_color="rgba(79,195,247,0.2)",
+                         yaxis="y2", name="Örnek katalog",
+                         showlegend=True),
+            go.Scatter(x=M, y=7.5 - 1.00 * M, mode="lines",
+                       line=dict(color="#4fc3f7", width=3),
+                       name="b=1.00 (başlangıç)"),
+            go.Scatter(x=M, y=7.5 - 0.92 * M, mode="lines",
+                       line=dict(color="#f39c12", width=1.5, dash="dash"),
+                       name="Türkiye ort. b=0.92"),
+            go.Scatter(x=M, y=7.3 - 0.87 * M, mode="lines",
+                       line=dict(color="#e74c3c", width=1.5, dash="dot"),
+                       name="Erzincan b=0.87"),
+        ],
+        frames=frames,
+        layout=go.Layout(
+            title=dict(text="Gutenberg-Richter: log₁₀(N) = 7.5 − b·M",
+                       font=dict(color="#e8f0fe")),
+            xaxis=dict(title="Büyüklük (M)", range=[2, 8.5],
+                       color="#e8f0fe", gridcolor="#1e3a5f"),
+            yaxis=dict(title="log₁₀(N) — yıllık deprem sayısı",
+                       color="#e8f0fe", gridcolor="#1e3a5f"),
+            yaxis2=dict(overlaying="y", side="right", showgrid=False,
+                        title="Örnek olay sayısı", color="#aaaaaa"),
+            paper_bgcolor="#0a1628",
+            plot_bgcolor="#0d1f3c",
+            font=dict(color="#e8f0fe"),
+            legend=dict(bgcolor="rgba(0,0,0,0.5)"),
+            height=420,
+            updatemenus=[dict(
+                type="buttons", showactive=False,
+                y=1.15, x=0.0, xanchor="left",
+                buttons=[
+                    dict(label="▶ Oynat",
+                         method="animate",
+                         args=[None, {"frame": {"duration": 350, "redraw": True},
+                                      "fromcurrent": True}]),
+                    dict(label="⏸ Dur",
+                         method="animate",
+                         args=[[None], {"frame": {"duration": 0, "redraw": False},
+                                        "mode": "immediate"}]),
+                ],
+            )],
+            sliders=[dict(
+                active=8,
+                steps=[dict(args=[[str(b)],
+                                  {"frame": {"duration": 0, "redraw": True},
+                                   "mode": "immediate"}],
+                            label=f"b={b:.2f}", method="animate")
+                       for b in b_values],
+                x=0.0, len=1.0,
+                currentvalue=dict(prefix="b-değeri: ", font=dict(color="#e8f0fe")),
+                font=dict(color="#e8f0fe"),
+            )],
+        ),
+    )
+    return fig
+
+
+def anim_moment_tensor() -> go.Figure:
+    """Beach ball odak mekanizması: doğrultu atımlı / normal / ters fay karşılaştırması."""
+    # Her fay tipi için P-dalga kutup diyagramı (polar gösterim)
+    theta = np.linspace(0, 2 * np.pi, 360)
+
+    def strike_slip_polarity(th: np.ndarray) -> np.ndarray:
+        """Doğrultu atımlı fay: 4 çeyrek dönüşümlü + / - ."""
+        return np.sign(np.sin(2 * th))
+
+    def normal_polarity(th: np.ndarray) -> np.ndarray:
+        """Normal fay: üst yarı baskı (siyah)."""
+        return np.where(np.sin(th) > 0, 1.0, -1.0)
+
+    def reverse_polarity(th: np.ndarray) -> np.ndarray:
+        """Ters fay: alt yarı baskı (siyah)."""
+        return np.where(np.sin(th) < 0, 1.0, -1.0)
+
+    colors_ss = ["#1a6faf" if strike_slip_polarity(np.array([t]))[0] > 0 else "#e8f0fe"
+                 for t in theta]
+    colors_nf = ["#1a6faf" if normal_polarity(np.array([t]))[0] > 0 else "#e8f0fe"
+                 for t in theta]
+    colors_rf = ["#1a6faf" if reverse_polarity(np.array([t]))[0] > 0 else "#e8f0fe"
+                 for t in theta]
+
+    r_fill = np.ones_like(theta) * 1.0
+
+    fig = go.Figure()
+
+    # Fay tipi 1: Doğrultu atımlı (KAF tipi)
+    for i in range(len(theta) - 1):
+        c = "#1a6faf" if strike_slip_polarity(np.array([theta[i]]))[0] > 0 else "#ecf0f1"
+        fig.add_trace(go.Barpolar(
+            r=[1.0], theta=[np.degrees(theta[i])],
+            width=[np.degrees(theta[1] - theta[0]) + 0.5],
+            marker_color=c,
+            showlegend=False,
+            visible=True,
+        ))
+
+    # Fay tipi 2: Normal fay (Ege tipi)
+    for i in range(len(theta) - 1):
+        c = "#1a6faf" if normal_polarity(np.array([theta[i]]))[0] > 0 else "#ecf0f1"
+        fig.add_trace(go.Barpolar(
+            r=[1.0], theta=[np.degrees(theta[i])],
+            width=[np.degrees(theta[1] - theta[0]) + 0.5],
+            marker_color=c,
+            showlegend=False,
+            visible=False,
+        ))
+
+    n = len(theta) - 1
+    # Doğrultu atımlı görünür, diğerleri gizli
+    visibility_ss = [True] * n + [False] * n
+    visibility_nf = [False] * n + [True] * n
+
+    # Basit statik üç panel (subplot yerine tek figür + annotation)
+    # Polar yerine scatter tabanlı daha sade görselleştirme
+    fig2 = go.Figure()
+
+    types = [
+        ("Doğrultu Atımlı\n(KAF tipi)", strike_slip_polarity, 0.0),
+        ("Normal Fay\n(Ege tipi)", normal_polarity, 3.5),
+        ("Ters Fay\n(Bindirme)", reverse_polarity, 7.0),
+    ]
+
+    for label, pol_fn, x_off in types:
+        t_dense = np.linspace(0, 2 * np.pi, 720)
+        polarity = pol_fn(t_dense)
+
+        xs_pos = x_off + np.cos(t_dense[polarity > 0])
+        ys_pos = np.sin(t_dense[polarity > 0])
+        xs_neg = x_off + np.cos(t_dense[polarity <= 0])
+        ys_neg = np.sin(t_dense[polarity <= 0])
+
+        fig2.add_trace(go.Scatter(
+            x=xs_pos, y=ys_pos, mode="markers",
+            marker=dict(size=6, color="#1a6faf"),
+            name=f"{label} (baskı)",
+            legendgroup=label,
+        ))
+        fig2.add_trace(go.Scatter(
+            x=xs_neg, y=ys_neg, mode="markers",
+            marker=dict(size=6, color="#ecf0f1"),
+            name=f"{label} (gerilme)",
+            legendgroup=label,
+        ))
+        # Çember çiz
+        circ = np.linspace(0, 2 * np.pi, 100)
+        fig2.add_trace(go.Scatter(
+            x=x_off + np.cos(circ), y=np.sin(circ),
+            mode="lines", line=dict(color="#4fc3f7", width=2),
+            showlegend=False,
+        ))
+        # Etiket
+        fig2.add_annotation(
+            x=x_off, y=-1.35,
+            text=label.replace("\n", "<br>"),
+            showarrow=False,
+            font=dict(color="#e8f0fe", size=11),
+            align="center",
+        )
+
+    # Fay düzlemi çizgileri
+    for x_off, angle in [(0.0, 0.0), (3.5, np.pi / 4), (7.0, np.pi / 3)]:
+        fig2.add_shape(type="line",
+                       x0=x_off + np.cos(angle + np.pi / 2),
+                       y0=np.sin(angle + np.pi / 2),
+                       x1=x_off + np.cos(angle - np.pi / 2),
+                       y1=np.sin(angle - np.pi / 2),
+                       line=dict(color="#e74c3c", width=2, dash="dash"))
+        fig2.add_shape(type="line",
+                       x0=x_off + np.cos(angle),
+                       y0=np.sin(angle),
+                       x1=x_off + np.cos(angle + np.pi),
+                       y1=np.sin(angle + np.pi),
+                       line=dict(color="#e74c3c", width=2, dash="dot"))
+
+    fig2.update_layout(
+        title=dict(
+            text="Odak Mekanizması (Beach Ball): P-Dalga Kutupluluk Diyagramı",
+            font=dict(color="#e8f0fe"),
+        ),
+        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False,
+                   range=[-1.5, 8.5]),
+        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False,
+                   scaleanchor="x", range=[-1.8, 1.5]),
+        paper_bgcolor="#0a1628",
+        plot_bgcolor="#0d1f3c",
+        font=dict(color="#e8f0fe"),
+        legend=dict(bgcolor="rgba(0,0,0,0.3)", font=dict(size=9)),
+        height=400,
+        annotations=[
+            dict(x=0.0, y=1.55, xref="x", yref="y", showarrow=False,
+                 text="🔵 Baskı (compressional)<br>⚪ Gerilme (dilatational)",
+                 font=dict(color="#aaaaaa", size=10), align="center"),
+        ],
+    )
+    return fig2
+
+
+def anim_psha() -> go.Figure:
+    """PSHA tehlike eğrisi animasyonu: farklı b-değerleri için tehlike eğrisi."""
+    T_arr = np.logspace(1.5, 4.0, 300)
+    b_vals = np.round(np.linspace(0.70, 1.30, 13), 2)
+
+    frames = []
+    for b in b_vals:
+        # Basit tehlike eğrisi yaklaşımı: PGA ∝ T_return^0.5 × b_ölçek
+        b_scale = (1.0 / b) ** 0.6  # b düştükçe tehlike artar
+        pga = np.clip(0.45 * (T_arr / 475.0) ** 0.5 * b_scale, 0, 1.5)
+        frames.append(go.Frame(
+            data=[
+                go.Scatter(x=T_arr, y=pga, mode="lines",
+                           line=dict(color="#4fc3f7", width=2.8),
+                           name=f"b={b:.2f}"),
+            ],
+            name=str(b),
+            layout=go.Layout(title_text=f"PSHA Tehlike Eğrisi — b={b:.2f} (yüksek b → düşük tehlike)"),
+        ))
+
+    pga_ref = np.clip(0.45 * (T_arr / 475.0) ** 0.5, 0, 1.5)
+
+    fig = go.Figure(
+        data=[
+            go.Scatter(x=T_arr, y=pga_ref, mode="lines",
+                       line=dict(color="#4fc3f7", width=2.8),
+                       name="b=1.00 (başlangıç)"),
+            go.Scatter(x=[2475, 475, 72], y=[0.85, 0.45, 0.22],
+                       mode="markers+text",
+                       marker=dict(size=12, color=["#e74c3c", "#f39c12", "#27ae60"],
+                                   symbol="diamond"),
+                       text=["DD-1\n2475 yıl", "DD-2\n475 yıl", "DD-3\n72 yıl"],
+                       textposition="top right",
+                       textfont=dict(size=10),
+                       name="TBDY-2018 seviyeleri"),
+        ],
+        frames=frames,
+        layout=go.Layout(
+            title=dict(text="PSHA Tehlike Eğrisi — b-değeri etkisi",
+                       font=dict(color="#e8f0fe")),
+            xaxis=dict(title="Dönüş Periyodu (yıl)", type="log",
+                       color="#e8f0fe", gridcolor="#1e3a5f"),
+            yaxis=dict(title="PGA (g)", range=[0, 1.6],
+                       color="#e8f0fe", gridcolor="#1e3a5f"),
+            paper_bgcolor="#0a1628",
+            plot_bgcolor="#0d1f3c",
+            font=dict(color="#e8f0fe"),
+            legend=dict(bgcolor="rgba(0,0,0,0.5)"),
+            height=420,
+            updatemenus=[dict(
+                type="buttons", showactive=False, y=1.15, x=0.0, xanchor="left",
+                buttons=[
+                    dict(label="▶ Oynat", method="animate",
+                         args=[None, {"frame": {"duration": 400, "redraw": True},
+                                      "fromcurrent": True}]),
+                    dict(label="⏸ Dur", method="animate",
+                         args=[[None], {"frame": {"duration": 0, "redraw": False},
+                                        "mode": "immediate"}]),
+                ],
+            )],
+            sliders=[dict(
+                steps=[dict(args=[[str(b)], {"frame": {"duration": 0, "redraw": True},
+                                             "mode": "immediate"}],
+                            label=f"b={b:.2f}", method="animate")
+                       for b in b_vals],
+                x=0.0, len=1.0,
+                currentvalue=dict(prefix="b-değeri: ", font=dict(color="#e8f0fe")),
+                font=dict(color="#e8f0fe"),
+            )],
+        ),
+    )
+    return fig
+
+
+def anim_insar() -> go.Figure:
+    """InSAR interferogram simülasyonu: fay üzerinde faz değişim halkalarını gösterir."""
+    # 2D grid
+    x = np.linspace(-50, 50, 120)
+    y = np.linspace(-50, 50, 120)
+    X, Y = np.meshgrid(x, y)
+
+    # Fay: x=0, Y<0 sağ yöne kayar (sağ yönlü doğrultu atımlı KAF benzeri)
+    # LOS deformasyon alanı (Okada modeline yaklaşık basitleştirilmiş)
+    def deformation_los(slip_m: float) -> np.ndarray:
+        # Dislocation point source: uzakta 1/r^2 azalır
+        dist_fault = np.sqrt(X**2 + (Y + 15)**2)
+        # Çift çift lobu (double-couple benzeri)
+        u_y = slip_m * 2.0 / (1.0 + (dist_fault / 8.0)**2)
+        # LOS ≈ yaklaşık %cos(23°) dikey + %sin(23°) yatay
+        los = 0.9 * u_y * np.sign(-X)
+        return los
+
+    n_wavelengths = 5.6e-2  # Sentinel-1 C-band dalga boyu metre
+
+    frames = []
+    slip_values = np.round(np.linspace(0.3, 5.0, 16), 1)
+    for slip in slip_values:
+        los = deformation_los(slip)
+        # Faz: 2π başına 2.8 cm = yarı dalga boyu
+        phase = (los % (n_wavelengths / 2)) / (n_wavelengths / 2) * 2 * np.pi
+        frames.append(go.Frame(
+            data=[go.Heatmap(
+                z=phase, colorscale="HSV", zmin=0, zmax=2 * np.pi,
+                showscale=True,
+                colorbar=dict(title="Faz (rad)", tickvals=[0, np.pi, 2 * np.pi],
+                              ticktext=["0", "π", "2π"], tickfont=dict(color="#e8f0fe")),
+            )],
+            name=str(slip),
+            layout=go.Layout(
+                title_text=f"InSAR Interferogram — Kayma = {slip:.1f} m | "
+                           f"LOS max ≈ {deformation_los(slip).max():.2f} m",
+            ),
+        ))
+
+    los0 = deformation_los(1.0)
+    phase0 = (los0 % (n_wavelengths / 2)) / (n_wavelengths / 2) * 2 * np.pi
+
+    fig = go.Figure(
+        data=[go.Heatmap(
+            z=phase0, colorscale="HSV", zmin=0, zmax=2 * np.pi,
+            showscale=True,
+            colorbar=dict(title="Faz (rad)", tickvals=[0, np.pi, 2 * np.pi],
+                          ticktext=["0", "π", "2π"], tickfont=dict(color="#e8f0fe")),
+        )],
+        frames=frames,
+        layout=go.Layout(
+            title=dict(
+                text="InSAR Interferogram — Her renk halkası = 2.8 cm yer değişimi",
+                font=dict(color="#e8f0fe"),
+            ),
+            xaxis=dict(title="Batı → Doğu (km)", color="#e8f0fe",
+                       tickvals=[0, 30, 60, 90, 119],
+                       ticktext=["-50", "-20", "0", "+30", "+50"]),
+            yaxis=dict(title="Güney → Kuzey (km)", color="#e8f0fe",
+                       tickvals=[0, 30, 60, 90, 119],
+                       ticktext=["-50", "-20", "0", "+30", "+50"]),
+            annotations=[dict(x=60, y=50, xref="x", yref="y",
+                              text="← FAY HATTI →",
+                              showarrow=False,
+                              font=dict(color="#e74c3c", size=13, family="monospace"))],
+            paper_bgcolor="#0a1628",
+            plot_bgcolor="#0d1f3c",
+            font=dict(color="#e8f0fe"),
+            height=450,
+            updatemenus=[dict(
+                type="buttons", showactive=False, y=1.12, x=0.0, xanchor="left",
+                buttons=[
+                    dict(label="▶ Kayma arttır", method="animate",
+                         args=[None, {"frame": {"duration": 500, "redraw": True},
+                                      "fromcurrent": True}]),
+                    dict(label="⏸ Dur", method="animate",
+                         args=[[None], {"frame": {"duration": 0, "redraw": False},
+                                        "mode": "immediate"}]),
+                ],
+            )],
+            sliders=[dict(
+                steps=[dict(args=[[str(s)], {"frame": {"duration": 0, "redraw": True},
+                                             "mode": "immediate"}],
+                            label=f"{s:.1f}m", method="animate")
+                       for s in slip_values],
+                x=0.0, len=1.0,
+                currentvalue=dict(prefix="Kayma: ", suffix=" m",
+                                  font=dict(color="#e8f0fe")),
+                font=dict(color="#e8f0fe"),
+            )],
+        ),
+    )
+    return fig
+
+
+def anim_kaf_tektonigi() -> go.Figure:
+    """KAF tektonik haritası: 1939-1999 deprem dizisi ve GPS hız vektörleri."""
+    # KAF segmentleri (yaklaşık koordinatlar)
+    kaf_segments = [
+        # (ad, lat_list, lon_list, son_kırılma_yılı, renk)
+        ("Erzincan (1939)", [40.02, 39.95, 39.80], [38.50, 39.50, 40.50],
+         1939, "#e74c3c"),
+        ("Niksar (1942)", [40.55, 40.50, 40.40], [36.20, 36.80, 37.50],
+         1942, "#e67e22"),
+        ("Ladik (1943)", [41.00, 40.85, 40.70], [35.40, 36.00, 36.50],
+         1943, "#f39c12"),
+        ("Bolu-Gerede (1944)", [40.85, 40.80, 40.75], [31.50, 32.50, 33.80],
+         1944, "#f1c40f"),
+        ("Kurşunlu (1951)", [40.90, 40.88, 40.85], [33.80, 34.50, 35.20],
+         1951, "#d4efdf"),
+        ("Abant (1957)", [40.77, 40.72, 40.65], [31.00, 31.50, 32.20],
+         1957, "#aed6f1"),
+        ("Mudurnu (1967)", [40.72, 40.65, 40.60], [30.40, 30.80, 31.20],
+         1967, "#85c1e9"),
+        ("İzmit (1999)", [40.80, 40.75, 40.65], [29.60, 30.00, 30.40],
+         1999, "#3498db"),
+        ("Düzce (1999)", [40.75, 40.75, 40.72], [30.70, 31.00, 31.30],
+         1999, "#2980b9"),
+        ("Marmara (kilitli!)", [40.80, 40.82, 40.85], [27.50, 28.50, 29.50],
+         None, "#e74c3c"),
+    ]
+
+    # GPS hız vektörleri (Reilinger 2006 bazlı)
+    gps_stations = [
+        ("ERZ", 39.90, 39.73, 0.0, 20.0),   # (ad, lat, lon, dVe mm/yr, dVn mm/yr)
+        ("SIV", 39.75, 37.02, 0.0, 18.0),
+        ("ANK", 39.91, 32.86, 0.0, 16.0),
+        ("IST", 41.01, 28.97, 0.0, 22.0),
+    ]
+
+    fig = go.Figure()
+
+    # Segmentler
+    for seg in kaf_segments:
+        ad, lats, lons, yil, renk = seg
+        is_locked = yil is None
+        dash = "dot" if is_locked else "solid"
+        width = 4 if is_locked else 2.5
+        fig.add_trace(go.Scattermapbox(
+            lat=lats, lon=lons,
+            mode="lines",
+            line=dict(color=renk, width=width),
+            name=ad,
+            hovertemplate=f"<b>{ad}</b><br>"
+                          + (f"Son kırılma: {yil}" if yil else "⚠️ KİLİTLİ SEGMENT") + "<extra></extra>",
+        ))
+
+    # Deprem noktaları (büyük M>6.5 olaylar)
+    eq_lats = [39.77, 40.70, 40.80, 40.88, 40.65, 40.77, 40.72, 40.73, 40.75]
+    eq_lons = [39.60, 36.50, 33.00, 34.60, 32.00, 31.20, 30.60, 29.97, 31.16]
+    eq_yils = [1939, 1942, 1944, 1951, 1957, 1966, 1967, 1999, 1999]
+    eq_mags = [7.8, 7.0, 7.4, 6.9, 7.0, 6.9, 7.1, 7.6, 7.2]
+
+    fig.add_trace(go.Scattermapbox(
+        lat=eq_lats, lon=eq_lons,
+        mode="markers+text",
+        marker=dict(
+            size=[m * 3.5 for m in eq_mags],
+            color=eq_yils,
+            colorscale="RdYlGn_r",
+            cmin=1935, cmax=2005,
+            colorbar=dict(title="Yıl", x=1.01,
+                          tickfont=dict(color="#e8f0fe")),
+            opacity=0.85,
+        ),
+        text=[f"M{m:.1f}" for m in eq_mags],
+        textposition="top center",
+        textfont=dict(color="#e8f0fe", size=9),
+        name="Büyük depremler",
+        hovertemplate="<b>%{text}</b> — %{customdata}<extra></extra>",
+        customdata=[str(y) for y in eq_yils],
+    ))
+
+    fig.update_layout(
+        mapbox=dict(
+            style="carto-darkmatter",
+            center=dict(lat=40.5, lon=34.0),
+            zoom=5.2,
+        ),
+        title=dict(
+            text="KAF Tektonik Haritası: 1939→1999 Batıya Göç Eden Depremler",
+            font=dict(color="#e8f0fe"),
+        ),
+        paper_bgcolor="#0a1628",
+        font=dict(color="#e8f0fe"),
+        legend=dict(bgcolor="rgba(0,0,0,0.5)", font=dict(size=9)),
+        height=480,
+        margin=dict(l=0, r=0, t=50, b=0),
+    )
+    return fig
+
+
+def anim_erzincan_tarihi() -> go.Figure:
+    """Erzincan tarihsel deprem zaman çizgisi + BPT sismik döngü modeli."""
+    # Belgelenmiş büyük Erzincan depremleri (yaklaşık)
+    events = [
+        (-499, 7.0, "Bizans öncesi (tahmini)"),
+        (1045, 7.0, "Selçuklu dönemi"),
+        (1254, 7.0, "İlk katalog kaydı"),
+        (1458, 7.2, "Osmanlı dönemi"),
+        (1584, 7.0, "Portekizli seyyah kaydı"),
+        (1668, 7.8, "Büyük Anadolu depremi"),
+        (1784, 6.8, "Erzincan kasabası"),
+        (1859, 7.1, "Erzincan, Tercan hasarı"),
+        (1939, 7.8, "Katastrofik — 33 000 kayıp"),
+        (1992, 6.8, "Modern ağlar — 653 kayıp"),
+    ]
+
+    years = [e[0] for e in events]
+    mags  = [e[1] for e in events]
+    descs = [e[2] for e in events]
+
+    # Sismik boşluk hesabı
+    gaps = []
+    for i in range(1, len(years)):
+        gaps.append(years[i] - years[i - 1])
+    avg_gap = float(np.mean(gaps))
+
+    # BPT modeli: Brownian Passage Time (Matthews 2002)
+    T_last = 1939  # Son büyük M>7 olay
+    alpha = 0.5    # aperiodicity (tipik değer)
+    mu_bpt = avg_gap  # ortalama tekrar süresi
+
+    current_year = 2026
+    elapsed = current_year - T_last
+    t_future = np.linspace(1, 300, 500)
+
+    def bpt_pdf(t: np.ndarray, mu: float, a: float) -> np.ndarray:
+        """BPT (inverse Gaussian) olasılık yoğunluk fonksiyonu."""
+        with np.errstate(over="ignore", invalid="ignore"):
+            c = mu / (a**2)
+            pdf = np.sqrt(c / (2 * np.pi * t**3)) * np.exp(
+                -c * (t - mu)**2 / (2 * mu * t)
+            )
+        return np.where(np.isfinite(pdf), pdf, 0.0)
+
+    pdf_vals = bpt_pdf(t_future, mu_bpt, alpha)
+    # Gelecek 30 yıl kırılma olasılığı ≈ ∫ pdf dt
+    dt = t_future[1] - t_future[0]
+    cum_vals = np.cumsum(pdf_vals) * dt
+
+    fig = go.Figure()
+
+    # Panel 1: Zaman çizgisi scatter
+    fig.add_trace(go.Scatter(
+        x=years, y=mags,
+        mode="markers+lines",
+        marker=dict(
+            size=[max(6, (m - 6.5) * 20) for m in mags],
+            color=mags, colorscale="Reds",
+            cmin=6.5, cmax=8.0,
+            showscale=True,
+            colorbar=dict(title="Mw", x=1.01,
+                          tickfont=dict(color="#e8f0fe")),
+        ),
+        line=dict(color="rgba(255,100,100,0.3)", width=1),
+        text=descs,
+        hovertemplate="<b>%{x}</b> — Mw %{y:.1f}<br>%{text}<extra></extra>",
+        name="Büyük depremler (M≥6.8)",
+    ))
+
+    # Güncel zaman işaretçisi
+    fig.add_vline(x=current_year, line_color="#4fc3f7",
+                  line_dash="dash", line_width=2,
+                  annotation_text=f"Bugün ({current_year})",
+                  annotation_font_color="#4fc3f7",
+                  annotation_position="top right")
+
+    # Son 1939'dan bu yana geçen süre
+    fig.add_vrect(x0=1939, x1=current_year,
+                  fillcolor="rgba(231,76,60,0.08)",
+                  line_width=0,
+                  annotation_text=f"  {elapsed} yıl sessizlik",
+                  annotation_position="top left",
+                  annotation_font=dict(color="#e74c3c", size=11))
+
+    fig.add_annotation(
+        x=current_year + 5, y=7.3,
+        text=f"Ortalama tekrar: ~{avg_gap:.0f} yıl<br>"
+             f"1939'dan beri: {elapsed} yıl<br>"
+             f"BPT α = {alpha} → yüksek risk",
+        showarrow=False,
+        font=dict(color="#f39c12", size=10),
+        bgcolor="rgba(20,40,60,0.8)",
+        bordercolor="#f39c12",
+        borderwidth=1,
+        align="left",
+    )
+
+    fig.update_layout(
+        title=dict(
+            text=f"Erzincan Sismik Döngüsü: Son 2500 Yıl | Ort. tekrar: ~{avg_gap:.0f} yıl",
+            font=dict(color="#e8f0fe"),
+        ),
+        xaxis=dict(title="Yıl", color="#e8f0fe", gridcolor="#1e3a5f",
+                   range=[-600, 2100]),
+        yaxis=dict(title="Moment Büyüklüğü (Mw)", range=[6.3, 8.3],
+                   color="#e8f0fe", gridcolor="#1e3a5f"),
+        paper_bgcolor="#0a1628",
+        plot_bgcolor="#0d1f3c",
+        font=dict(color="#e8f0fe"),
+        legend=dict(bgcolor="rgba(0,0,0,0.5)"),
+        height=420,
+    )
+    return fig
+
+
+# ─── EK İNTERAKTİF FONKSİYONLAR (v3.1) ──────────────────────────────────────
+
+def interaktif_sismik_dalgalar() -> None:
+    """S-P yöntemi: mesafe hesaplama + dalga hızı karşılaştırması."""
+    try:
+        import streamlit as st
+    except ImportError:
+        return
+
+    st.markdown("### S-P Yöntemi: Deprem Merkezinin Uzaklığını Hesapla")
+    st.caption("Sismografta P ve S dalgalarının varış zamanı farkından merkez uzaklığını bulun.")
+
+    col1, col2 = st.columns([1, 2])
+
+    with col1:
+        sp_diff = st.slider(
+            "S-P zaman farkı (saniye)",
+            min_value=1.0, max_value=120.0, value=20.0, step=0.5,
+            key="sp_diff_slider",
+            help="Sismogramda S varışı − P varışı süresi.",
+        )
+        vp = st.slider(
+            "P dalgası hızı Vp (km/s)",
+            min_value=5.0, max_value=8.5, value=6.0, step=0.1,
+            key="vp_slider",
+            help="Krust: 5-7 km/s | Manto: 8+ km/s",
+        )
+        vs_ratio = st.slider(
+            "Vs/Vp oranı",
+            min_value=0.50, max_value=0.70, value=0.58, step=0.01,
+            key="vs_ratio_slider",
+            help="Kaya: 0.57-0.60 | Gevşek zemin: 0.50-0.55",
+        )
+
+        vs = vp * vs_ratio
+        # Wadati formülü: Δ = Vp·Vs / (Vp − Vs) × (ts − tp)
+        dist_km = (vp * vs) / (vp - vs) * sp_diff
+        # P varış süresi
+        p_time = dist_km / vp
+        s_time = dist_km / vs
+
+        st.markdown("---")
+        st.metric("🎯 Tahmini Uzaklık", f"{dist_km:.1f} km")
+        st.metric("⏱ P varış süresi", f"{p_time:.1f} sn")
+        st.metric("⏱ S varış süresi", f"{s_time:.1f} sn")
+        st.markdown(
+            f"Vs = **{vs:.2f}** km/s · Vp = **{vp:.2f}** km/s\n\n"
+            "**Kural:** 1 saniye S-P ≈ 8 km uzaklık"
+        )
+
+    with col2:
+        # Dalga paketi simülasyonu
+        t_axis = np.linspace(0, max(s_time * 1.4, 30), 600)
+        # P-dalgası: daha erken, küçük amplitüd
+        p_wave = np.where(
+            (t_axis >= p_time) & (t_axis < p_time + 8),
+            0.3 * np.sin(2 * np.pi * 2.5 * (t_axis - p_time))
+            * np.exp(-0.15 * (t_axis - p_time)),
+            0.0,
+        )
+        # S-dalgası: daha geç, büyük amplitüd
+        s_wave = np.where(
+            (t_axis >= s_time) & (t_axis < s_time + 12),
+            1.0 * np.sin(2 * np.pi * 1.5 * (t_axis - s_time))
+            * np.exp(-0.10 * (t_axis - s_time)),
+            0.0,
+        )
+        seismogram = p_wave + s_wave + np.random.default_rng(99).normal(0, 0.02, len(t_axis))
+
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=t_axis, y=seismogram, mode="lines",
+            line=dict(color="#4fc3f7", width=1.5),
+            name="Simüle sismogram",
+        ))
+        fig.add_vline(x=p_time, line_color="#27ae60", line_dash="dash", line_width=2,
+                      annotation_text=f"P ({p_time:.1f} sn)",
+                      annotation_font_color="#27ae60",
+                      annotation_position="top right")
+        fig.add_vline(x=s_time, line_color="#e74c3c", line_dash="dash", line_width=2,
+                      annotation_text=f"S ({s_time:.1f} sn)",
+                      annotation_font_color="#e74c3c",
+                      annotation_position="top right")
+        fig.add_vrect(x0=p_time, x1=s_time,
+                      fillcolor="rgba(255,200,0,0.08)", line_width=0,
+                      annotation_text=f"S−P = {sp_diff:.1f} sn → {dist_km:.0f} km",
+                      annotation_font=dict(color="#f1c40f", size=10))
+
+        fig.update_layout(
+            title=dict(text="Simüle Sismogram: P ve S Dalgası Varış Süreleri",
+                       font=dict(color="#e8f0fe")),
+            xaxis=dict(title="Zaman (saniye)", color="#e8f0fe", gridcolor="#1e3a5f"),
+            yaxis=dict(title="Yer Hareketi (bağıl)", color="#e8f0fe", gridcolor="#1e3a5f"),
+            paper_bgcolor="#0a1628", plot_bgcolor="#0d1f3c",
+            font=dict(color="#e8f0fe"),
+            height=350,
+        )
+        st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG)
+
+
+def interaktif_elastik_geri_tepme() -> None:
+    """Sismik döngü: kayma hızı + geçen yıl → birikim ve kırılma olasılığı."""
+    try:
+        import streamlit as st
+    except ImportError:
+        return
+
+    st.markdown("### Sismik Döngü Hesaplayıcı: Elastik Gerilme Birikimi")
+    st.caption("GPS kayma hızı ve son depremden bu yana geçen süreye göre birikim hesaplanır.")
+
+    col1, col2 = st.columns([1, 2])
+
+    with col1:
+        slip_rate = st.slider(
+            "GPS kayma hızı (mm/yıl)",
+            min_value=5.0, max_value=30.0, value=20.0, step=0.5,
+            key="slip_rate_slider",
+            help="KAF: 20-25 mm/yıl | EAF: 10-15 mm/yıl | Ege: 5-10 mm/yıl",
+        )
+        recurrence = st.slider(
+            "Ortalama tekrar süresi (yıl)",
+            min_value=100, max_value=600, value=280, step=10,
+            key="recurrence_slider",
+            help="Erzincan: ~280 yıl | Marmara: ~250 yıl | EAF: ~200 yıl",
+        )
+        years_since = st.slider(
+            "Son büyük depremden beri (yıl)",
+            min_value=10, max_value=500, value=87, step=5,
+            key="years_since_slider",
+            help="Erzincan 1939'dan 2026'ya = 87 yıl.",
+        )
+
+        # Birikim hesabı
+        max_slip = slip_rate * recurrence / 1000.0  # metre
+        current_slip_m = slip_rate * years_since / 1000.0
+        pct = min(100.0, current_slip_m / max_slip * 100.0)
+
+        # Basit BPT yaklaşımı ile kırılma olasılığı
+        from_frac = years_since / recurrence
+        bpt_prob_30yr = min(99.0, from_frac * 100.0 * 0.8)
+
+        st.markdown("---")
+        st.metric("📏 Birikmiş kayma", f"{current_slip_m:.2f} m")
+        st.metric("⚡ Döngü doluluk", f"{pct:.1f}%")
+        st.metric("🎲 30-yıl kırılma tahmini", f"~{bpt_prob_30yr:.0f}%")
+        st.markdown(
+            f"Maks. kayma açığı: **{max_slip:.1f} m**\n\n"
+            "⚠️ Bu tahmini model; resmi deprem tahmini değildir."
+        )
+
+    with col2:
+        t_cycle = np.linspace(0, recurrence * 1.15, 300)
+        # Lineer birikim, depremde sıfırlama
+        strain = np.where(t_cycle <= recurrence,
+                          slip_rate * t_cycle / 1000.0,
+                          0.0)
+
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=t_cycle, y=strain, mode="lines",
+            line=dict(color="#4fc3f7", width=2.5),
+            name="Gerilme birikimi",
+            fill="tozeroy", fillcolor="rgba(79,195,247,0.08)",
+        ))
+        fig.add_vline(x=years_since, line_color="#e74c3c", line_dash="dash", line_width=2.5,
+                      annotation_text=f"Bugün ({years_since} yıl geçti)",
+                      annotation_font_color="#e74c3c",
+                      annotation_position="top left")
+        fig.add_hline(y=max_slip, line_color="#f39c12", line_dash="dot", line_width=1.5,
+                      annotation_text=f"Maks. kayma açığı ({max_slip:.1f} m)",
+                      annotation_font_color="#f39c12")
+        fig.add_scatter(
+            x=[years_since], y=[current_slip_m],
+            mode="markers",
+            marker=dict(size=14, color="#ffcc00", symbol="star"),
+            name=f"Mevcut durum: {current_slip_m:.2f} m ({pct:.0f}%)",
+        )
+        fig.update_layout(
+            title=dict(
+                text=f"Sismik Döngü — kayma hızı {slip_rate:.0f} mm/yıl, "
+                     f"tekrar {recurrence} yıl",
+                font=dict(color="#e8f0fe"),
+            ),
+            xaxis=dict(title="Sismik Döngü İçinde Geçen Süre (yıl)",
+                       color="#e8f0fe", gridcolor="#1e3a5f"),
+            yaxis=dict(title="Birikmiş Kayma (metre)",
+                       color="#e8f0fe", gridcolor="#1e3a5f"),
+            paper_bgcolor="#0a1628", plot_bgcolor="#0d1f3c",
+            font=dict(color="#e8f0fe"),
+            legend=dict(bgcolor="rgba(0,0,0,0.5)"),
+            height=360,
+        )
+        st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG)
+
+
+def interaktif_coulomb_stres() -> None:
+    """Coulomb stres transferi: ΔCFS = Δτ + μ'·Δσn hesaplayıcısı."""
+    try:
+        import streamlit as st
+    except ImportError:
+        return
+
+    st.markdown("### Coulomb Stres Hesaplayıcı")
+    st.caption(
+        "**ΔCFS = Δτ + μ'·Δσₙ** — pozitif değerler tetikleme bölgelerini işaret eder."
+    )
+
+    col1, col2 = st.columns([1, 2])
+
+    with col1:
+        mu_prime = st.slider(
+            "Efektif sürtünme katsayısı μ'",
+            min_value=0.1, max_value=0.8, value=0.4, step=0.05,
+            key="mu_prime_slider",
+            help="Kuru kaya: 0.6-0.8 | Su doygun fay: 0.2-0.4",
+        )
+        delta_tau = st.slider(
+            "Kayma stres değişimi Δτ (bar)",
+            min_value=-3.0, max_value=3.0, value=1.5, step=0.1,
+            key="delta_tau_slider",
+            help="Pozitif: kayma yönünde stres artışı.",
+        )
+        delta_sigma_n = st.slider(
+            "Normal stres değişimi Δσₙ (bar)",
+            min_value=-3.0, max_value=3.0, value=-0.8, step=0.1,
+            key="delta_sigma_n_slider",
+            help="Negatif: fay yüzeyi sıkışır → sürtünme artar.",
+        )
+
+        delta_cfs = delta_tau + mu_prime * delta_sigma_n
+        triggered = delta_cfs > 0.1
+        neutral = abs(delta_cfs) <= 0.1
+        icon = "🔴 Tetiklenme riski" if triggered else ("⚪ Sınırda" if neutral else "🟢 Tetiklenme azalmış")
+
+        st.markdown("---")
+        st.metric("📊 ΔCFS", f"{delta_cfs:.3f} bar",
+                  delta=f"Eşik: 0.1 bar",
+                  delta_color="off")
+        st.markdown(f"**{icon}**")
+        st.markdown(
+            f"Δτ = {delta_tau:.1f} bar\n\n"
+            f"μ'·Δσₙ = {mu_prime:.2f} × {delta_sigma_n:.1f} = "
+            f"{mu_prime*delta_sigma_n:.3f} bar\n\n"
+            "**1999 İzmit→Düzce:** ΔCFS = +1.5 bar → tetikledi"
+        )
+
+    with col2:
+        # ΔCFS haritası: 2D grid üzerinde çift çift tümsek stres lobu
+        x_grid = np.linspace(-60, 60, 100)
+        y_grid = np.linspace(-60, 60, 100)
+        X2, Y2 = np.meshgrid(x_grid, y_grid)
+
+        # Fay düzlemi: x-ekseni boyunca
+        dist_perp = np.abs(Y2)
+        dist_par  = X2
+
+        # Coulomb stres değişimi (çift kuvvet çifti - basitleştirilmiş)
+        R2 = dist_par**2 + dist_perp**2 + 1e-3
+        # Kayma bileşeni: fay sonunda quadrant alternating
+        tau_comp  = mu_prime * delta_tau * 4 * dist_par * dist_perp / R2**2
+        sigma_comp = delta_sigma_n * (dist_perp**2 - dist_par**2) / R2**2 * 0.5
+        cfs_map = tau_comp + mu_prime * sigma_comp
+
+        fig = go.Figure(go.Heatmap(
+            z=cfs_map,
+            x=x_grid, y=y_grid,
+            colorscale="RdBu_r",
+            zmid=0,
+            colorbar=dict(title="ΔCFS (bağıl)",
+                          tickfont=dict(color="#e8f0fe")),
+        ))
+        # Fay düzlemi çizgisi
+        fig.add_shape(type="line", x0=-60, y0=0, x1=60, y1=0,
+                      line=dict(color="black", width=4))
+        fig.add_shape(type="line", x0=-60, y0=0, x1=60, y1=0,
+                      line=dict(color="white", width=2, dash="dash"))
+        fig.add_annotation(x=0, y=0, text="FAY DÜZLEMI",
+                           showarrow=False, font=dict(color="white", size=11))
+
+        fig.update_layout(
+            title=dict(
+                text=f"ΔCFS Haritası — μ'={mu_prime:.2f}, Δτ={delta_tau:.1f}, Δσₙ={delta_sigma_n:.1f} bar",
+                font=dict(color="#e8f0fe"),
+            ),
+            xaxis=dict(title="Fay Boyunca Uzaklık (km)", color="#e8f0fe"),
+            yaxis=dict(title="Faya Dik Uzaklık (km)", color="#e8f0fe"),
+            paper_bgcolor="#0a1628", plot_bgcolor="#0d1f3c",
+            font=dict(color="#e8f0fe"),
+            height=380,
+        )
+        st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG)
+
+
+def interaktif_moment_tensor() -> None:
+    """Beach ball interaktif: strike, dip, rake ile odak mekanizması görselleştir."""
+    try:
+        import streamlit as st
+    except ImportError:
+        return
+
+    st.markdown("### Odak Mekanizması (Beach Ball) Oluşturucu")
+    st.caption(
+        "Strike (doğrultu), dip (eğim) ve rake (kayma yönü) açılarıyla "
+        "farklı fay tiplerini oluşturun."
+    )
+
+    col1, col2 = st.columns([1, 2])
+    with col1:
+        strike = st.slider("Strike φ (°)", 0, 360, 45, 5, key="bb_strike",
+                           help="Fay doğrultusunun kuzeyden saat yönünde açısı.")
+        dip    = st.slider("Dip δ (°)", 0, 90, 80, 5, key="bb_dip",
+                           help="Fay düzleminin yataydan eğim açısı.")
+        rake   = st.slider("Rake λ (°)", -180, 180, 10, 5, key="bb_rake",
+                           help="-180/0/180: normal | 90: ters | ±10: doğrultu atımlı")
+
+        # Fay tipi tanımlama
+        if -30 <= rake <= 30 or rake > 150 or rake < -150:
+            fay_tipi = "🔵 Doğrultu Atımlı"
+            renk_aciklama = "KAF tipi — iki siyah lob"
+        elif 60 <= rake <= 120:
+            fay_tipi = "🔴 Ters Fay (Bindirme)"
+            renk_aciklama = "Sıkışma tektoniği"
+        elif -120 <= rake <= -60:
+            fay_tipi = "🟢 Normal Fay"
+            renk_aciklama = "Gerilme tektoniği — Ege tipi"
+        else:
+            fay_tipi = "🟡 Oblik Fay"
+            renk_aciklama = "Karma bileşen"
+
+        st.metric("Fay Tipi", fay_tipi)
+        st.markdown(f"*{renk_aciklama}*")
+        st.markdown(
+            "**Referans açıları:**\n"
+            "- KAF: strike≈80°, dip≈85°, rake≈5°\n"
+            "- Erzincan: strike≈62°, dip≈75°, rake≈15°\n"
+            "- EAF: strike≈40°, dip≈80°, rake≈-10°"
+        )
+
+    with col2:
+        # P-dalga kutupluluk diyagramı (lower hemisphere)
+        theta_bb = np.linspace(0, 2 * np.pi, 720)
+
+        # Fay düzlemi noktaları (lower hemisphere projeksiyon)
+        strike_rad = np.radians(strike)
+        dip_rad = np.radians(dip)
+        rake_rad = np.radians(rake)
+
+        # Normal vektör
+        fn = np.array([
+            np.sin(dip_rad) * np.cos(strike_rad + np.pi / 2),
+            np.sin(dip_rad) * np.sin(strike_rad + np.pi / 2),
+            -np.cos(dip_rad),
+        ])
+        # Kayma vektörü
+        fd = np.array([
+            np.cos(rake_rad) * np.cos(strike_rad)
+            + np.sin(rake_rad) * np.cos(dip_rad) * np.sin(strike_rad),
+            np.cos(rake_rad) * np.sin(strike_rad)
+            - np.sin(rake_rad) * np.cos(dip_rad) * np.cos(strike_rad),
+            np.sin(rake_rad) * np.sin(dip_rad),
+        ])
+
+        # Her azimut için P-dalga kutupluluğu (Stein & Wysession bölüm 4)
+        az = theta_bb
+        inc_deg = 45  # sabit çıkış açısı
+        inc = np.radians(inc_deg)
+        ray_x = np.sin(inc) * np.cos(az)
+        ray_y = np.sin(inc) * np.sin(az)
+        ray_z = -np.cos(inc)
+
+        polarity = fn[0] * ray_x * fd[0] + fn[1] * ray_y * fd[1] + fn[2] * ray_z * fd[2]
+        comp = polarity + (fn[0] * fd[0] + fn[1] * fd[1] + fn[2] * fd[2]) * (
+            ray_x**2 + ray_y**2 + ray_z**2
+        )
+
+        colors_bb = ["#1a6faf" if p > 0 else "#ecf0f1" for p in polarity]
+
+        # Scatter polar plot approximation
+        proj_x = np.cos(theta_bb)
+        proj_y = np.sin(theta_bb)
+
+        fig = go.Figure()
+
+        # Dolgulu arka plan — kutupluluk alanları
+        for i in range(len(theta_bb) - 1):
+            c = colors_bb[i]
+            mid = (theta_bb[i] + theta_bb[i + 1]) / 2
+            fig.add_trace(go.Scatter(
+                x=[0, np.cos(theta_bb[i]), np.cos(theta_bb[i+1])],
+                y=[0, np.sin(theta_bb[i]), np.sin(theta_bb[i+1])],
+                fill="toself", fillcolor=c,
+                line=dict(width=0), mode="lines",
+                showlegend=False, hoverinfo="skip",
+            ))
+
+        # Çember sınırı
+        circ = np.linspace(0, 2 * np.pi, 100)
+        fig.add_trace(go.Scatter(
+            x=np.cos(circ), y=np.sin(circ),
+            mode="lines", line=dict(color="#4fc3f7", width=2.5),
+            showlegend=False,
+        ))
+        # Fay düzlemi çizgileri
+        fp1_theta = strike_rad
+        fig.add_shape(type="line",
+                      x0=-np.cos(fp1_theta - np.pi/2),
+                      y0=-np.sin(fp1_theta - np.pi/2),
+                      x1=np.cos(fp1_theta - np.pi/2),
+                      y1=np.sin(fp1_theta - np.pi/2),
+                      line=dict(color="#e74c3c", width=2, dash="solid"))
+        # Yardımcı düzlem (auxiliary plane)
+        aux_theta = fp1_theta + np.pi / 2
+        fig.add_shape(type="line",
+                      x0=-np.cos(aux_theta - np.pi/2),
+                      y0=-np.sin(aux_theta - np.pi/2),
+                      x1=np.cos(aux_theta - np.pi/2),
+                      y1=np.sin(aux_theta - np.pi/2),
+                      line=dict(color="#f39c12", width=1.5, dash="dash"))
+
+        fig.add_annotation(x=0, y=-1.25,
+                           text=(f"Strike={strike}° | Dip={dip}° | Rake={rake}°<br>"
+                                 f"🔵 Baskı | ⚪ Gerilme | — Fay düzlemi | -- Yardımcı"),
+                           showarrow=False, font=dict(color="#aaaaaa", size=10))
+
+        fig.update_layout(
+            title=dict(text=f"Beach Ball — {fay_tipi}",
+                       font=dict(color="#e8f0fe")),
+            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False,
+                       range=[-1.5, 1.5]),
+            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False,
+                       range=[-1.5, 1.5], scaleanchor="x"),
+            paper_bgcolor="#0a1628", plot_bgcolor="#0a1628",
+            font=dict(color="#e8f0fe"),
+            height=400,
+            margin=dict(l=10, r=10, t=50, b=60),
+        )
+        st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG)
+
+
+def interaktif_insar() -> None:
+    """InSAR deformasyon hesaplayıcı: M, derinlik → yüzey deformasyonu (Okada)."""
+    try:
+        import streamlit as st
+    except ImportError:
+        return
+
+    st.markdown("### InSAR Yüzey Deformasyon Tahmincisi")
+    st.caption(
+        "Deprem büyüklüğü ve odak derinliğine göre tahmini yüzey deformasyonu ve "
+        "InSAR fringe sayısını hesaplar."
+    )
+
+    col1, col2 = st.columns([1, 2])
+
+    with col1:
+        mw = st.slider("Moment büyüklüğü Mw", 5.0, 8.5, 7.8, 0.1, key="insar_mw",
+                       help="Kahramanmaraş 2023: Mw 7.8")
+        depth_km = st.slider("Odak derinliği (km)", 2, 30, 8, 1, key="insar_depth",
+                             help="Sığ: <15 km → daha büyük yüzey deformasyon")
+        wavelength_cm = st.selectbox(
+            "Uydu bandı / dalga boyu",
+            ["Sentinel-1 C-band (5.6 cm)", "ALOS-2 L-band (23.6 cm)",
+             "TerraSAR-X X-band (3.1 cm)"],
+            key="insar_band",
+        )
+        wl = {"Sentinel-1 C-band (5.6 cm)": 5.6,
+              "ALOS-2 L-band (23.6 cm)": 23.6,
+              "TerraSAR-X X-band (3.1 cm)": 3.1}[wavelength_cm]
+
+        # Seismik moment → kayma alanı × kayma miktarı (basit ilişki)
+        M0 = 10 ** (1.5 * mw + 9.1)  # N·m
+        mu_rigidity = 3e10  # Pa (kayma modülü)
+        # Ampirik ilişki: kayma = M0 / (mu × A), A ~ L × W
+        L_km = 10 ** (0.59 * mw - 2.44)  # Well & Coppersmith 1994 yaklaşımı
+        W_km = L_km * 0.5
+        slip_m = M0 / (mu_rigidity * L_km * 1e3 * W_km * 1e3)
+        slip_m = max(0.01, min(slip_m, 15.0))
+
+        # Yüzey deformasyonu (yaklaşık Okada: maks. LOS = 0.6 × kayma)
+        los_max_m = 0.6 * slip_m * (10.0 / max(depth_km, 3.0)) ** 0.7
+        fringe_count = los_max_m / (wl / 200.0)  # wl cm → half-wavelength cm → m
+
+        st.markdown("---")
+        st.metric("📏 Tahmini kayma miktarı", f"{slip_m:.2f} m")
+        st.metric("📡 Maks. LOS deformasyon", f"{los_max_m:.2f} m")
+        st.metric("🌈 InSAR fringe sayısı", f"~{fringe_count:.0f}")
+        st.metric("📐 Tahmini fay uzunluğu", f"~{L_km:.0f} km")
+        st.markdown(
+            f"Dalga boyu: **{wl} cm** → fringe başına **{wl/200*100:.1f} mm** LOS\n\n"
+            "⚠️ Basitleştirilmiş Okada tahmini; gerçek InSAR işlemi SAR veri gerektirir."
+        )
+
+    with col2:
+        # 2D yüzey deformasyon haritası
+        x_los = np.linspace(-80, 80, 100)
+        y_los = np.linspace(-80, 80, 100)
+        X_l, Y_l = np.meshgrid(x_los, y_los)
+
+        dist_3d = np.sqrt(X_l**2 + Y_l**2 + depth_km**2)
+        los_field = los_max_m * depth_km**2 / (dist_3d**2) * np.sign(-X_l + 0.01)
+        los_field = np.clip(los_field, -los_max_m, los_max_m)
+
+        # Faz (renk halkası)
+        half_wl_m = (wl / 2.0) / 100.0
+        phase_field = (los_field % half_wl_m) / half_wl_m
+
+        fig = go.Figure(go.Heatmap(
+            z=phase_field,
+            x=x_los, y=y_los,
+            colorscale="HSV",
+            zmin=0, zmax=1,
+            colorbar=dict(title="Faz döngüsü",
+                          tickvals=[0, 0.5, 1],
+                          ticktext=["0", "π", "2π"],
+                          tickfont=dict(color="#e8f0fe")),
+        ))
+        fig.add_shape(type="line", x0=-L_km/2, y0=0, x1=L_km/2, y1=0,
+                      line=dict(color="black", width=5))
+        fig.add_shape(type="line", x0=-L_km/2, y0=0, x1=L_km/2, y1=0,
+                      line=dict(color="white", width=2, dash="dash"))
+        fig.add_annotation(x=0, y=5, text=f"Fay (~{L_km:.0f} km)",
+                           showarrow=False, font=dict(color="white", size=11))
+
+        fig.update_layout(
+            title=dict(
+                text=f"InSAR Simülasyonu — Mw {mw:.1f}, d={depth_km} km, "
+                     f"{fringe_count:.0f} fringe",
+                font=dict(color="#e8f0fe"),
+            ),
+            xaxis=dict(title="Batı-Doğu (km)", color="#e8f0fe"),
+            yaxis=dict(title="Güney-Kuzey (km)", color="#e8f0fe"),
+            paper_bgcolor="#0a1628", plot_bgcolor="#0d1f3c",
+            font=dict(color="#e8f0fe"),
+            height=400,
+        )
+        st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG)
+
+
+def interaktif_tsunami_fizigi() -> None:
+    """Tsunami: c = sqrt(g*d) — derinlik → hız → varış süresi hesaplayıcı."""
+    try:
+        import streamlit as st
+    except ImportError:
+        return
+
+    st.markdown("### Tsunami Fizik Hesaplayıcı: c = √(g·d)")
+    st.caption("Dalga hızı yalnızca su derinliğine bağlıdır; deprem büyüklüğüne değil!")
+
+    col1, col2 = st.columns([1, 2])
+
+    with col1:
+        depth_m = st.slider(
+            "Su derinliği (metre)",
+            min_value=10, max_value=6000, value=4000, step=50,
+            key="tsunami_depth_slider",
+            help="Derin okyanus: 3000-6000 m | Kıta sahanlığı: 100-200 m | Kıyı: 10-50 m",
+        )
+        dist_km = st.slider(
+            "Kaynak → kıyı mesafesi (km)",
+            min_value=50, max_value=5000, value=500, step=50,
+            key="tsunami_dist_slider",
+        )
+        h0_m = st.slider(
+            "Kaynak dalga yüksekliği (m)",
+            min_value=0.1, max_value=5.0, value=1.0, step=0.1,
+            key="tsunami_h0_slider",
+            help="Açık okyanusta tipik: 0.5-2 m. Kıyıda çok daha yüksek!",
+        )
+
+        g = 9.81
+        c_ms = math.sqrt(g * depth_m)
+        c_kmh = c_ms * 3.6
+        t_min = dist_km / (c_kmh / 60.0)
+
+        # Shoaling: kıyıda yükseklik artışı H = H0 * (d0/d_coast)^(1/4)
+        d_coast = 20  # metre (kıyı derinliği)
+        h_coast = h0_m * (depth_m / d_coast) ** 0.25
+
+        st.markdown("---")
+        st.metric("🌊 Dalga hızı", f"{c_kmh:.0f} km/h",
+                  help="Karşılaştırma: yolcu uçağı ~900 km/h")
+        st.metric("⏱ Varış süresi", f"{t_min:.0f} dakika")
+        st.metric("📏 Kıyı dalga yüksekliği", f"~{h_coast:.1f} m",
+                  help="Shoaling etkisi: H ∝ d^-1/4")
+        st.markdown(
+            f"c = √({g}×{depth_m}) = **{c_ms:.1f} m/s = {c_kmh:.0f} km/h**\n\n"
+            "🔴 Kıyı: hız düşer, yükseklik artar — 'shoaling etkisi'"
+        )
+
+    with col2:
+        # Farklı derinliklerde hız profili
+        depths = np.logspace(1, 3.78, 300)  # 10 m → 6000 m
+        speeds_kmh = np.sqrt(g * depths) * 3.6
+
+        # Varış süresi (dist_km'ye)
+        t_arrival = dist_km / (speeds_kmh / 60.0)
+
+        fig = go.Figure()
+
+        fig.add_trace(go.Scatter(
+            x=depths, y=speeds_kmh, mode="lines",
+            line=dict(color="#4fc3f7", width=2.5),
+            name="Dalga hızı (km/h)",
+            yaxis="y",
+        ))
+        fig.add_trace(go.Scatter(
+            x=depths, y=t_arrival, mode="lines",
+            line=dict(color="#e74c3c", width=2, dash="dash"),
+            name=f"Varış süresi ({dist_km} km için, dak.)",
+            yaxis="y2",
+        ))
+
+        # Seçili derinlik işaretçisi
+        c_sel = math.sqrt(g * depth_m) * 3.6
+        t_sel = dist_km / (c_sel / 60.0)
+        fig.add_trace(go.Scatter(
+            x=[depth_m], y=[c_sel],
+            mode="markers", marker=dict(size=14, color="#ffcc00", symbol="star"),
+            name=f"Seçili: {depth_m} m → {c_sel:.0f} km/h",
+        ))
+
+        for d_ref, lbl in [(4000, "Derin okyanus\n4000 m"),
+                            (200, "Kıta sahanlığı\n200 m"),
+                            (20, "Kıyı\n20 m")]:
+            fig.add_vline(x=d_ref, line_dash="dot", line_color="#555555",
+                          annotation_text=lbl, annotation_font_color="#888888",
+                          annotation_position="top right")
+
+        fig.update_layout(
+            title=dict(text="Tsunami Hızı ve Varış Süresi — c = √(g·d)",
+                       font=dict(color="#e8f0fe")),
+            xaxis=dict(title="Su Derinliği (m)", type="log",
+                       color="#e8f0fe", gridcolor="#1e3a5f"),
+            yaxis=dict(title="Dalga Hızı (km/h)", color="#4fc3f7"),
+            yaxis2=dict(title="Varış Süresi (dak.)", overlaying="y", side="right",
+                        color="#e74c3c"),
+            paper_bgcolor="#0a1628", plot_bgcolor="#0d1f3c",
+            font=dict(color="#e8f0fe"),
+            legend=dict(bgcolor="rgba(0,0,0,0.5)"),
+            height=370,
+        )
+        st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG)
+
+
+def interaktif_kaf_tektonigi() -> None:
+    """KAF: GPS kayma hızı → sismik moment birikimi → beklenen büyüklük hesaplama."""
+    try:
+        import streamlit as st
+    except ImportError:
+        return
+
+    st.markdown("### KAF Sismik Moment Birikimi Hesaplayıcı")
+    st.caption(
+        "GPS'ten ölçülen kayma hızı, fay geometrisi ve geçen süreye göre "
+        "birikmiş sismik moment ve beklenen maksimum büyüklük hesaplanır."
+    )
+
+    col1, col2 = st.columns([1, 2])
+    with col1:
+        slip_rate_kaf = st.slider(
+            "GPS kayma hızı (mm/yıl)",
+            5, 30, 22, 1, key="kaf_slip_rate",
+            help="KAF batı bölümü: 20-25 mm/yıl (Reilinger 2006)",
+        )
+        fault_length = st.slider(
+            "Fay segmenti uzunluğu (km)",
+            20, 400, 150, 10, key="kaf_fault_length",
+            help="Marmara segmenti: ~150 km | KAF toplam: ~1500 km",
+        )
+        fault_depth = st.slider(
+            "Kilitli fay derinliği (km)",
+            5, 25, 15, 1, key="kaf_fault_depth",
+            help="KAF kilitlenme derinliği: 10-20 km (GPS inversiyonu)",
+        )
+        years_locked = st.slider(
+            "Son büyük depremden beri (yıl)",
+            10, 500, 226, 5, key="kaf_years_locked",
+            help="Marmara: 1766'dan beri = ~260 yıl (2026)",
+        )
+
+        # Sismik moment birikimi: M0 = μ × A × slip
+        mu = 3e10  # Pa (shear modulus)
+        A_m2 = fault_length * 1e3 * fault_depth * 1e3  # m²
+        slip_accum_m = slip_rate_kaf * years_locked / 1e6  # mm/yr → m
+        M0_accum = mu * A_m2 * slip_accum_m  # N·m
+
+        # Mw = (log10(M0) - 9.1) / 1.5
+        mw_equiv = (math.log10(max(M0_accum, 1e10)) - 9.1) / 1.5
+        mw_equiv = round(mw_equiv, 2)
+
+        st.markdown("---")
+        st.metric("📐 Birikmiş kayma", f"{slip_accum_m:.2f} m")
+        st.metric("⚡ Sismik moment M₀", f"{M0_accum:.2e} N·m")
+        st.metric("🎯 Eşdeğer Mw", f"{mw_equiv:.1f}")
+        st.markdown(
+            f"Fay alanı A = {fault_length} × {fault_depth} km² = "
+            f"{fault_length*fault_depth:.0f} km²\n\n"
+            "**⚠️ Kinetik enerji modeli;** sismik kayıp ve sürünme göz ardı edilmemiştir."
+        )
+
+    with col2:
+        # KAF segmentleri kayma açığı çubuk grafiği
+        segments = [
+            ("Erzincan\n(1939, 87 yıl)", 87, 22, "#4fc3f7"),
+            ("Ladik\n(1943, 83 yıl)", 83, 20, "#74b9ff"),
+            ("Bolu\n(1944, 82 yıl)", 82, 21, "#a29bfe"),
+            ("Kocaeli\n(1999, 27 yıl)", 27, 23, "#27ae60"),
+            ("Düzce\n(1999, 27 yıl)", 27, 22, "#2ecc71"),
+            ("Marmara\n(1766, 260 yıl!)", 260, 22, "#e74c3c"),
+        ]
+        seg_names = [s[0] for s in segments]
+        seg_gaps_m = [s[1] * s[2] / 1e3 for s in segments]  # mm/yr × yr → m
+        seg_colors = [s[3] for s in segments]
+
+        fig = go.Figure()
+        fig.add_trace(go.Bar(
+            x=seg_names, y=seg_gaps_m,
+            marker_color=seg_colors,
+            text=[f"{g:.1f} m" for g in seg_gaps_m],
+            textposition="outside",
+            textfont=dict(color="#e8f0fe"),
+            name="Birikmiş kayma açığı (m)",
+        ))
+        fig.add_hline(
+            y=slip_rate_kaf * years_locked / 1e3,
+            line_color="#f39c12", line_dash="dash",
+            annotation_text=f"Seçilen ({years_locked} yıl × {slip_rate_kaf} mm/yr)",
+            annotation_font_color="#f39c12",
+        )
+
+        fig.update_layout(
+            title=dict(
+                text="KAF Segment Kayma Açığı Karşılaştırması",
+                font=dict(color="#e8f0fe"),
+            ),
+            xaxis=dict(title="Segment", color="#e8f0fe"),
+            yaxis=dict(title="Birikmiş Kayma Açığı (metre)",
+                       color="#e8f0fe", gridcolor="#1e3a5f"),
+            paper_bgcolor="#0a1628", plot_bgcolor="#0d1f3c",
+            font=dict(color="#e8f0fe"),
+            height=380,
+        )
+        st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG)
+
+
+def interaktif_erzincan_tarihi() -> None:
+    """Erzincan: BPT olasılıksal kırılma modeli — geçen yıl → 30/50 yıl kırılma olasılığı."""
+    try:
+        import streamlit as st
+    except ImportError:
+        return
+
+    st.markdown("### Erzincan BPT Kırılma Olasılığı Modeli")
+    st.caption(
+        "Brownian Passage Time (Matthews et al. 2002) modeli ile Erzincan "
+        "fayının 30/50 yıllık kırılma olasılığını hesaplar."
+    )
+
+    col1, col2 = st.columns([1, 2])
+    with col1:
+        mu_recurrence = st.slider(
+            "Ortalama tekrar süresi μ (yıl)",
+            100, 500, 280, 10, key="erz_mu",
+            help="Hartleb (2006) paleosismik veri: ~280 ± 60 yıl",
+        )
+        alpha_aperiod = st.slider(
+            "Periyodisite katsayısı α",
+            0.1, 1.0, 0.5, 0.05, key="erz_alpha",
+            help="0 = tam periyodik | 1 = Poisson. Erzincan için ~0.5",
+        )
+        t_last = st.selectbox(
+            "Son büyük deprem yılı",
+            [1939, 1992],
+            key="erz_last_eq",
+            help="M≥7: 1939 | M≥6.5: 1992",
+        )
+
+        current_yr = 2026
+        elapsed = current_yr - t_last
+
+        def bpt_cdf(t_arr: np.ndarray, mu: float, a: float) -> np.ndarray:
+            from scipy.special import erfc as _erfc
+            sqrt_term = np.sqrt(mu / (a**2 * t_arr))
+            term1 = 0.5 * _erfc(sqrt_term * (1.0 - t_arr / mu) / math.sqrt(2))
+            term2 = np.exp(2.0 / a**2) * 0.5 * _erfc(
+                sqrt_term * (1.0 + t_arr / mu) / math.sqrt(2)
+            )
+            return np.clip(term1 + term2, 0, 1)
+
+        try:
+            t_arr = np.linspace(0.1, elapsed + 100, 1000)
+            cdf_all = bpt_cdf(t_arr, mu_recurrence, alpha_aperiod)
+            # Koşullu olasılık: P(kırılma t → t+dt | t'ye kadar kırılmadı)
+            # Hazard: h(t) = f(t) / (1 - F(t))
+            t_future = np.linspace(elapsed, elapsed + 100, 500)
+            cdf_future = bpt_cdf(t_future, mu_recurrence, alpha_aperiod)
+            cdf_elapsed = float(bpt_cdf(np.array([elapsed]), mu_recurrence, alpha_aperiod)[0])
+
+            # Koşullu olasılık 30 yıl
+            cdf_30 = float(bpt_cdf(np.array([elapsed + 30]),
+                                   mu_recurrence, alpha_aperiod)[0])
+            cdf_50 = float(bpt_cdf(np.array([elapsed + 50]),
+                                   mu_recurrence, alpha_aperiod)[0])
+            prob_30 = min(99.9, (cdf_30 - cdf_elapsed) / max(1e-6, 1.0 - cdf_elapsed) * 100)
+            prob_50 = min(99.9, (cdf_50 - cdf_elapsed) / max(1e-6, 1.0 - cdf_elapsed) * 100)
+            use_scipy = True
+        except ImportError:
+            # Scipy yoksa lineer yaklaşım
+            prob_30 = min(99.0, elapsed / mu_recurrence * 80 * 0.6)
+            prob_50 = min(99.0, elapsed / mu_recurrence * 80)
+            use_scipy = False
+
+        st.markdown("---")
+        st.metric(f"Son depremden beri", f"{elapsed} yıl")
+        st.metric("🎲 30-yıl kırılma olasılığı", f"~{prob_30:.1f}%",
+                  delta="BPT koşullu")
+        st.metric("🎲 50-yıl kırılma olasılığı", f"~{prob_50:.1f}%",
+                  delta="BPT koşullu")
+        if not use_scipy:
+            st.caption("⚠️ Scipy yüklenemedi — lineer yaklaşım kullanıldı.")
+        st.markdown(
+            "⚠️ Bu model sismik tehlike tahmini değildir; akademik illüstrasyondur.\n\n"
+            "Kaynak: Matthews et al. (2002) DOI:10.1785/0120010254"
+        )
+
+    with col2:
+        t_plot = np.linspace(1, mu_recurrence * 2.5, 600)
+
+        # BPT PDF (scipy bağımsız)
+        def bpt_pdf_simple(t: np.ndarray, mu: float, a: float) -> np.ndarray:
+            with np.errstate(over="ignore", invalid="ignore"):
+                c = mu / (a**2)
+                pdf = np.sqrt(c / (2 * np.pi * t**3)) * np.exp(
+                    -c * (t - mu)**2 / (2 * mu * t)
+                )
+            return np.where(np.isfinite(pdf), pdf, 0.0)
+
+        pdf_vals = bpt_pdf_simple(t_plot, mu_recurrence, alpha_aperiod)
+        # Normalize
+        dt = t_plot[1] - t_plot[0]
+        pdf_norm = pdf_vals / (pdf_vals.sum() * dt + 1e-12)
+
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=t_plot, y=pdf_norm,
+            mode="lines", line=dict(color="#4fc3f7", width=2.5),
+            fill="tozeroy", fillcolor="rgba(79,195,247,0.10)",
+            name="BPT Olasılık Yoğunluğu",
+        ))
+        # Güncel elapsed
+        fig.add_vline(x=elapsed, line_color="#e74c3c", line_dash="dash", line_width=2.5,
+                      annotation_text=f"{current_yr} ({elapsed} yıl)",
+                      annotation_font_color="#e74c3c",
+                      annotation_position="top right")
+        # 30-yıl pencere
+        pdf_max = pdf_norm.max()
+        fig.add_vrect(x0=elapsed, x1=elapsed + 30,
+                      fillcolor="rgba(231,76,60,0.15)", line_width=0,
+                      annotation_text=f"30-yıl\n~{prob_30:.0f}%",
+                      annotation_font=dict(color="#e74c3c", size=10))
+        # Ortalama tekrar çizgisi
+        fig.add_vline(x=mu_recurrence, line_color="#f39c12", line_dash="dot",
+                      annotation_text=f"μ={mu_recurrence}y",
+                      annotation_font_color="#f39c12",
+                      annotation_position="top left")
+
+        fig.update_layout(
+            title=dict(
+                text=f"BPT Kırılma Olasılığı — μ={mu_recurrence} yıl, α={alpha_aperiod:.2f}",
+                font=dict(color="#e8f0fe"),
+            ),
+            xaxis=dict(title="Son Depremden Beri Geçen Süre (yıl)",
+                       color="#e8f0fe", gridcolor="#1e3a5f"),
+            yaxis=dict(title="Olasılık Yoğunluğu",
+                       color="#e8f0fe", gridcolor="#1e3a5f"),
+            paper_bgcolor="#0a1628", plot_bgcolor="#0d1f3c",
+            font=dict(color="#e8f0fe"),
+            legend=dict(bgcolor="rgba(0,0,0,0.5)"),
+            height=370,
         )
         st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG)
 
