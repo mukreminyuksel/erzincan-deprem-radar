@@ -79,7 +79,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.51"
+APP_VERSION = "1.52"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -2827,12 +2827,42 @@ if active_menu == "🎓 Bilgi Havuzu":
             st.plotly_chart(fig_wave2d, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
             st.markdown("---")
+            # v1.52 — Ajan 6A (Codex önceliği 7): bilimsel atıf + terminoloji
+            # netliği. Mevcut particle grid animasyonu zaten doğru implementasyon:
+            # P longitudinal, S transverse, Rayleigh retrograde elliptic.
+            # Codex önerisi: "particle motion diye sunulmalı, dairesel halka değil" —
+            # mevcut grid bu ilkeye uygun; sadece kaynak atıfları eksikti.
             if "P Dalgası" in wave_type:
-                st.markdown("**P (Primary/Birincil) Dalgası:** İlk ulaşan dalgadır. Parçacıkları ses dalgası gibi sıkıştırıp genleştirerek (yayılım yönünde ileriye-geriye) titreştirir. Yukarıdaki animasyonda dalga geçerken noktaların sağa-sola esnediğini görebilirsiniz.")
+                st.markdown(
+                    "**P (Primary / Birincil / Sıkışma) Dalgası — Longitudinal:**\n\n"
+                    "İlk ulaşan dalgadır (kabukta ~6 km/s). Parçacıkları **yayılım yönünde** "
+                    "ileriye-geriye sıkıştırıp genleştirir (ses dalgası gibi). Gazlar, sıvılar "
+                    "ve katılarda ilerleyebilir. Animasyonda noktaların **sağa-sola esnediğini** "
+                    "görürsünüz.\n\n"
+                    "📚 *Kaynak: Lay & Wallace (1995) Modern Global Seismology; "
+                    "Aki & Richards (2002) Quantitative Seismology Bölüm 4.*"
+                )
             elif "S Dalgası" in wave_type:
-                st.markdown("**S (Secondary/İkincil) Dalgası:** P'den sonra gelir. Parçacıkları ilerleme yönüne dik (yukarı-aşağı) keserek dalgalandırır. Binaları yanal olarak en çok sarsan ve hasar veren dalgalardan biridir.")
+                st.markdown(
+                    "**S (Secondary / İkincil / Kesme) Dalgası — Transverse Shear:**\n\n"
+                    "P'den sonra gelir (kabukta ~3.5 km/s, P'nin √3 katı yavaş). Parçacıkları "
+                    "**ilerleme yönüne dik** (yukarı-aşağı veya yatay shear) keserek "
+                    "dalgalandırır. **Sıvılarda yayılmaz** (Dünya'nın dış çekirdeği bu yüzden "
+                    "S-gölge bölgesi oluşturur). Binaları yanal yıkan ana dalgadır.\n\n"
+                    "📚 *Kaynak: Lay & Wallace (1995); Stein & Wysession (2003) Introduction "
+                    "to Seismology Bölüm 2.4.*"
+                )
             else:
-                st.markdown("**Rayleigh (Yüzey) Dalgası:** Sadece yeryüzüne yakın kısımlarda ilerler. Derinlere indikçe etkisi hızla azalır. Yeryüzündeki parçacıklar geriye doğru eliptik bir yörünge (okyanus dalgası gibi yuvarlanma) çizer. En yıkıcı etkiye sahip dalgalardır.")
+                st.markdown(
+                    "**Rayleigh (Yüzey) Dalgası — Retrograde Elliptic Particle Motion:**\n\n"
+                    "Sadece yeryüzüne yakın katmanlarda ilerler (~2.5 km/s). Derinlere indikçe "
+                    "genlik **eksponansiyel sönümlenir**. Yüzeydeki parçacıklar yayılım yönüne "
+                    "ters yönde **eliptik bir yörünge** çizer (saat yönünün tersi — "
+                    "*retrograde*); okyanus dalgasındaki yuvarlanmanın **tersine** dönüş yönü! "
+                    "Uzun periyot + yüksek genlik nedeniyle **en yıkıcı dalga** kategorisindedir.\n\n"
+                    "📚 *Kaynak: Lord Rayleigh (1885) Proc. Lond. Math. Soc.; "
+                    "Aki & Richards (2002) Bölüm 7; Lay & Wallace (1995) Bölüm 4.5.*"
+                )
 
         else:
             scenarios = {
