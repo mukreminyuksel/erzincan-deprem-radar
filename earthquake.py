@@ -79,7 +79,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.45.3"
+APP_VERSION = "1.45.4"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -609,6 +609,36 @@ st.markdown(f"""
     border-radius: 6px !important;
     padding: 4px 6px !important;
     box-shadow: 0 2px 8px rgba(0,0,0,0.5) !important;
+  }}
+
+  /* v1.45.4 — Plotly ModeBar (zoom/pan/reset/download) HER ZAMAN belirgin
+     Default Plotly opacity 0.3 (hover'da artar) → kullanıcı butonları görmüyordu.
+     Bu CSS modeBar'ı her zaman tam görünür + kontrastlı arka plan + büyük ikon. */
+  .js-plotly-plot .plotly .modebar,
+  div[class*="modebar-container"] {{
+    opacity: 1 !important;
+    visibility: visible !important;
+    background-color: rgba(20, 30, 50, 0.85) !important;
+    border: 1px solid rgba(100, 150, 220, 0.5) !important;
+    border-radius: 6px !important;
+    padding: 3px 5px !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4) !important;
+  }}
+  .js-plotly-plot .plotly .modebar-btn {{
+    opacity: 0.92 !important;
+    color: #e0e8f0 !important;
+    padding: 4px 6px !important;
+  }}
+  .js-plotly-plot .plotly .modebar-btn:hover {{
+    opacity: 1 !important;
+    background-color: rgba(25, 118, 210, 0.4) !important;
+  }}
+  .js-plotly-plot .plotly .modebar-btn path {{
+    fill: #e0e8f0 !important;
+  }}
+  .js-plotly-plot .plotly .modebar-btn.active path,
+  .js-plotly-plot .plotly .modebar-btn:hover path {{
+    fill: #ffd54f !important;  /* hover'da altın sarı */
   }}
 
   .radar-header {{
