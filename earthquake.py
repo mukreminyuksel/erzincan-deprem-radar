@@ -30,11 +30,13 @@ from earthquake_core import (
     event_signature,
     has_active_sources,
     nearest_fault_vertex_distance,
+    normalize_historical_event,
     omori_utsu_rate,
     parse_usgs_feed_features,
     reasenberg_jones_probability,
     safe_html,
     source_agreement_summary,
+    filter_historical_events,
     to_utc_naive,
     usgs_feed_url_for_window,
     utc_now_naive,
@@ -79,7 +81,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.57"
+APP_VERSION = "1.58"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -154,6 +156,56 @@ def render_academic_explanation(
         if disclaimer:
             st.markdown("---")
             st.warning(disclaimer)
+
+HISTORICAL_CATALOG_MODES = [
+    "Güvenilir",
+    "Genişletilmiş",
+    "Paleo + tarihsel",
+]
+
+_CONFIDENCE_COLOR = {
+    "A": "#00e676",
+    "B": "#ffcc00",
+    "C": "#ff8a00",
+    "P": "#aa66ff",
+    "S": "#9e9e9e",
+}
+_CONFIDENCE_SYMBOL = {
+    "A": "circle",
+    "B": "diamond",
+    "C": "circle-open",
+    "P": "square",
+    "S": "x",
+}
+
+
+def _confidence_color(confidence: str) -> str:
+    return _CONFIDENCE_COLOR.get(str(confidence).upper(), "#9e9e9e")
+
+
+def _confidence_symbol(confidence: str) -> str:
+    return _CONFIDENCE_SYMBOL.get(str(confidence).upper(), "circle")
+
+
+def _historical_hover(event: dict, include_fault: bool = False) -> str:
+    year_unc = event.get("year_uncertainty", 0)
+    mw_unc = event.get("mw_uncertainty", 0)
+    year_label = f"{int(event['yil'])}" if not year_unc else f"{int(event['yil'])} ± {year_unc}"
+    mw_label = f"~{float(event['mw']):.1f}" if event.get("mw") is not None else "?"
+    if mw_unc:
+        mw_label += f" ± {mw_unc}"
+    fault_line = f"Fay: {event.get('fay', '?')}<br>" if include_fault else ""
+    return (
+        f"<b>{event.get('yer', 'Tarihsel olay')}</b><br>"
+        f"Yıl: {year_label}<br>"
+        f"Mw: {mw_label}<br>"
+        f"{fault_line}"
+        f"Güven: {event.get('confidence_label', event.get('confidence', '?'))}<br>"
+        f"Kanıt: {event.get('evidence', '?')}<br>"
+        f"Kaynak: {event.get('kaynak', '?')}<br>"
+        f"<i>⚠️ {event.get('note', 'Yaklaşık kayıt')}</i>"
+        "<extra></extra>"
+    )
 
 def mag_emoji(m):
     try: m = float(m)
@@ -2874,15 +2926,23 @@ if active_menu == "🎓 Bilgi Havuzu":
                     "varsayımının ötesine geçen, tetiklenmiş çoklu segment olayı (Melgar et al. 2023, *Seism. Res. Lett.*).\n\n"
                     "**Slip-deficit (kayma açığı) yorumu:** Bir fay segmentinde son depremden bu yana geçen süre × tektonik "
                     "kayma hızı = beklenen toplam atım. Bu açık ≥ karakteristik atımın %70'i olduğunda segment "
-                    "**'olgun'** (mature) kabul edilir. **Erzincan segmenti** için 1939'dan bu yana 87 yıl × 24 mm/yr ≈ 2.1 m "
-                    "birikmiş açık (karakteristik 4 m'nin %52'si) — yani şu an istatistiksel olarak henüz tam olgun değildir, "
-                    "ancak Kuzey Anadolu Fayı'nın **batı yönünde göç eden tetikleme** dizisi (Stein-Barka-Dieterich 1997) "
-                    "Erzincan-Tercan segmentini etkileyebilir."
+                    "**'olgun'** (mature) kabul edilir. **Erzincan segmenti** için 1939'dan 2026'ya yaklaşık 86–87 yıl geçti. "
+                    "Literatürde KAF doğu/orta kesimi için kayma hızı **yöntem-bağımlı** olarak değişir: paleosismik ve "
+                    "morfotektonik çalışmalar (Kozacı et al. 2009, Hubert-Ferrari et al. 2002) için ≈ **18–21 mm/yr**, "
+                    "GPS jeodezisi (Reilinger et al. 2006; Yedisu/Erzincan GPS bütçesi) için ≈ **22–24 mm/yr** "
+                    "(Yedisu segmenti literatür incelemesi: Kürçer & Gökten 2017, *J. Seismol.*). "
+                    "Bu aralıkla birikmiş göreli kayma açığı yaklaşık **1.6–2.1 m** olur — 1939 için varsayılan ≈ 4 m "
+                    "karakteristik atımın yaklaşık **%40–52**'sine karşılık gelir. "
+                    "*Bu değer **deprem zamanı tahmini değildir**; yalnızca lineer intersismik birikim ölçeğidir* "
+                    "(Geller 1997). Ayrıca KAF'ın **batı yönünde göç eden tetikleme** dizisi (Stein-Barka-Dieterich 1997) "
+                    "Erzincan-Tercan segmentini Coulomb stres transferi yoluyla etkileyebilir."
                 ),
                 limitations=(
-                    "1. **Tekrar aralığı 'sabit' değildir:** Reid 1910'un orijinal modeli düzenli (periodic) tekrar varsayar; "
-                    "ancak Kagan & Jackson 1991 (BSSA) gibi sonraki çalışmalar **küme (clustering)** ve **uzun sessizlik** "
-                    "(supercycle) örüntülerini gösterir. KAF için %30–50 değişkenlik tipiktir.\n"
+                    "1. **Tekrar aralığı 'sabit' değildir — ama KAF görece düzenli:** Reid 1910'un orijinal modeli düzenli "
+                    "(periodic) tekrar varsayar; Kagan & Jackson 1991 (BSSA) gibi çalışmalar global olarak **küme (clustering)** "
+                    "ve **uzun sessizlik** (supercycle) örüntüleri gösterir. KAF orta/doğu için ise Kozacı et al. 2015 (GJI) "
+                    "paleosismik kayıtlarda **görece düzenli** tekrar bulur (≈ %20–30 değişkenlik); bu yine de tek-segment için "
+                    "tahmin yapılamayacağı anlamına gelir.\n"
                     "2. **Kayma açığı ≠ deprem tahmini:** Birikmiş kayma açığı *artmış olasılık* anlamına gelir, "
                     "**ne zaman olacağını söylemez** (Geller 1997, *Science*: 'earthquakes cannot be predicted').\n"
                     "3. **Modelin tekil-fay sınırı:** 2023 Maraş çift kırılması, 2002 Denali (M7.9, 3 fay zinciri) gibi olaylar "
@@ -2925,6 +2985,16 @@ if active_menu == "🎓 Bilgi Havuzu":
                     "and slip rates along the North Anatolian Fault, Turkey. *JGR*, 107(B10), 2235. "
                     "DOI: [10.1029/2001JB000393](https://doi.org/10.1029/2001JB000393) "
                     "— *KAF Erzincan segmenti kayma hızı ve karakteristik atım.*",
+                    "**Kozacı, Ö., Dolan, J. F., Yönlü, Ö., & Hartleb, R. D. (2011 / GJI 2015 derlemesi).** Paleoseismologic "
+                    "evidence for the relatively uniform recurrence of large earthquakes along the central North Anatolian Fault. "
+                    "*Geophysical Journal International*, 202(3), 2133–2149. "
+                    "[academic.oup.com/gji/article/202/3/2133/614779](https://academic.oup.com/gji/article/202/3/2133/614779) "
+                    "— *KAF doğu/orta segmentinde paleosismik kayma hızı 18–21 mm/yr aralığı.*",
+                    "**Kürçer, A., & Gökten, Y. E. (2017).** Paleoseismological three dimensional virtual photography method; a "
+                    "case study: Bağlarkayası-2010 trench, Tuzla Fault, Aegean Extensional Province, Türkiye / Yedisu segmenti "
+                    "incelemesi. *Journal of Seismology*. "
+                    "[link.springer.com/article/10.1007/s10950-017-9673-1](https://link.springer.com/article/10.1007/s10950-017-9673-1) "
+                    "— *Yedisu/Erzincan çevresi KAF kayma hızı yöntem-bağımlı (paleosismik vs. GPS) aralık karşılaştırması.*",
                     "**Geller, R. J. (1997).** Earthquake prediction: a critical review. *Geophysical Journal International*, "
                     "131(3), 425–450. DOI: "
                     "[10.1111/j.1365-246X.1997.tb06588.x](https://doi.org/10.1111/j.1365-246X.1997.tb06588.x) "
@@ -5917,6 +5987,19 @@ def _kaf_mta_polylines():
 
 ERZINCAN_TARIHI = [
     {
+        "yil": 1268, "tarih": "1268 (ay/gün belirsiz)", "mw": 7.5, "ms": None,
+        "lat": 39.75, "lon": 39.50, "derinlik_km": None,
+        "kirik_uzunluk_km": None, "kirik_yon": "KAF Erzincan segmenti? (yaklaşık)",
+        "can_kaybi": None, "yarali": None, "hasarli_koy": None,
+        "etki_alani_km2": None,
+        "kaynak": "Ambraseys, N.N. (2009). Earthquakes in the Mediterranean and Middle East. Cambridge University Press.",
+        "kaynak2": "Ermeni vakanüvis kayıtları; episantr ve Mw makrosismik yorumdur.",
+        "bilgi": "Erzincan çevresinde bildirilen büyük tarihsel deprem. Konum ve büyüklük modern aletsel çözüm değildir.",
+        "vay_be": "Bu olay, Erzincan segmentinin yalnızca 20. yüzyılda değil Orta Çağ kayıtlarında da yıkıcı deprem ürettiğini gösteren tarihsel bağlamdır.",
+        "confidence": "B", "year_uncertainty": 30, "mw_uncertainty": 0.3,
+        "note": "Yaklaşık tarihsel episantr; kesin rupture trace değildir.",
+    },
+    {
         "yil": 1939, "tarih": "26 Aralık 1939", "mw": 7.8, "ms": 7.8,
         "lat": 39.77, "lon": 39.53, "derinlik_km": 20,
         "kirik_uzunluk_km": 360, "kirik_yon": "WSW-ENE (~N75E sağ-yanal doğrultu atımlı, KAF)",
@@ -5926,6 +6009,8 @@ ERZINCAN_TARIHI = [
         "kaynak2": "Ambraseys, N.N. & Finkel, C.F. (1995). The Seismicity of Turkey. Muhittin Salih Eren, İstanbul.",
         "bilgi": "20. yüzyılın en yıkıcı Türkiye depremlerinden biri. 360 km'lik KAF segmenti kırıldı.",
         "vay_be": "O gece saat 01:57'de uyku sırasında gerçekleşti. Yapılar 8-10 saniye içinde yıkıldı.",
+        "confidence": "A", "year_uncertainty": 0, "mw_uncertainty": 0.2,
+        "note": "Aletsel/tarihsel güçlü kayıt; Ms/Mw ölçek farkı belirsizlik taşır.",
     },
     {
         "yil": 1992, "tarih": "13 Mart 1992", "mw": 6.8, "ms": 6.8,
@@ -5937,6 +6022,8 @@ ERZINCAN_TARIHI = [
         "kaynak2": "Grosser, H. et al. (1998). The Erzincan (Turkey) earthquake sequence of March 1992. Geophys. J. Int., 134, 669-700.",
         "bilgi": "55 km'lik segmentte kırılma. Artçı deprem dizisi 6 ay sürdü. Saat 18:17'de oldu.",
         "vay_be": "Deprem tam akşam yemeği saatinde geldi. Şehrin eski taş binaları yıkılırken yeni yapılar ayakta kaldı — zemin etkisinin en çarpıcı kanıtı.",
+        "confidence": "A", "year_uncertainty": 0, "mw_uncertainty": 0.1,
+        "note": "Aletsel kayıt; artçı dizisi ve mekanizma modern çalışmalarla desteklenir.",
     },
     {
         "yil": 1784, "tarih": "1784 (kesin tarih belirsiz)", "mw": 7.0, "ms": None,
@@ -5948,6 +6035,8 @@ ERZINCAN_TARIHI = [
         "kaynak2": None,
         "bilgi": "Osmanlı dönemi tarihi kayıtlardan derlendi. KAF Erzincan segmentinin periyodik kırılmasını destekler.",
         "vay_be": "Yazılı tarih bu depremi kaydetti — fay 1939'dan 155 yıl önce de aynı yerde kırılmıştı.",
+        "confidence": "B", "year_uncertainty": 20, "mw_uncertainty": 0.4,
+        "note": "Tarihsel kayıt; kesin gün/rupture trace bilinmez.",
     },
     {
         "yil": 1901, "tarih": "9 Mayıs 1901", "mw": 6.5, "ms": None,
@@ -5959,6 +6048,8 @@ ERZINCAN_TARIHI = [
         "kaynak2": None,
         "bilgi": "1939 öncesi bölgede kaydedilen orta büyüklükte deprem.",
         "vay_be": None,
+        "confidence": "B", "year_uncertainty": 0, "mw_uncertainty": 0.3,
+        "note": "Aletsel dönem başı/tarihsel derleme; katalog kesinliği sınırlıdır.",
     },
 ]
 
@@ -5970,12 +6061,24 @@ def _render_erzincan_arsivi():
         unsafe_allow_html=True,
     )
     st.caption(
-        "1784–1992 arası Erzincan ve çevresinde Kuzey Anadolu Fayı (KAF) Erzincan segmentinde "
+        "1268–1992 arası Erzincan ve çevresinde Kuzey Anadolu Fayı (KAF) Erzincan segmentinde "
         "gerçekleşen büyük depremlerin bilimsel arşivi. Kaynaklar: Ambraseys & Finkel 1995, "
-        "Barka 1996, Özalaybey 1993, Grosser 1998, Reilinger 2006."
+        "Ambraseys 2009, Barka 1996, Özalaybey 1993, Grosser 1998, Reilinger 2006."
     )
 
-    df_e = pd.DataFrame(ERZINCAN_TARIHI)
+    katalog_modu = st.selectbox(
+        "Katalog modu",
+        options=HISTORICAL_CATALOG_MODES,
+        index=1,
+        key="erz_arsiv_catalog_mode",
+        help="Güvenilir = aletsel/modern; Genişletilmiş = tarihsel kayıtlar; Paleo + tarihsel = belirsizlikli paleo kayıtlar da dahil.",
+    )
+    erz_events = filter_historical_events(ERZINCAN_TARIHI, katalog_modu)
+    df_e = pd.DataFrame(erz_events)
+    st.caption(
+        "Güven işaretleri: 🟢 A aletsel · 🟡 B güçlü tarihsel · 🟠 C zayıf tarihsel · "
+        "🟣 P paleosismik · ⚪ S tartışmalı. 1900 öncesi olaylar kesin episantr/kırık izi değildir."
+    )
 
     # ── Bölüm A: Özet metrik kartları ──────────────────────────────────────
     cA1, cA2, cA3, cA4 = st.columns(4)
@@ -5989,7 +6092,9 @@ def _render_erzincan_arsivi():
                help="Barka 1996; Reilinger et al. 2006 GPS")
 
     # ── Bölüm B: İnteraktif zaman çizelgesi (Plotly scatter) ───────────────
-    st.markdown('<div class="chart-title">⏱️ Zaman Çizelgesi (1700–2026)</div>',
+    x_min = int(df_e["yil"].min()) - 80
+    x_max = 2030
+    st.markdown(f'<div class="chart-title">⏱️ Zaman Çizelgesi ({x_min}–2026)</div>',
                 unsafe_allow_html=True)
 
     casualty = df_e["can_kaybi"].fillna(0).astype(float).clip(lower=0)
@@ -5998,7 +6103,7 @@ def _render_erzincan_arsivi():
     fig_tl = go.Figure()
     # Karakteristik Mw 7.8 eşik şeridi (arka plan)
     fig_tl.add_shape(
-        type="rect", x0=1700, x1=2030, y0=7.7, y1=8.0,
+        type="rect", x0=x_min, x1=2030, y0=7.7, y1=8.0,
         fillcolor="rgba(200,200,200,0.12)", line=dict(width=0), layer="below",
     )
     fig_tl.add_annotation(
@@ -6010,6 +6115,8 @@ def _render_erzincan_arsivi():
         df_e["tarih"].fillna("?").astype(str).values,
         df_e["can_kaybi"].fillna(-1).astype(float).values,
         df_e["kaynak"].fillna("?").astype(str).values,
+        df_e["confidence_label"].fillna("?").astype(str).values,
+        df_e["note"].fillna("?").astype(str).values,
     ], axis=-1)
 
     fig_tl.add_trace(go.Scatter(
@@ -6017,12 +6124,11 @@ def _render_erzincan_arsivi():
         mode="markers+text",
         marker=dict(
             size=bubble,
-            color=df_e["mw"],
-            colorscale="Reds", cmin=6.0, cmax=8.0,
-            showscale=True,
-            colorbar=dict(title="Mw", thickness=12, len=0.7),
+            color=[_confidence_color(c) for c in df_e["confidence"]],
+            symbol=[_confidence_symbol(c) for c in df_e["confidence"]],
             line=dict(width=1, color="#fff"),
         ),
+        error_x=dict(type="data", array=df_e["year_uncertainty"].fillna(0), color="rgba(255,255,255,0.35)", thickness=1.4, width=8),
         text=df_e["yil"].astype(str),
         textposition="top center",
         textfont=dict(size=10, color="#fff"),
@@ -6031,7 +6137,9 @@ def _render_erzincan_arsivi():
             "<b>%{customdata[0]}</b><br>"
             "Mw: %{y:.1f}<br>"
             "Can kaybı: %{customdata[1]}<br>"
-            "<i>%{customdata[2]}</i><extra></extra>"
+            "Güven: %{customdata[3]}<br>"
+            "Kaynak: %{customdata[2]}<br>"
+            "<i>⚠️ %{customdata[4]}</i><extra></extra>"
         ),
         name="Tarihi depremler",
     ))
@@ -6039,7 +6147,7 @@ def _render_erzincan_arsivi():
         height=380,
         plot_bgcolor=BG2, paper_bgcolor=BG2,
         font=dict(color=TEXT, size=11),
-        xaxis=dict(title="Yıl", range=[1700, 2030], gridcolor="#222"),
+        xaxis=dict(title="Yıl", range=[x_min, x_max], gridcolor="#222"),
         yaxis=dict(title="Mw", range=[5.8, 8.3], gridcolor="#222"),
         margin=dict(t=20, b=40, l=50, r=20),
         showlegend=False,
@@ -6103,10 +6211,11 @@ def _render_erzincan_arsivi():
     fig_map.add_trace(go.Scattermapbox(
         lon=df_e["lon"], lat=df_e["lat"],
         mode="markers",
-        marker=dict(size=df_e["mw"] * 4 + 4, color="#ffcc00",
-                    opacity=0.85),
-        text=[f"{r['tarih']} — Mw {r['mw']}" for r in ERZINCAN_TARIHI],
-        hovertemplate="<b>%{text}</b><extra></extra>",
+        marker=dict(size=df_e["mw"] * 4 + 4,
+                    color=[_confidence_color(c) for c in df_e["confidence"]],
+                    opacity=0.88),
+        text=[_historical_hover(r) for r in erz_events],
+        hovertemplate="%{text}",
         name="Tarihi depremler",
     ))
     # Erzincan merkez
@@ -6147,15 +6256,16 @@ def _render_erzincan_arsivi():
 
     secim = st.selectbox(
         "Bir deprem seç:",
-        options=[f"{e['yil']} — {e['tarih']} (Mw {e['mw']})" for e in ERZINCAN_TARIHI],
+        options=[f"{e['yil']} — {e['tarih']} (Mw {e['mw']})" for e in erz_events],
         index=0, key="erz_arsiv_select",
     )
     secim_yil = int(secim.split(" — ")[0])
-    eq = next(e for e in ERZINCAN_TARIHI if e["yil"] == secim_yil)
+    eq = next(e for e in erz_events if e["yil"] == secim_yil)
 
     cd1, cd2 = st.columns(2)
     with cd1:
         st.markdown(f"### {eq['tarih']} — Mw {eq['mw']}")
+        st.markdown(f"**Güven sınıfı:** {eq.get('confidence_label', eq.get('confidence'))}")
         st.markdown(f"**📍 Konum:** {eq['lat']:.2f}°N {eq['lon']:.2f}°E")
         if eq.get("ms"):
             st.markdown(f"**📐 Yüzey büyüklüğü (Ms):** {eq['ms']}")
@@ -6539,51 +6649,30 @@ def _render_sismik_acik():
     # Kullanıcı checkbox ile aç/kapat — tooltip "yaklaşık epicenter, kırık izi
     # değildir" disclaimer (Codex bilimsel namus uyarısı).
     _show_historic = st.checkbox(
-        "🏛️ Tarihsel deprem epicenter overlay (Mw ≥ 6.4, 1912-2023)",
+        "🏛️ Tarihsel deprem epicenter overlay (Mw ≥ 6.4)",
         value=True, key="kaf_sismik_acik_historic_overlay",
         help="Türkiye tarihsel ana depremleri (~20 olay) — kırık izi DEĞİL, "
              "yaklaşık episantr noktaları. Kaynak: Ambraseys 2002 + AFAD + USGS."
     )
     if _show_historic:
-        # (yıl, ay, gün, lat, lon, Mw, isim, kaynak)
+        overlay_modu = st.selectbox(
+            "Overlay katalog modu",
+            options=HISTORICAL_CATALOG_MODES,
+            index=1,
+            key="kaf_sismik_acik_overlay_mode",
+        )
         _historic_events = [
-            (1912,  8,  9, 40.60, 27.00, 7.4, "Saros (Mürefte)",       "Ambraseys 2002"),
-            (1939, 12, 26, 39.80, 39.51, 7.8, "Erzincan",              "Barka 1996"),
-            (1942, 12, 20, 40.87, 36.47, 7.0, "Niksar-Erbaa",          "Barka 1996"),
-            (1943, 11, 26, 41.05, 33.72, 7.6, "Tosya-Ladik",           "Stein 1997"),
-            (1944,  2,  1, 41.05, 32.59, 7.4, "Gerede-Bolu",           "Stein 1997"),
-            (1953,  3, 18, 39.99, 27.36, 7.2, "Yenice-Gönen",          "Ambraseys 1988"),
-            (1957,  5, 26, 40.67, 31.00, 7.1, "Abant",                 "Ambraseys 2002"),
-            (1966,  8, 19, 39.17, 41.56, 6.9, "Varto",                 "USGS"),
-            (1967,  7, 22, 40.67, 30.69, 7.1, "Mudurnu Vadisi",        "Ambraseys 1988"),
-            (1976, 11, 24, 39.05, 44.04, 7.3, "Çaldıran-Muradiye",     "USGS"),
-            (1983, 10, 30, 40.33, 42.19, 6.9, "Erzurum-Kars (Horasan)","USGS"),
-            (1992,  3, 13, 39.71, 39.60, 6.8, "Erzincan",              "Özalaybey 1993"),
-            (1999,  8, 17, 40.75, 29.86, 7.6, "İzmit (Gölcük)",        "USGS / Reilinger 2000"),
-            (1999, 11, 12, 40.79, 31.21, 7.2, "Düzce",                 "Akyüz 2002"),
-            (2003,  5,  1, 38.94, 40.51, 6.4, "Bingöl",                "USGS"),
-            (2011, 10, 23, 38.72, 43.51, 7.1, "Van-Tabanlı",           "USGS / AFAD"),
-            (2020,  1, 24, 38.39, 39.06, 6.8, "Elazığ-Sivrice",        "AFAD"),
-            (2020, 10, 30, 37.90, 26.78, 6.9, "İzmir (Samos açıkları)","AFAD / USGS"),
-            (2023,  2,  6, 37.17, 37.08, 7.8, "Kahramanmaraş-Pazarcık","AFAD / USGS"),
-            (2023,  2,  6, 38.02, 37.20, 7.5, "Kahramanmaraş-Elbistan","AFAD / USGS"),
+            ev for ev in filter_historical_events(_TARIHSEL_OLAYLAR, overlay_modu)
+            if float(ev.get("mw") or 0) >= 6.4
         ]
-        _h_lats = [e[3] for e in _historic_events]
-        _h_lons = [e[4] for e in _historic_events]
-        _h_mws  = [e[5] for e in _historic_events]
-        _h_texts = [
-            f"<b>{e[6]}</b> ({e[0]})<br>Mw {e[5]:.1f}<br>"
-            f"Tarih: {e[2]:02d}.{e[1]:02d}.{e[0]}<br>"
-            f"Konum: {e[3]:.2f}°N, {e[4]:.2f}°E<br>"
-            f"Kaynak: {e[7]}<br>"
-            f"<i>⚠️ Yaklaşık episantr — kırık izi değil</i>"
-            for e in _historic_events
-        ]
+        _h_lats = [e["lat"] for e in _historic_events]
+        _h_lons = [e["lon"] for e in _historic_events]
+        _h_mws  = [e["mw"] for e in _historic_events]
+        _h_texts = [_historical_hover(e) for e in _historic_events]
         # Marker boyutu Mw'ye göre orantılı (6.4 → ~10px, 7.8 → ~22px)
         _h_sizes = [max(8, (mw - 5.5) * 9) for mw in _h_mws]
         # Marker rengi: Mw ≥ 7.5 koyu kırmızı, 7.0-7.5 turuncu, <7.0 sarı
-        _h_colors = ["#b71c1c" if mw >= 7.5 else "#e65100" if mw >= 7.0 else "#f9a825"
-                     for mw in _h_mws]
+        _h_colors = [_confidence_color(e["confidence"]) for e in _historic_events]
         fig_map.add_trace(go.Scattermapbox(
             lat=_h_lats, lon=_h_lons, mode="markers",
             marker=dict(size=_h_sizes, color=_h_colors,
@@ -8535,6 +8624,18 @@ def _render_tarihsel_sismisite():
     with st.expander("🎓 Bilim Notu — 2000 Yıllık Sismisite & Kataloglar", expanded=False):
         st.markdown(_SCIENCE_NOTES.get("tarihi_sismisite", ""))
 
+    katalog_modu = st.selectbox(
+        "Katalog modu",
+        options=HISTORICAL_CATALOG_MODES,
+        index=1,
+        key="tarihsel_catalog_mode",
+        help="Güvenilir = aletsel; Genişletilmiş = tarihsel katalog; Paleo + tarihsel = belirsizlikli kayıtlar da dahil.",
+    )
+    st.caption(
+        "Güven işaretleri: 🟢 A aletsel · 🟡 B güçlü tarihsel · 🟠 C zayıf tarihsel · "
+        "🟣 P paleosismik · ⚪ S tartışmalı. Tarihsel Mw ve konumlar makrosismik yorumdur."
+    )
+
     # ── Yüzyıl filtresi ────────────────────────────────────────────────────
     col_yy, col_mag = st.columns([2, 1])
     with col_yy:
@@ -8551,7 +8652,8 @@ def _render_tarihsel_sismisite():
         )
 
     yy_min, yy_max = yuzyil_range
-    df_h = pd.DataFrame(_TARIHSEL_OLAYLAR)
+    tarihsel_events = filter_historical_events(_TARIHSEL_OLAYLAR, katalog_modu)
+    df_h = pd.DataFrame(tarihsel_events)
     df_h["yuzyil"] = ((df_h["yil"] - 1) // 100) + 1
     df_filt = df_h[(df_h["yuzyil"] >= yy_min) & (df_h["yuzyil"] <= yy_max) & (df_h["mw"] >= min_mw)]
     df_filt = df_filt.sort_values("yil").reset_index(drop=True)
@@ -8564,14 +8666,8 @@ def _render_tarihsel_sismisite():
     fig_map = go.Figure()
     for _, ev in df_filt.iterrows():
         size = 8 + (ev["mw"] - 6.5) * 5
-        renk = _yuzyil_renk(int(ev["yuzyil"]))
-        hover = (
-            f"<b>{ev['yer']}</b> ({int(ev['yil'])})<br>"
-            f"Mw ~{ev['mw']:.1f}<br>"
-            f"Yüzyıl: {int(ev['yuzyil'])}.<br>"
-            f"Kaynak: {ev['kaynak']}"
-            "<extra></extra>"
-        )
+        renk = _confidence_color(ev["confidence"])
+        hover = _historical_hover(ev.to_dict())
         fig_map.add_trace(go.Scattermapbox(
             lat=[ev["lat"]], lon=[ev["lon"]],
             mode="markers",
@@ -8597,12 +8693,19 @@ def _render_tarihsel_sismisite():
         mode="markers",
         marker=dict(
             size=8 + (df_filt["mw"] - 6.5) * 5,
-            color=df_filt["yuzyil"].apply(_yuzyil_renk).tolist(),
+            color=[_confidence_color(c) for c in df_filt["confidence"]],
+            symbol=[_confidence_symbol(c) for c in df_filt["confidence"]],
             opacity=0.85,
             line=dict(color="#000", width=0.4),
         ),
+        error_x=dict(type="data", array=df_filt["year_uncertainty"].fillna(0), color="rgba(255,255,255,0.3)", thickness=1.2, width=7),
         text=df_filt["yer"],
-        hovertemplate="<b>%{text}</b><br>Yıl: %{x}<br>Mw ~%{y:.1f}<extra></extra>",
+        customdata=np.stack([
+            df_filt["confidence_label"].astype(str).values,
+            df_filt["kaynak"].astype(str).values,
+            df_filt["note"].astype(str).values,
+        ], axis=-1),
+        hovertemplate="<b>%{text}</b><br>Yıl: %{x}<br>Mw ~%{y:.1f}<br>Güven: %{customdata[0]}<br>Kaynak: %{customdata[1]}<br><i>⚠️ %{customdata[2]}</i><extra></extra>",
         showlegend=False,
     ))
     # Ortalama tekrar referansı
@@ -8641,8 +8744,8 @@ def _render_tarihsel_sismisite():
 
     # ── Tablo ─────────────────────────────────────────────────────────────
     st.markdown('<div class="chart-title">📋 Tarihsel Olaylar Listesi</div>', unsafe_allow_html=True)
-    df_show = df_filt[["yil", "yer", "mw", "kaynak"]].copy()
-    df_show.columns = ["Yıl (MS)", "Yer", "Mw (tahmin)", "Tarihsel kaynak"]
+    df_show = df_filt[["yil", "year_uncertainty", "yer", "mw", "mw_uncertainty", "confidence_label", "kaynak"]].copy()
+    df_show.columns = ["Yıl (MS)", "±Yıl", "Yer", "Mw (tahmin)", "±Mw", "Güven", "Tarihsel kaynak"]
     df_show = df_show.sort_values("Yıl (MS)").reset_index(drop=True)
     st.dataframe(df_show, use_container_width=True, hide_index=True, height=380)
 
@@ -10394,8 +10497,18 @@ if active_menu == "⏱️ Tsunami Varış":
 # Plotly frames animasyonu için ana KAF batıya göç dizisi (1668-1999)
 # + tarihi öncesi (Ambraseys) + 2023 doğu kuşak (DAF) zenginleştirildi
 _AMBRASEYS_DIZISI = [
+    # Genişletilmiş paleo + tarihsel bağlam (ana 1939→1999 göç anlatısına doğrudan kanıt değildir)
+    {"yil": -100, "yer": "Yaylabeli paleo",       "lat": 39.78, "lon": 39.50, "mw": 7.0, "fay": "KAF Erzincan?", "confidence": "P", "year_uncertainty": 150, "kaynak": "Kozacı 2007 / Hartleb 2006", "note": "Paleosismik pencere; kesin yıl ve episantr değildir."},
+    {"yil": 250,  "yer": "Yaylabeli paleo",       "lat": 39.78, "lon": 39.50, "mw": 7.0, "fay": "KAF Erzincan?", "confidence": "P", "year_uncertainty": 120, "kaynak": "Kozacı 2007 14C", "note": "Paleosismik pencere; kesin yıl ve episantr değildir."},
+    {"yil": 358,  "yer": "Nicomedia (İzmit)",     "lat": 40.77, "lon": 29.92, "mw": 7.4, "fay": "Marmara/KAF?", "confidence": "C", "kaynak": "Ammianus Marcellinus; Ambraseys 2009", "note": "Antik tarihsel kayıt; segment eşleşmesi tartışmalıdır."},
+    {"yil": 740,  "yer": "Konstantinopolis",      "lat": 40.85, "lon": 28.20, "mw": 7.1, "fay": "Marmara?", "confidence": "C", "kaynak": "Ambraseys 2009", "note": "Tarihsel hasar kaydı; episantr ve Mw yaklaşık."},
+    {"yil": 870,  "yer": "Yaylabeli paleo",       "lat": 39.78, "lon": 39.50, "mw": 7.0, "fay": "KAF Erzincan?", "confidence": "P", "year_uncertainty": 80, "kaynak": "Kozacı 2007 14C", "note": "Paleosismik pencere; kesin yıl ve episantr değildir."},
+    {"yil": 1063, "yer": "Marmara",               "lat": 40.80, "lon": 28.50, "mw": 7.2, "fay": "KAF Marmara?", "confidence": "B", "kaynak": "Skylitzes; Ambraseys 2002", "note": "Güçlü tarihsel kayıt; rupture trace kesin değildir."},
+    {"yil": 1180, "yer": "Yaylabeli paleo",       "lat": 39.78, "lon": 39.50, "mw": 7.0, "fay": "KAF Erzincan?", "confidence": "P", "year_uncertainty": 60, "kaynak": "Kozacı 2007 14C", "note": "Paleosismik pencere; kesin yıl ve episantr değildir."},
+    {"yil": 1268, "yer": "Erzincan",              "lat": 39.75, "lon": 39.50, "mw": 7.5, "fay": "KAF doğu?", "confidence": "B", "kaynak": "Ermeni vakanüvis; Ambraseys 2009", "note": "Yaklaşık tarihsel episantr; kırık izi kesin değildir."},
+    {"yil": 1509, "yer": "İstanbul",              "lat": 41.00, "lon": 28.97, "mw": 7.2, "fay": "KAF Marmara?", "confidence": "B", "kaynak": "Osmanlı vakanüvis; Ambraseys 2009", "note": "Tarihsel hasar kaydı; segment eşleşmesi yorumdur."},
     # KAF doğu kesim (tarihsel)
-    {"yil": 1668, "yer": "Amasya-Niksar",       "lat": 40.65, "lon": 35.80, "mw": 8.0, "fay": "KAF doğu"},
+    {"yil": 1668, "yer": "Amasya-Niksar",       "lat": 40.65, "lon": 35.80, "mw": 8.0, "fay": "KAF doğu", "confidence": "B", "year_uncertainty": 10, "kaynak": "Ambraseys & Finkel 1995", "note": "KAF ana tarihsel sekansı için güçlü ama aletsel olmayan kayıt."},
     {"yil": 1719, "yer": "İzmit (İlk Marmara)", "lat": 40.75, "lon": 30.00, "mw": 7.4, "fay": "KAF batı"},
     {"yil": 1766, "yer": "Marmara büyük",       "lat": 40.80, "lon": 29.00, "mw": 7.1, "fay": "KAF batı (Marmara)"},
     {"yil": 1784, "yer": "Erzincan",            "lat": 39.80, "lon": 39.30, "mw": 7.6, "fay": "KAF doğu"},
@@ -10429,12 +10542,30 @@ def _render_ambraseys_animasyon():
     st.info(
         "🎬 **KAF Batıya Göç (Stein 1997):** 1939 Erzincan'dan başlayarak NAFZ üzerinde "
         "büyük depremler batıya doğru bir 'tren güzergahı' gibi ilerledi. Bu animasyon "
-        "1668 Amasya'dan 2023 Pazarcık'a kadar olayları zamanda ileri sarar. "
+        "1668 Amasya ana sekansı ve isteğe bağlı daha eski tarihsel/paleo bağlamı zamanda ileri sarar. "
         "**Ambraseys (2009) Cambridge UP** + **Barka (1996) BSSA 86** + "
         "**Stein, Barka & Dieterich (1997) GJI 128** birleşik veri."
     )
 
-    df_a = pd.DataFrame(_AMBRASEYS_DIZISI).sort_values("yil").reset_index(drop=True)
+    anim_modu = st.selectbox(
+        "Animasyon kapsamı",
+        options=["KAF ana sekans (1668+)", "Genişletilmiş tarihsel", "Paleo + tarihsel"],
+        index=0,
+        key="ambraseys_catalog_mode",
+        help="1668+ ana sekans klasik KAF batıya göç anlatısıdır. Daha eski kayıtlar belirsizlik/güven sınıfıyla eğitimsel bağlam olarak gösterilir.",
+    )
+    if anim_modu.startswith("KAF"):
+        anim_events = [
+            normalize_historical_event(ev) for ev in _AMBRASEYS_DIZISI
+            if int(ev["yil"]) >= 1668
+        ]
+    else:
+        anim_events = filter_historical_events(_AMBRASEYS_DIZISI, anim_modu)
+    df_a = pd.DataFrame(anim_events).sort_values("yil").reset_index(drop=True)
+    st.caption(
+        "Güven işaretleri: 🟢 A aletsel · 🟡 B güçlü tarihsel · 🟠 C zayıf tarihsel · "
+        "🟣 P paleosismik. 1668 öncesi olaylar ana batıya göç kanıtı değil, bağlamsal/paleo-tarihsel kayıttır."
+    )
 
     # ── Animasyonlu scatter — her frame = bir yıl, kümülatif gösterim ──────
     yillar = sorted(df_a["yil"].unique())
@@ -10448,7 +10579,7 @@ def _render_ambraseys_animasyon():
             # Yeni olan parlak kırmızı, eski olanlar soluk
             yas = y - ev["yil"]
             if yas == 0:
-                renkler.append("#FF3333")
+                renkler.append(_confidence_color(ev["confidence"]))
                 boyutlar.append(20 + (ev["mw"] - 6.5) * 6)
             else:
                 # soluk
@@ -10464,10 +10595,7 @@ def _render_ambraseys_animasyon():
             textfont=dict(size=10, color="#fff"),
             textposition="top right",
             hovertemplate=df_y.apply(
-                lambda r: (f"<b>{r['yer']}</b> ({int(r['yil'])})<br>"
-                           f"Mw {r['mw']:.1f}<br>"
-                           f"Fay: {r['fay']}"
-                           "<extra></extra>"),
+                lambda r: _historical_hover(r.to_dict(), include_fault=True),
                 axis=1,
             ),
         )]
@@ -10480,7 +10608,7 @@ def _render_ambraseys_animasyon():
             lat=df_first["lat"],
             lon=df_first["lon"],
             mode="markers+text",
-            marker=dict(size=22, color="#FF3333", opacity=0.95),
+            marker=dict(size=22, color=[_confidence_color(c) for c in df_first["confidence"]], opacity=0.95),
             text=df_first.apply(lambda r: f"{int(r['yil'])}", axis=1),
             textfont=dict(size=11, color="#fff"),
             textposition="top right",
@@ -10551,7 +10679,10 @@ def _render_ambraseys_animasyon():
     # ── Tablo + batı göç vurgusu ───────────────────────────────────────────
     st.markdown('<div class="chart-title">📋 Olay Dizisi (kronolojik)</div>', unsafe_allow_html=True)
     df_show = df_a[["yil", "yer", "mw", "fay"]].copy()
-    df_show.columns = ["Yıl", "Yer", "Mw", "Fay Sistemi"]
+    df_show["±Yıl"] = df_a["year_uncertainty"]
+    df_show["Güven"] = df_a["confidence_label"]
+    df_show = df_show[["yil", "±Yıl", "yer", "mw", "fay", "Güven"]]
+    df_show.columns = ["Yıl", "±Yıl", "Yer", "Mw", "Fay Sistemi", "Güven"]
     st.dataframe(df_show, use_container_width=True, hide_index=True)
 
     st.caption(
@@ -10681,6 +10812,10 @@ def _render_paleosismik_kazi():
         "**Kozacı et al. (2007) BSSA 97** Erzincan Yaylabeli'de 6 paleo olay "
         "saptamış, ortalama tekrar süresi ~320 yıl bulmuştur."
     )
+    st.caption(
+        "Güven işaretleri: 🟢 A aletsel · 🟡 B güçlü tarihsel · 🟣 P paleosismik. "
+        "Paleo olaylar 14C/OSL zaman penceresidir; kesin gün/episantr değildir."
+    )
 
     # ── Site harita ────────────────────────────────────────────────────────
     fig_map = go.Figure()
@@ -10726,7 +10861,8 @@ def _render_paleosismik_kazi():
     fig_slot = go.Figure()
 
     for i, ev in enumerate(site["olaylar"]):
-        renk = "#FFD700" if ev["tip"] == "tarihsel" else "#A52A85"
+        ev_norm = normalize_historical_event(ev)
+        renk = _confidence_color(ev_norm["confidence"])
         # Hata barı = belirsizlik penceresi
         fig_slot.add_trace(go.Scatter(
             x=[ev["yil"]],
@@ -10742,7 +10878,9 @@ def _render_paleosismik_kazi():
             hovertemplate=(
                 f"<b>Olay {i+1}</b><br>"
                 f"Yıl: {ev['yil']} ± {ev['belirsizlik']}<br>"
-                f"Tip: {ev['tip']}"
+                f"Güven: {ev_norm['confidence_label']}<br>"
+                f"Tip: {ev['tip']}<br>"
+                "⚠️ Paleo/tarihsel pencere; kesin rupture trace değildir."
                 "<extra></extra>"
             ),
             showlegend=False,
@@ -10803,6 +10941,7 @@ def _render_paleosismik_kazi():
          "Olay Sayısı": len(s["olaylar"]),
          "Tarihsel": sum(1 for ev in s["olaylar"] if ev["tip"] == "tarihsel"),
          "Paleo": sum(1 for ev in s["olaylar"] if ev["tip"] == "paleo"),
+         "Güven dili": "A/B/P",
          "Tekrar (yıl)": f"{s['ortalama_tekrar']} ± {s['sigma']}",
          "En Eski (yıl)": min(ev["yil"] for ev in s["olaylar"]),
          "Son (yıl)": max(ev["yil"] for ev in s["olaylar"]),
@@ -11538,14 +11677,22 @@ def _render_erzincan_paleo():
         "(2006) GSA Bulletin 118** 2500 yıllık arşivi genişletti. **Ortalama tekrar "
         "süresi ~320 ± 80 yıl** — istatistiksel olarak en uzun gözlenen NAFZ paleo veri."
     )
+    st.caption(
+        "Güven işaretleri: 🟢 A aletsel · 🟡 B güçlü tarihsel · 🟣 P paleosismik. "
+        "1668 segment eşleşmesi tartışmalıdır; 14C/OSL olayları yıl aralığı olarak okunmalıdır."
+    )
 
-    df_p = pd.DataFrame(_ERZINCAN_PALEO_OLAYLAR)
+    paleo_events = [
+        normalize_historical_event({**ev, "tip": "paleo"} if ev["olay"] not in ("E1", "E2") else ev)
+        for ev in _ERZINCAN_PALEO_OLAYLAR
+    ]
+    df_p = pd.DataFrame(paleo_events)
     YIL_SIMDI = datetime.now().year
 
     # ── Yaşam çizgisi (olay timeline) ──────────────────────────────────────
     fig_tl = go.Figure()
     for i, ev in df_p.iterrows():
-        renk = "#A32D2D" if ev["siddet"] == "yuksek" else "#EF9F27"
+        renk = _confidence_color(ev["confidence"])
         fig_tl.add_trace(go.Scatter(
             x=[ev["yil"]],
             y=[0],
@@ -11561,6 +11708,7 @@ def _render_erzincan_paleo():
             hovertemplate=(
                 f"<b>{ev['olay']}</b><br>"
                 f"Yıl: {ev['yil']} ± {ev['belirsizlik']}<br>"
+                f"Güven: {ev['confidence_label']}<br>"
                 f"Kaynak: {ev['kaynak']}"
                 "<extra></extra>"
             ),
@@ -11645,8 +11793,8 @@ def _render_erzincan_paleo():
     # ── Olay tablosu ──────────────────────────────────────────────────────
     st.markdown('<div class="chart-title">📋 Erzincan Segmenti Paleo Olay Kataloğu</div>',
                 unsafe_allow_html=True)
-    df_show = df_p[["olay", "yil", "belirsizlik", "kaynak", "siddet"]].copy()
-    df_show.columns = ["Olay", "Yıl", "Belirsizlik ±yıl", "Tarihlendirme Kaynağı", "Şiddet Güveni"]
+    df_show = df_p[["olay", "yil", "belirsizlik", "confidence_label", "kaynak", "siddet"]].copy()
+    df_show.columns = ["Olay", "Yıl", "Belirsizlik ±yıl", "Güven", "Tarihlendirme Kaynağı", "Şiddet Güveni"]
     st.dataframe(df_show, use_container_width=True, hide_index=True)
 
     st.caption(

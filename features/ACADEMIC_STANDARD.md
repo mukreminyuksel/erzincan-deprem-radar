@@ -217,6 +217,114 @@ Aki 1965 maximum likelihood estimation...
 
 ---
 
+## 4.5 Pilot Sonrası Eklenen Kurallar (v1.1 — Codex onayı)
+
+Faz 1 (3 pilot) bitiminde içeriklerden çıkarılan örtük kurallar yazılı standarda alındı. **Sprint 2 ve sonrası için bağlayıcıdır.**
+
+### 4.5.1 — Türkiye/Erzincan Örneği Zorunlu
+Her panelde **en az 1 Türkiye/Erzincan/KAF/DAF örneği** bulunmak ZORUNDADIR. Genel global örnek tek başına yetmez; Türkiye karşılığı eklenmelidir.
+
+**Tipik bağlam adayları:**
+- 1939 Erzincan (M7.9, KAF doğu), 1999 İzmit (M7.4, KAF batı), 1999 Düzce (M7.2)
+- 2023 Kahramanmaraş çift kırılma (Mw 7.8 + 7.5, DAFZ)
+- KAF Erzincan/Yedisu/Tercan segmenti slip-rate, b-değeri, Vs30
+- AFAD/KOERI kataloğu, MTA Diri Fay 2013, TBDY-2018
+
+**Yasak:** Sadece San Andreas / Kobe / Tohoku örneğiyle bitirmek. Türkiye atfı yoksa panel 🟢 Akademik sayılmaz.
+
+---
+
+### 4.5.2 — Formül Birimi ve Tipik Kabuk Değeri Zorunlu
+Her LaTeX denkleminin **hemen altında** Türkçe sade açıklama + her sembol için:
+
+- **Birim** (SI birim sistemi tercih edilir: Pa, m, mm/yr, GPa, °)
+- **Tipik kabuk/Türkiye değeri** (örn. *"$G \approx$ 30 GPa, kıtasal kabuk için"*)
+
+**Örnek (iyi):**
+> $\tau \geq \mu \cdot (\sigma_n - P_f) + C$
+>
+> burada $\tau$ = uygulanan kayma gerilmesi (**Pa**, kabukta tipik 10–100 MPa), $\mu$ = sürtünme katsayısı (**boyutsuz**, ≈ 0.6–0.85, Byerlee 1978), $\sigma_n$ = normal gerilme (**Pa**), $P_f$ = gözenek basıncı (**Pa**), $C$ = kohezyon (**Pa**, faylar için ihmal edilebilir).
+
+**Yasak:** Çıplak denklem, sembol açıklaması olmadan veya birim belirtmeden.
+
+---
+
+### 4.5.3 — Geller 1997 + Disclaimer Genişletilmiş Kapsamı
+Aşağıdaki paneller "tahmin/öngörü çağrıştıran" kategorisindedir ve **Geller 1997 atfı + açık disclaimer** ZORUNDADIR (önceki §3.3 listesini bu maddeyle genişletiyoruz):
+
+- η Kümeleme, RTL, AMR, ETAS, Sismik Açık, Foreshock
+- Astronomik korelasyon
+- **b-Değeri / Gutenberg-Richter (özellikle b<0.8 yorumu)**
+- **Elastik Geri Tepme / slip-deficit yorumlamaları**
+- **Coulomb Stres transferi (komşu segment "tetiklenir" iddiası)**
+- **PSHA olasılık çıktıları** (50 yılda %10 vs. "10 yıl içinde olacak" yanlış okuma)
+- **EEW skor tahmini** (gerçek operasyonel sistem değil)
+
+**Standart cümle (kopyala-yapıştır şablon):**
+> ⚠️ **Bu panel/yorum bir deprem tahmin aracı DEĞİLDİR.** Mevcut bilimsel uzlaşı: deterministik deprem tahmini henüz mümkün değildir (Geller, R. J., 1997, *GJI* 131(3), 425–450, [DOI:10.1111/j.1365-246X.1997.tb06588.x](https://doi.org/10.1111/j.1365-246X.1997.tb06588.x)). Slip-deficit, b-değeri, η, RTL gibi göstergeler **olasılıksal tehlike girdisidir**, kesin zaman/yer/magnitüd değil.
+
+---
+
+## 4.6 LaTeX Yoğunluğu Rehberi (Codex tavsiyesi)
+
+Katı limit YOK, ama **hedef profiller**:
+
+| Panel tipi | LaTeX hedefi | Üst sınır |
+|---|---:|---:|
+| Canlı izleme (radar, ShakeMap) | 1–2 | 3 |
+| İstatistik / Analiz (b-değeri, η, RTL) | 2–4 | 5 |
+| Teorik eğitim (Reid, Coulomb, Okada) | 3–5 | 6 |
+| Uydu / jeofizik (InSAR, SKS, Moho) | 2–3 | 4 |
+
+**Kural:** Her denklemin hemen altında **sade Türkçe** açıklama (1–2 cümle). Üst üste 3 denklem peşi sıra konulmamalı — araya yorumlama paragrafı.
+
+---
+
+## 4.7 Referans Politikası (Codex tavsiyesi)
+
+**Kalite > Sayı.**
+
+| Kural | Değer |
+|---|---|
+| Panel başına minimum güvenilir kaynak | **4** |
+| Görünür liste max referans | **8–10** |
+| Fazlası | "Ek kaynaklar" alt-expander'da |
+| Türkçe/yerel kaynak min | **1** (KAF/DAF/AFAD/KOERI/MTA/TBDY) |
+| DOI veya peer-reviewed bağlantı | Her makale referansı için **zorunlu** |
+| Wikipedia tek kaynak olarak | **Yasak** |
+
+**Görünür kaynak listesinde ne olmalı:**
+1. Orijinal/öncü kaynak (örn. Reid 1910, Gutenberg-Richter 1944)
+2. Standart referans (Aki & Richards 2002, Lay & Wallace 1995)
+3. Modern derleme (Annu. Rev. Earth Planet. Sci. veya Reports on Progress in Physics)
+4. Türkiye/Erzincan özel çalışma (Bayrak 2002, Hubert-Ferrari 2002, Reilinger 2006)
+5. (Varsa) son 5 yıl içinde Türkiye odaklı yayın (Melgar 2023, Kahramanmaraş 2023)
+
+---
+
+## 4.8 Panel Üstü Mini Okuma Rehberi (Codex tavsiyesi)
+
+Akademik expander default `expanded=False`. Ama kullanıcı **expander'a tıklamadan da** grafiği yorumlayabilmeli. Bunun için her panelin **hemen üstünde** 1–2 cümlelik **mini rehber** bulunmak ZORUNDADIR.
+
+**Şablon:**
+> 📊 **Mini rehber:** [Grafiğin ne gösterdiği — tek cümle.] [Nasıl okunur — tek cümle.] *Detaylı akademik açıklama, formüller ve kaynaklar için 📖 Akademik Açıklama panelini açın.*
+
+**Örnek (Canlı Radar için):**
+> 📊 **Mini rehber:** Her halka son 7 günde gerçekleşmiş bir depremi temsil eder; halka boyutu magnitüd ile kuadratik, rengi derinlik ile kodlanır. *Detaylı açıklama, USGS magnitude ölçeği ve haversine formülü için 📖 Akademik Açıklama panelini açın.*
+
+---
+
+## 4.9 Expander İçinde Performans Kısıtları (Codex tavsiyesi)
+
+`st.expander` **lazy-render değildir** — içindeki kod her rerun'da çalışır. Bu nedenle expander içinde:
+
+✅ **İzin verilen:** `st.markdown`, LaTeX, `st.warning`, string-based referans listesi.
+❌ **YASAK:** Plotly figürü, `pd.read_*`, network isteği, ağır hesap, büyük dataframe slice.
+
+Ağır içerik gerekiyorsa **panel ana gövdesinde** render edilmeli, expander'a yalnızca **metin** girmeli.
+
+---
+
 ## 5. İçerik Sınıflandırma Tablosu
 
 Her panel/grafik için aşağıdaki 4 seviyeden biri atanır:
@@ -235,3 +343,4 @@ Her panel/grafik için aşağıdaki 4 seviyeden biri atanır:
 ## 6. Versiyon Geçmişi
 
 - **v1.0** (2026-05-26) — İlk standart belgesi. Faz 0 onayı: kullanıcı + Codex.
+- **v1.1** (2026-05-26) — Faz 1 (3 pilot) sonrası Codex onaylı eklemeler: §4.5 (Türkiye örneği zorunlu / formül birimi / Geller disclaimer genişletilmiş kapsamı), §4.6 (LaTeX yoğunluğu rehberi), §4.7 (referans politikası — kalite>sayı, min 4 max 8–10), §4.8 (panel üstü mini rehber zorunlu), §4.9 (expander performans kısıtları).
