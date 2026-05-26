@@ -79,7 +79,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.55"
+APP_VERSION = "1.56"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -7508,6 +7508,95 @@ def _render_b_value_time_series():
     st.markdown(
         '<div class="chart-title">📉 b-Değeri Zaman Serisi — Gutenberg-Richter Evolution (F-46 / v1.24)</div>',
         unsafe_allow_html=True,
+    )
+    # v1.56 — Faz 1 Pilot B: b-Değeri akademik açıklama (ACADEMIC_STANDARD.md uyumlu)
+    render_academic_explanation(
+        title="📖 b-Değeri / Gutenberg-Richter — Akademik Açıklama",
+        what=(
+            "Sismolojinin **temel istatistiksel ilişkisi**: bir bölgede magnitude $M$ ve "
+            "üstündeki deprem sayısı $N(M)$ ile magnitude arasındaki **log-doğrusal** ilişki. "
+            "**b-değeri**, küçük depremlerin büyüklere oranını ölçen tek parametredir. Bu panel "
+            "b-değerinin **zaman içindeki değişimini** kayan pencere yöntemiyle gösterir — "
+            "büyük olay öncesi b düşüşü literatürde *öncü sinyal* olarak raporlanmıştır "
+            "(Smith 1981, Schorlemmer & Wiemer 2005)."
+        ),
+        how=(
+            "**Sol grafik (Frekans-Magnitude FMD):** Her magnitude eşiği için kümülatif olay "
+            "sayısı $\\log_{10} N$. Doğrusal kısmın eğimi = $-b$. Mc (magnitude of completeness) "
+            "eğrinin doğrusal başladığı eşik.\n\n"
+            "**Sağ grafik (b zaman serisi):** Kayan pencere (varsayılan 50 olay), her pencere "
+            "için MLE ile b hesaplanır. X-ekseni: pencerenin orta zamanı, Y: b-değeri (0.5-1.5 "
+            "tipik aralık). Yatay referans çizgisi $b=1.0$ global ortalama. Mavi gölge = ±1σ "
+            "(Shi & Bolt 1982 standart hata).\n\n"
+            "**Modebar:** zoom-in/out + pan + reset (sağ üst köşe)."
+        ),
+        science=(
+            "**Gutenberg-Richter ilişkisi (Gutenberg & Richter 1944):**\n\n"
+            "$$\\log_{10} N(M) = a - b \\cdot M$$\n\n"
+            "$N(M)$: $M$ veya üstündeki olay sayısı, $a$: bölgesel aktivite seviyesi, "
+            "$b$: küçük/büyük oran (boyutsuz).\n\n"
+            "**Maximum Likelihood Estimation (Aki 1965):**\n\n"
+            "$$\\hat{b} = \\frac{\\log_{10}(e)}{\\bar{M} - (M_c - \\Delta M/2)}$$\n\n"
+            "$\\bar{M}$: pencerenin ortalama magnitude'u, $M_c$: completeness eşiği, "
+            "$\\Delta M$: magnitude binleme adımı (genelde 0.1). $\\log_{10}(e) \\approx 0.4343$.\n\n"
+            "**Standart hata (Shi & Bolt 1982):**\n\n"
+            "$$\\sigma_b = 2.30 \\cdot b^2 \\cdot \\sqrt{\\frac{\\sum(M_i - \\bar{M})^2}{N(N-1)}}$$\n\n"
+            "**Mc tahmini (Wiemer & Wyss 2000 MAXC yöntemi):** FMD'nin maksimum eğrilik "
+            "noktasındaki magnitude. Türkiye için Bayrak 2002 raporu: $M_c \\approx 2.5-3.0$."
+        ),
+        interpretation=(
+            "**b-değeri yorumu (Wyss et al. 2004 sentezi):**\n\n"
+            "| b aralığı | Anlam | Tipik kontekst |\n"
+            "|---|---|---|\n"
+            "| $b < 0.8$ | Büyük olay ağırlıklı | Yüksek stres, kilitli **asperity** zonu |\n"
+            "| $b \\approx 1.0$ | Global ortalama | Normal sismotektonik rejim |\n"
+            "| $b > 1.2$ | Küçük olay ağırlıklı | Düşük stres, **sürünme** veya magmatic/volcanic |\n\n"
+            "**Türkiye değerleri (Bayrak 2002, Öztürk 2012):**\n"
+            "- NAFZ Marmara segment: $b \\approx 0.85$ (kilitlenme)\n"
+            "- NAFZ Erzincan segment: $b \\approx 0.95-1.05$\n"
+            "- DAFZ Hatay segment: $b \\approx 0.9$\n\n"
+            "**Zaman serisi yorumu:**\n"
+            "- Büyük olay öncesi b düşüşü → asperity stres yığılımı (Smith 1981, Schorlemmer 2005)\n"
+            "- Olay sonrası b yükselişi → artçı dizisi küçük olay baskın\n"
+            "- Sürekli artış → catalog completeness değişimi (yeni istasyon vb.)\n\n"
+            "**Yaygın YANLIŞ yorumlamalar:**\n"
+            "- ❌ \"b < 0.8 → büyük deprem yakında\" — istatistik, deterministik tahmin değil\n"
+            "- ❌ \"Bölge b'si tek sayı\" — uzamsal heterojendir, Wiemer-Wyss spatial map yöntemi var\n"
+            "- ❌ Mc altında b hesabı — sistematik olarak aşağı tarafa kayar (yanlış pozitif öncü)"
+        ),
+        limitations=(
+            "**Catalog completeness ($M_c$):** En önemli sınırlama. $M < M_c$ olaylar eksiktir, "
+            "bunlar dahil edilirse b yapay olarak küçük çıkar. Türkiye için $M_c$ zamanda değişir: "
+            "1900-1980 daha yüksek (~4.0), 1990 sonrası dijital ağlar ile ~2.5-3.0 (Bayrak 2002).\n\n"
+            "**Minimum olay sayısı:** Pencere başına $N \\geq 50$ önerilir (Wiemer & Wyss 2000); "
+            "az olay → büyük belirsizlik ($\\sigma_b$ artar). Bu panel kayan pencere boyutunu "
+            "veri yoğunluğuna göre adapte eder.\n\n"
+            "**Magnitude tipi heterojenliği:** Farklı kaynaklarda $M_L$, $M_b$, $M_w$ karışık. "
+            "Tek tipe homojenize edilmeli (Scordilis 2006). Bu panel mevcut kayıtları doğrudan "
+            "kullanır — uzun zaman serileri için manuel kalite kontrol gerek.\n\n"
+            "**Stationarity varsayımı:** Kayan pencere her pencerede G-R'nin doğru olduğunu "
+            "varsayar. Volcanic/induced sismisitede non-stationary olabilir.\n\n"
+            "**⚠️ Deprem tahmini DEĞİLDİR.** Geller et al. (1997) *Science* 275(5306) — "
+            "deterministik deprem tahmini şu an mümkün değildir. Bu panel istatistiksel/"
+            "retrospektif analiz aracıdır."
+        ),
+        references=[
+            "Gutenberg, B., & Richter, C.F. (1944). Frequency of earthquakes in California. *Bull. Seismol. Soc. Am.* 34(4), 185-188.",
+            "Aki, K. (1965). Maximum likelihood estimate of b in the formula log N = a − bM. *Bull. Earthq. Res. Inst. Tokyo* 43, 237-239.",
+            "Wiemer, S., & Wyss, M. (2000). Minimum magnitude of completeness in earthquake catalogs. *Bull. Seismol. Soc. Am.* 90(4), 859-869. [DOI:10.1785/0119990114](https://doi.org/10.1785/0119990114)",
+            "Shi, Y., & Bolt, B.A. (1982). The standard error of the magnitude-frequency b value. *Bull. Seismol. Soc. Am.* 72(5), 1677-1687.",
+            "Smith, W.D. (1981). The b-value as an earthquake precursor. *Nature* 289, 136-139. [DOI:10.1038/289136a0](https://doi.org/10.1038/289136a0)",
+            "Schorlemmer, D., & Wiemer, S. (2005). Microseismicity data forecast rupture area. *Nature* 434, 1086. [DOI:10.1038/4341086a](https://doi.org/10.1038/4341086a)",
+            "Bayrak, Y., et al. (2002). Quantitative appraisal of earthquake hazard parameters. *Bull. Seismol. Soc. Am.* 92(2). [DOI:10.1785/0120000748](https://doi.org/10.1785/0120000748)",
+            "Wyss, M., Sammis, C.G., Nadeau, R.M., & Wiemer, S. (2004). Fractal dimension and b-value on creeping and locked patches. *Bull. Seismol. Soc. Am.* 94(2). [DOI:10.1785/0120020226](https://doi.org/10.1785/0120020226)",
+            "Geller, R.J., et al. (1997). Earthquakes cannot be predicted. *Science* 275(5306), 1616. [DOI:10.1126/science.275.5306.1616](https://doi.org/10.1126/science.275.5306.1616)",
+            "Lay, T., & Wallace, T.C. (1995). *Modern Global Seismology*. Academic Press, Bölüm 12.4 (Earthquake Frequency-Magnitude Relations).",
+        ],
+        disclaimer=(
+            "⚠️ **Deprem tahmini DEĞİLDİR.** Bu panel istatistiksel analiz aracıdır; b-değeri "
+            "düşüşü 'öncü sinyal' olarak literatürde tartışılır ama deterministik tahmin için "
+            "kullanılmaz. Bilimsel uzlaşı: Geller et al. (1997)."
+        ),
     )
     st.info(
         "📉 **Gutenberg-Richter b-değeri:** log10 N = a − b·M. b ≈ 1.0 normaldir; "
