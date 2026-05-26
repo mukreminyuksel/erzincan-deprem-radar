@@ -78,7 +78,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.60"
+APP_VERSION = "1.61"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -2550,16 +2550,33 @@ if active_menu == "⚙️ Sistem & Veri":
 if active_menu == "🧭 Fay Sistemleri":
     st.markdown('<div class="chart-title">🧭 Fay Analizi</div>', unsafe_allow_html=True)
     fault_sample = df.head(250).copy()
-    nearest_rows = []
-    for _, ev in fault_sample.iterrows():
-        nearest = nearest_fault_vertex_distance(ev["lat"], ev["lon"], FAULT_LINES)
-        nearest_rows.append({
+    # v1.61 PERF — Önceden her panel rerunda 250 olay × 14,500 fay segmenti = 3.6M
+    # haversine hesabı çalışıyordu (cache yok). Şimdi cache_data ile signature
+    # bazlı memoize: aynı (lat,lon) seti tekrar sorulduğunda anlık hit.
+    _proximity_key = tuple(
+        (round(float(la), 3), round(float(lo), 3))
+        for la, lo in zip(fault_sample["lat"].tolist(), fault_sample["lon"].tolist())
+    )
+
+    @st.cache_data(ttl=900, show_spinner=False, max_entries=8)
+    def _cached_fault_proximity(coords_key: tuple) -> list:
+        out = []
+        for la, lo in coords_key:
+            nf = nearest_fault_vertex_distance(la, lo, FAULT_LINES)
+            out.append((nf.get("fault_name"), nf.get("distance_km")))
+        return out
+
+    _prox = _cached_fault_proximity(_proximity_key)
+    nearest_rows = [
+        {
             "Zaman": ev["zaman_str"],
             "M": ev["buyukluk"],
             "Konum": ev["konum"],
-            "Yakın Fay": nearest["fault_name"],
-            "Fay Uzaklığı (km)": nearest["distance_km"],
-        })
+            "Yakın Fay": _prox[i][0],
+            "Fay Uzaklığı (km)": _prox[i][1],
+        }
+        for i, (_, ev) in enumerate(fault_sample.iterrows())
+    ]
     fault_df = pd.DataFrame(nearest_rows).dropna(subset=["Fay Uzaklığı (km)"])
     f1, f2 = st.columns([1, 1])
     with f1:
@@ -4933,6 +4950,7 @@ def _build_coupling_traces(years: int, vis_scale: float):
 def _plaka_build_figure(mode_key: str, focus_lat: float, focus_lon: float,
                         city: str, plate_code: str = "AN",
                         active_idx: int = 0, show_coupling: bool = False,
+                        reference_frame: str = "EU",
                         visual_scale_override: float | None = None):
     """20 frame Plotly animasyonu — uydu zemin, log-spaced zaman, trail, kuplaj."""
     mode      = _PLAKA_MODES[mode_key]
@@ -4983,7 +5001,7 @@ def _plaka_build_figure(mode_key: str, focus_lat: float, focus_lon: float,
     # PB2002 sınırı iki plakanın arasındadır → sınırın hızı = iki plakanın hız ORTALAMASI
     # (gerçek tektonik approximation; tek-plaka deltası "tüm dünya AN ile kayıyor"
     # yanılsamasını ortadan kaldırır).
-    vels_dict = load_plate_velocities(focus_lat, focus_lon)
+    vels_dict = load_plate_velocities(focus_lat, focus_lon, reference_frame=reference_frame)
     border_dlat_yr = {}  # id(plate) → derece/yıl
     border_dlon_yr = {}
     for plate in plates_in_scope:
@@ -5006,7 +5024,9 @@ def _plaka_build_figure(mode_key: str, focus_lat: float, focus_lon: float,
     # Erzincan trail — focus plakası (varsayılan AN) hızıyla kayar
     trail_positions = []
     for y in stops:
-        dlat, dlon = _plaka_displacement_deg(plate_code, focus_lat, focus_lon, y)
+        dlat, dlon = _plaka_displacement_deg(
+            plate_code, focus_lat, focus_lon, y, reference_frame=reference_frame
+        )
         trail_positions.append((focus_lat + dlat * vis_scale,
                                 focus_lon + dlon * vis_scale, y, dlat, dlon))
 
@@ -8779,19 +8799,24 @@ def _render_tarihsel_sismisite():
         return
 
     # ── Harita ─────────────────────────────────────────────────────────────
+    # v1.61 PERF — Önceki sürümde her olay için ayrı Scattermapbox trace ekleniyordu;
+    # 100+ tarihsel olay → 100+ trace → harita yavaş render ediliyordu. Şimdi tek
+    # trace + array marker (Plotly idiomu).
     fig_map = go.Figure()
-    for _, ev in df_filt.iterrows():
-        size = 8 + (ev["mw"] - 6.5) * 5
-        renk = _confidence_color(ev["confidence"])
-        hover = _historical_hover(ev.to_dict())
-        fig_map.add_trace(go.Scattermapbox(
-            lat=[ev["lat"]], lon=[ev["lon"]],
-            mode="markers",
-            marker=dict(size=size, color=renk, opacity=0.85),
-            text=f"{int(ev['yil'])}",
-            hovertemplate=hover,
-            showlegend=False,
-        ))
+    _sizes = [max(4.0, 8.0 + (mw - 6.5) * 5.0) for mw in df_filt["mw"].tolist()]
+    _colors = [_confidence_color(c) for c in df_filt["confidence"].tolist()]
+    _hovers = [_historical_hover(ev.to_dict()) for _, ev in df_filt.iterrows()]
+    fig_map.add_trace(go.Scattermapbox(
+        lat=df_filt["lat"].tolist(),
+        lon=df_filt["lon"].tolist(),
+        mode="markers",
+        marker=dict(size=_sizes, color=_colors, opacity=0.85),
+        text=[f"{int(y)}" for y in df_filt["yil"].tolist()],
+        customdata=_hovers,
+        hovertemplate="%{customdata}<extra></extra>",
+        showlegend=False,
+        name="Tarihsel deprem",
+    ))
 
     fig_map.update_layout(
         mapbox=dict(style="open-street-map", center=dict(lat=39.0, lon=33.0), zoom=4.7),
