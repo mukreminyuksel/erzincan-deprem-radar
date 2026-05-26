@@ -79,7 +79,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.44"
+APP_VERSION = "1.44.1"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -5122,7 +5122,7 @@ ERZINCAN_TARIHI = [
     {
         "yil": 1939, "tarih": "26 Aralık 1939", "mw": 7.8, "ms": 7.8,
         "lat": 39.77, "lon": 39.53, "derinlik_km": 20,
-        "kirik_uzunluk_km": 360, "kirik_yon": "KD-GB (N60E doğrultu atımlı)",
+        "kirik_uzunluk_km": 360, "kirik_yon": "WSW-ENE (~N75E sağ-yanal doğrultu atımlı, KAF)",
         "can_kaybi": 32962, "yarali": 100000, "hasarli_koy": 116,
         "etki_alani_km2": 45000,
         "kaynak": "Barka, A. (1996). Slip distribution along the North Anatolian Fault. Bull. Seismol. Soc. Am., 86(5), 1238-1254.",
@@ -5133,7 +5133,7 @@ ERZINCAN_TARIHI = [
     {
         "yil": 1992, "tarih": "13 Mart 1992", "mw": 6.8, "ms": 6.8,
         "lat": 39.71, "lon": 39.60, "derinlik_km": 10,
-        "kirik_uzunluk_km": 55, "kirik_yon": "KD-GB sağ yanal atımlı",
+        "kirik_uzunluk_km": 55, "kirik_yon": "WSW-ENE sağ yanal atımlı (Erzincan basin segmenti)",
         "can_kaybi": 653, "yarali": 3850, "hasarli_koy": 52,
         "etki_alani_km2": 5000,
         "kaynak": "Özalaybey, S. et al. (1993). An analysis of the 1992 Erzincan earthquake sequence. Bull. Seismol. Soc. Am., 83(6), 1883-1893.",
@@ -5254,22 +5254,54 @@ def _render_erzincan_arsivi():
                 unsafe_allow_html=True)
 
     fig_map = go.Figure()
-    # 1939 — 360 km KAF segmenti (39.77,39.53 → 39.50,42.00 yaklaşık)
-    fig_map.add_trace(go.Scattermapbox(
-        lon=[39.53, 42.00], lat=[39.77, 39.50],
-        mode="lines",
-        line=dict(width=6, color="#ff3333"),
-        name="1939 kırığı (360 km)",
-        hovertemplate="1939 Mw 7.8 — 360 km KAF segmenti<extra></extra>",
-    ))
-    # 1992 — 55 km kırık
-    fig_map.add_trace(go.Scattermapbox(
-        lon=[39.60, 40.20], lat=[39.71, 39.65],
-        mode="lines",
-        line=dict(width=4, color="#3399ff"),
-        name="1992 kırığı (55 km)",
-        hovertemplate="1992 Mw 6.8 — 55 km KAF segmenti<extra></extra>",
-    ))
+    # v1.42.2 KIRIK YÖNÜ DÜZELTMESİ (kullanıcı bildirimi):
+    # Önceki kod 1939 kırığını GÜNEYDOĞUYA (Tunceli/Bingöl) düz çizgi olarak gösteriyordu.
+    # Bu YANLIŞ — gerçek 1939 KAF Erzincan kırığı WSW-ENE yönlü (Niksar → Erzincan → Yedisu).
+    # Düzeltme: MTA Diri Fay 2013 (AFAD) polyline'ı kullan — KAF_MTA_MAPPING["S01"] = 1939 zinciri.
+    _kaf_polys = _kaf_mta_polylines()
+
+    # 1939 — Niksar/Erbaa → Erzincan → Yedisu/Refahiye/Suşehri zinciri (~360 km, KAF boyunca)
+    s01 = _kaf_polys.get("S01", {})
+    if s01.get("vertex_sayisi", 0) > 0:
+        fig_map.add_trace(go.Scattermapbox(
+            lon=s01["lons"], lat=s01["lats"],
+            mode="lines",
+            line=dict(width=5, color="#ff3333"),
+            name=f"1939 kırığı (~360 km, MTA polyline)",
+            hovertemplate=f"<b>1939 Mw 7.8</b><br>~360 km KAF segmenti<br>"
+                          f"({s01['vertex_sayisi']} vertex MTA Diri Fay 2013 / AFAD)<extra></extra>",
+        ))
+
+    # 1992 — Erzincan basin segmenti (~55 km, Erzincan + komşu MTA segmentleri)
+    _erz_only = []
+    for fault in FAULT_LINES:
+        name = (fault.get("fay_adi") or "").upper()
+        if "KUZEY ANADOLU" not in name and "NORTH ANATOLIAN" not in name:
+            continue
+        seg = (fault.get("segment") or "").lower()
+        # 1992 sadece Erzincan basin etrafı (Yedisu/Refahiye değil)
+        if "erzincan" in seg or "kargapazarı" in seg:
+            _erz_only.extend(fault["lats"]); _erz_only.append(None)
+    _erz_lats = _erz_only
+    _erz_lons = []
+    accumulate_lats, accumulate_lons = [], []
+    for fault in FAULT_LINES:
+        name = (fault.get("fay_adi") or "").upper()
+        if "KUZEY ANADOLU" not in name and "NORTH ANATOLIAN" not in name:
+            continue
+        seg = (fault.get("segment") or "").lower()
+        if "erzincan" in seg or "kargapazarı" in seg:
+            accumulate_lats.extend(fault["lats"] + [None])
+            accumulate_lons.extend(fault["lons"] + [None])
+    if accumulate_lats:
+        fig_map.add_trace(go.Scattermapbox(
+            lon=accumulate_lons, lat=accumulate_lats,
+            mode="lines",
+            line=dict(width=4, color="#3399ff"),
+            name="1992 kırığı (~55 km, Erzincan basin)",
+            hovertemplate="<b>1992 Mw 6.8</b><br>~55 km Erzincan basin segmenti<br>"
+                          "(MTA Diri Fay 2013 / AFAD)<extra></extra>",
+        ))
     # Depremler — boyut Mw ile orantılı
     fig_map.add_trace(go.Scattermapbox(
         lon=df_e["lon"], lat=df_e["lat"],
@@ -5303,9 +5335,13 @@ def _render_erzincan_arsivi():
     )
     st.plotly_chart(fig_map, use_container_width=True, key="erz_arsiv_map")
     st.caption(
-        "🛰️ **Not:** Mapbox satellite-streets stili token gerektirdiği için "
-        "ücretsiz **open-street-map** kullanıldı. Kırık koordinatları yaklaşık; "
-        "ana referanslar: Barka 1996 (1939) ve Özalaybey 1993 (1992)."
+        "🛰️ **Not (v1.44.1):** Kırık çizgileri artık **MTA Diri Fay Haritası 2013 (AFAD resmi)** "
+        "verisinden çekiliyor (`turkey_faults.geojson`). 1939 (~360 km) için Erzincan + Yedisu + "
+        "Refahiye + Suşehri + Kargapazarı zinciri; 1992 (~55 km) için Erzincan basin segmenti. "
+        "Önceki sürümde çizgiler yanlışlıkla **güneydoğuya** uzanıyordu — gerçek 1939 KAF kırığı "
+        "**WSW-ENE** doğrultuludur (Barka 1996, Şekil 3). Tarihsel zaman/büyüklük/can kaybı "
+        "metadata kaynakları: Barka 1996 BSSA, Özalaybey 1993 BSSA, Ambraseys & Finkel 1995. "
+        "Ücretsiz `open-street-map` zemin (Mapbox token gerektirmiyor)."
     )
 
     # ── Bölüm D: Detay kartı ───────────────────────────────────────────────
