@@ -913,13 +913,14 @@ _MENU_LABELS = [
     "🗾 Erzincan Mikrozon",
     "🏛️ Erzincan Arşivi",
     "🎓 Bilgi Havuzu",
+    "📚 Akademik Kütüphane",
     "⚙️ Sistem & Veri",
     "📝 Raporlar",
 ]
 _MENU_ICONS = [
     "globe", "bar-chart-line", "compass", "globe-americas", "moon-stars",
     "exclamation-triangle", "graph-up-arrow", "exclamation-octagon-fill",
-    "broadcast-pin", "map-fill", "circle-half", "graph-down", "lightning-charge", "satellite", "journal-text", "arrow-repeat", "globe2", "broadcast", "lock-fill", "layers-half", "compass-fill", "water", "stopwatch", "film", "hammer", "tsunami", "bricks", "building-x", "tree", "grid-3x3", "archive", "mortarboard", "gear", "file-text",
+    "broadcast-pin", "map-fill", "circle-half", "graph-down", "lightning-charge", "satellite", "journal-text", "arrow-repeat", "globe2", "broadcast", "lock-fill", "layers-half", "compass-fill", "water", "stopwatch", "film", "hammer", "tsunami", "bricks", "building-x", "tree", "grid-3x3", "archive", "mortarboard", "journal-bookmark-fill", "gear", "file-text",
 ]
 with st.container(key="sticky_nav"):
     active_menu = option_menu(
@@ -10975,6 +10976,152 @@ def _render_erzincan_mikrozon():
 if active_menu == "🗾 Erzincan Mikrozon":
     _render_erzincan_mikrozon()
     _render_bilim_notu("vs30", st, baslik="🎓 Bunu Öğren — HVSR + Zemin Büyütme")
+
+# ─── Akademik Kütüphane ───────────────────────────────────────────────────────
+@st.fragment
+def _render_akademik_kutuphane():
+    from knowledge_base import (
+        TOPICS, REFERENCES, ACIKLAMALAR, PLOTLY_CONFIG, COLORS,
+        anim_sismik_dalgalar, anim_elastik_geri_tepme,
+        anim_coulomb_stress, anim_tsunami_yayilim,
+        interaktif_gr_kanunu, interaktif_psha,
+    )
+
+    st.markdown("## 📚 Akademik Öğrenim Kütüphanesi")
+    st.markdown(
+        "*Deprem biliminin temel kavramlarını animasyon, interaktif grafik ve "
+        "akademik kaynaklarla keşfedin.*"
+    )
+    st.caption(
+        "Bu ekran öğretici amaçlıdır; resmi tehlike haritası veya mühendislik hesabı değildir. "
+        "Kaynaklar peer-reviewed yayınlara dayanmaktadır."
+    )
+
+    # ── Kategori filtresi
+    kategoriler_set = sorted(set(t["kategori"] for t in TOPICS.values()))
+    kategoriler = ["Tümü"] + kategoriler_set
+    secili_kategori = st.selectbox(
+        "🔍 Kategori filtrele",
+        kategoriler,
+        key="kutuphane_kategori",
+    )
+
+    filtreli = {
+        k: v for k, v in TOPICS.items()
+        if secili_kategori == "Tümü" or v["kategori"] == secili_kategori
+    }
+
+    # ── Konu kartları — 3 sütun grid
+    seviye_emoji = {"Başlangıç": "🟢", "Orta": "🟡", "İleri": "🔴"}
+    cols = st.columns(3)
+    for i, (topic_key, topic) in enumerate(filtreli.items()):
+        with cols[i % 3]:
+            btn_label = (
+                f"{topic['emoji']} **{topic['baslik']}**\n\n"
+                f"{topic['ozet'][:65]}…\n\n"
+                f"{seviye_emoji.get(topic['seviye'], '')} {topic['seviye']} "
+                f"· {topic['kategori']}"
+            )
+            if st.button(
+                btn_label,
+                key=f"topic_btn_{topic_key}",
+                use_container_width=True,
+            ):
+                st.session_state["aktif_konu"] = topic_key
+
+    st.divider()
+
+    # ── Seçili konu detay görünümü
+    aktif = st.session_state.get("aktif_konu")
+    if not aktif or aktif not in TOPICS:
+        st.info(
+            "⬆️ Yukarıdan bir konu seçin — animasyon, açıklama ve "
+            "akademik kaynaklar burada görünecek."
+        )
+        return
+
+    topic = TOPICS[aktif]
+    st.markdown(f"## {topic['emoji']} {topic['baslik']}")
+    st.markdown(
+        f"**Kategori:** {topic['kategori']} · "
+        f"**Seviye:** {seviye_emoji.get(topic['seviye'], '')} {topic['seviye']}"
+    )
+    st.markdown(f"*{topic['ozet']}*")
+
+    tab_acik, tab_anim, tab_interaktif, tab_kaynaklar = st.tabs(
+        ["📖 Açıklama", "🎬 Animasyon", "🔬 İnteraktif", "📑 Kaynaklar"]
+    )
+
+    # ── Tab 1: Açıklama
+    with tab_acik:
+        aciklama = ACIKLAMALAR.get(
+            aktif,
+            f"*{topic['ozet']}*\n\n*(Bu konu için detaylı açıklama hazırlanıyor)*",
+        )
+        st.markdown(aciklama)
+
+    # ── Tab 2: Animasyon
+    with tab_anim:
+        anim_map = {
+            "sismik_dalgalar":    anim_sismik_dalgalar,
+            "elastik_geri_tepme": anim_elastik_geri_tepme,
+            "coulomb_stres":      anim_coulomb_stress,
+            "tsunami_fizigi":     anim_tsunami_yayilim,
+        }
+        fn = anim_map.get(aktif)
+        if fn:
+            fig = fn()
+            st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG)
+            st.caption(
+                "*▶ Oynat / Adım Adım butonuna tıklayın veya "
+                "slider ile aşamalar arasında geçin.*"
+            )
+        else:
+            st.info(
+                "Bu konu için animasyon hazırlanıyor. "
+                "Mevcut animasyonlar: Sismik Dalgalar, Elastik Geri Tepme, "
+                "Coulomb Stres, Tsunami Yayılımı."
+            )
+
+    # ── Tab 3: İnteraktif
+    with tab_interaktif:
+        interaktif_map = {
+            "gutenberg_richter": interaktif_gr_kanunu,
+            "psha":              interaktif_psha,
+        }
+        fn = interaktif_map.get(aktif)
+        if fn:
+            fn()
+        else:
+            st.info(
+                "Bu konu için interaktif widget hazırlanıyor. "
+                "Mevcut widget'lar: Gutenberg-Richter, PSHA."
+            )
+
+    # ── Tab 4: Kaynaklar
+    with tab_kaynaklar:
+        refs = REFERENCES.get(aktif, [])
+        if refs:
+            st.markdown("### 📑 Akademik Kaynaklar")
+            for ref in refs:
+                if ref.get("doi"):
+                    link_str = f" · [DOI: {ref['doi']}]({ref['url']})"
+                elif ref.get("url"):
+                    link_str = f" · [Bağlantı]({ref['url']})"
+                else:
+                    link_str = ""
+                st.markdown(
+                    f"**{ref['yazar']} ({ref['yil']})** — "
+                    f"*{ref['baslik']}*{link_str}\n\n"
+                    f"> {ref['ozet']}"
+                )
+                st.divider()
+        else:
+            st.info("Bu konu için kaynaklar yükleniyor.")
+
+
+if active_menu == "📚 Akademik Kütüphane":
+    _render_akademik_kutuphane()
 
 # ─── Footer ─────────────────────────────────────────────────────────────────
 st.markdown(f"""
