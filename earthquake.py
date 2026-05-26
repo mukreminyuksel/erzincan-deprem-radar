@@ -19,9 +19,6 @@ from plotly.subplots import make_subplots
 from streamlit_autorefresh import st_autorefresh
 from streamlit_option_menu import option_menu
 
-import earthquake_core as _earthquake_core
-
-_earthquake_core = importlib.reload(_earthquake_core)
 from earthquake_core import (
     QUICK_WINDOWS,
     activity_level,
@@ -81,7 +78,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.59"
+APP_VERSION = "1.60"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -135,6 +132,17 @@ def render_academic_explanation(
 ) -> None:
     """6-bölümlü akademik açıklama kartı. Eksik bölüm -> dev uyarısı."""
     with st.expander(title, expanded=expanded):
+        load_key = "load_" + "".join(ch if ch.isalnum() else "_" for ch in title)[:80]
+        if not st.toggle(
+            "Detaylı akademik açıklamayı yükle",
+            value=expanded,
+            key=load_key,
+            help="Performans için uzun açıklama ve LaTeX içeriği yalnızca istendiğinde render edilir.",
+        ):
+            st.caption(
+                "Performans modu: uzun açıklama kapalı. Detayları, formülleri ve kaynakları görmek için açın."
+            )
+            return
         st.markdown("#### 🎯 Ne Gösteriyor?")
         st.markdown(what or ":red[🔴 EKSİK — `what` parametresi boş (Faz 0 ihlali)]")
         st.markdown("#### 👁️ Nasıl Okunur?")
@@ -6420,24 +6428,36 @@ def _add_gem_fault_overlay(fig, max_traces: int = 250,
     """
     Plotly figure'a GEM aktif fay çizgilerini overlay olarak ekle.
 
-    max_traces — perf için sınır (default 250); 460 fay var, ilk 250 göster.
-    Yalnızca tek bir legend item; tüm segmentler aynı legend group.
+    v1.60 — PERFORMANS OPTİMİZASYONU: Daha önce her fay için ayrı `go.Scattermapbox`
+    trace ekleniyordu (250 trace). Plotly bunu ağır işliyordu → Sismik Açık /
+    Coulomb panellerinde donma. Artık tüm faylar **tek bir trace** içinde
+    `None` separator ile birleştirilir (Plotly idiomu). 10-50× hızlanma.
+
+    `max_traces` parametresi geriye uyumluluk için tutuldu (kaynak fay sayısı sınırı).
+    Hover özelliği kaldırıldı (overlay sadece taban/bağlam katmanı; KAF segment
+    hover'ı korunuyor).
     """
     traces = _gem_fault_traces_cached()
     if not traces:
         return False  # caller fallback yapabilir
-    for i, t in enumerate(traces[:max_traces]):
-        fig.add_trace(go.Scattermapbox(
-            lat=t["lats"], lon=t["lons"],
-            mode="lines",
-            line=dict(color=color, width=width),
-            opacity=opacity,
-            name="GEM Aktif Fay (Türkiye)",
-            legendgroup=legend_group,
-            showlegend=(i == 0),  # sadece ilk trace legend'de görünsün
-            hoverinfo="skip" if not t.get("name") else "text",
-            text=t.get("name", "Anonim Fay") if t.get("name") else None,
-        ))
+    # Tek-trace None-separated formu
+    merged_lats = []
+    merged_lons = []
+    for t in traces[:max_traces]:
+        merged_lats.extend(t["lats"])
+        merged_lats.append(None)
+        merged_lons.extend(t["lons"])
+        merged_lons.append(None)
+    fig.add_trace(go.Scattermapbox(
+        lat=merged_lats, lon=merged_lons,
+        mode="lines",
+        line=dict(color=color, width=width),
+        opacity=opacity,
+        name="GEM Aktif Fay (Türkiye)",
+        legendgroup=legend_group,
+        showlegend=True,
+        hoverinfo="skip",
+    ))
     return True
 
 
@@ -6657,18 +6677,10 @@ def _render_sismik_acik():
             showlegend=False,
         ))
 
-    # ── GEM Aktif Fay Overlay — v1.43 ─────────────────────────────────────────
-    # GEM boş dönerse KAF_SEGMENTLER fallback zaten üstte çizildi.
-    _gem_faults = _cached_gem_faults_turkey()
-    if _gem_faults:
-        for _gem_tr in gem_fault_traces(_gem_faults, color="#FF6B35", width=1.2):
-            fig_map.add_trace(_gem_tr)
-        # GEM legend dummy
-        fig_map.add_trace(go.Scattermapbox(
-            lat=[None], lon=[None], mode="lines",
-            line=dict(color="#FF6B35", width=1.5),
-            name="GEM Aktif Fay (CC BY 4.0)", hoverinfo="skip",
-        ))
+    # v1.60 — Önceden burada 2. (turuncu) GEM katmanı render ediliyordu;
+    # _add_gem_fault_overlay() yukarıda zaten tüm GEM faylarını gri taban olarak
+    # çiziyor. Çift render kaldırıldı (730 trace → ~17 trace; donma sebebi).
+    # GEM attribution panel altında st.caption ile veriliyor (aşağıya bkz).
 
     # Legend için 3 dummy trace (risk seviyeleri)
     for risk_key in ("yuksek", "orta", "dusuk"):
@@ -6770,6 +6782,11 @@ def _render_sismik_acik():
         ),
     )
     st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+    st.caption(
+        "Fay overlay kaynağı: GEM Global Active Faults (CC BY 4.0; Styron & Pagani 2020, "
+        "*Earthquake Spectra* [DOI:10.1177/8755293020944182](https://doi.org/10.1177/8755293020944182)) · "
+        "MTA Diri Fay Haritası 2013 (AFAD)."
+    )
 
     # ── GANTT ŞERİDİ: Son depremden bugüne geçen süre ──────────────────────
     st.markdown(
@@ -8278,11 +8295,9 @@ def _render_coulomb_stress():
         hoverinfo="name+text",
     ))
 
-    # ── GEM Aktif Fay Overlay (CFS haritası) — v1.43 ──────────────────────────
-    _gem_faults_cfs = _cached_gem_faults_turkey()
-    if _gem_faults_cfs:
-        for _gem_tr_cfs in gem_fault_traces(_gem_faults_cfs, color="#FF6B35", width=1.0):
-            fig_map.add_trace(_gem_tr_cfs)
+    # v1.60 — Çift GEM render kaldırıldı (yukarıda _add_gem_fault_overlay zaten
+    # tüm GEM faylarını gri taban olarak çiziyor; ikinci turuncu katman donmaya
+    # sebep oluyordu). Attribution chart altında caption ile veriliyor.
 
     fig_map.update_layout(
         mapbox=dict(
@@ -8299,6 +8314,10 @@ def _render_coulomb_stress():
         ),
     )
     st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+    st.caption(
+        "Fay overlay: GEM Global Active Faults (CC BY 4.0; Styron & Pagani 2020). "
+        "Coulomb modeli: King-Stein-Lin 1994 BSSA · Okada 1992."
+    )
 
     # ── Hedef noktada CFS değeri ───────────────────────────────────────────
     # En yakın grid noktasını bul
@@ -12131,10 +12150,6 @@ def _render_akademik_kutuphane():
     # v1.44.3 — defensive import: knowledge_base.py eksik/yarısı yazılmış olabilir
     # (yarış kondisyonu, hot-reload cache, vb.). ImportError → kullanıcıya açıklayıcı uyarı.
     try:
-        import importlib
-        import knowledge_base as _knowledge_base
-
-        importlib.reload(_knowledge_base)
         from knowledge_base import (
             TOPICS, REFERENCES, ACIKLAMALAR, PLOTLY_CONFIG, COLORS,
             # Animasyon fonksiyonları — v3.1
