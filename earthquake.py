@@ -79,7 +79,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.50"
+APP_VERSION = "1.51"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -2467,6 +2467,75 @@ if active_menu == "🎓 Bilgi Havuzu":
     def _render_edu():
         st.markdown('<div class="chart-title">📚 Temel Deprem Mühendisliği Bilgi Havuzu</div>', unsafe_allow_html=True)
         st.caption("Bu ekran öğretici simülasyon alanıdır; resmi tehlike haritası, ShakeMap veya yapı performans hesabı değildir.")
+
+        # v1.51 — Ajan 9 (Codex önceliği 6): Magnitude Converter mini-tool
+        # Scordilis 2006 BSSA Vol.96 — global regresyon formülleri.
+        # Kullanım: katalog homojenleştirme, kaynaklar arası karşılaştırma.
+        with st.expander("🔢 Magnitude Dönüştürücü — mb / Ms / ML → Mw (Scordilis 2006)", expanded=False):
+            st.caption(
+                "Scordilis 2006 (Bull. Seismol. Soc. Am. 96(4)): "
+                "Farklı magnitude tiplerini moment magnitude'a (Mw) dönüştürme. "
+                "Katalog homojenleştirme ve kaynak karşılaştırması için kullanılır."
+            )
+            col_in, col_out = st.columns(2)
+            with col_in:
+                mag_type_in = st.selectbox(
+                    "Giriş tipi",
+                    ["mb (vücut dalga)", "Ms (yüzey dalga)", "ML (lokal — Richter)"],
+                    key="mag_conv_in_type",
+                )
+                mag_value = st.number_input(
+                    "Magnitude değeri",
+                    min_value=2.0, max_value=9.5, value=5.0, step=0.1,
+                    key="mag_conv_in_value",
+                )
+            with col_out:
+                # Scordilis 2006 regresyon formülleri
+                if mag_type_in.startswith("mb"):
+                    if 3.5 <= mag_value <= 6.2:
+                        mw = 0.85 * mag_value + 1.03
+                        formula = "Mw = 0.85·mb + 1.03"
+                        valid = True
+                    else:
+                        mw = 0.85 * mag_value + 1.03
+                        formula = "Mw = 0.85·mb + 1.03 (aralık dışı, ekstrapolasyon)"
+                        valid = False
+                    valid_range = "3.5 - 6.2"
+                elif mag_type_in.startswith("Ms"):
+                    if mag_value < 6.2:
+                        mw = 0.67 * mag_value + 2.07
+                        formula = "Mw = 0.67·Ms + 2.07 (Ms < 6.2)"
+                    else:
+                        mw = 0.99 * mag_value + 0.08
+                        formula = "Mw = 0.99·Ms + 0.08 (Ms ≥ 6.2)"
+                    valid = 3.0 <= mag_value <= 8.2
+                    valid_range = "3.0 - 8.2"
+                else:  # ML
+                    # ML ≈ Mw için bölgesel kalibrasyon değişir; genel kabul: ML 3.5-6.5
+                    # için Mw ≈ ML. Türkiye için Kalafat 2007 benzer regresyon.
+                    mw = mag_value
+                    formula = "Mw ≈ ML (3.5 ≤ ML ≤ 6.5, bölgesel yaklaşım)"
+                    valid = 3.5 <= mag_value <= 6.5
+                    valid_range = "3.5 - 6.5"
+
+                st.metric("⚖️ Mw (Moment Magnitude)", f"{mw:.2f}",
+                          delta=f"{mw - mag_value:+.2f} fark")
+                st.caption(f"📐 **Formül:** `{formula}`")
+                if not valid:
+                    st.warning(f"⚠️ Geçerli aralık dışı (Scordilis 2006: {valid_range}) — "
+                               "değer ekstrapolasyondur, ihtiyatlı yorumlayın.")
+                else:
+                    st.success(f"✅ Geçerli aralıkta (Scordilis 2006: {valid_range})")
+
+            st.markdown(
+                "**📚 Kaynak:** Scordilis, E.M. (2006). Empirical global relations converting "
+                "Ms and mb to moment magnitude. *Bull. Seismol. Soc. Am.* 96(4), 1393-1414. "
+                "[DOI:10.1785/0120050039](https://doi.org/10.1785/0120050039)<br>"
+                "Türkiye için bölgesel ML→Mw alternatifi: **Kalafat et al. 2007** (KOERI).",
+                unsafe_allow_html=True,
+            )
+
+        st.markdown("---")
 
         edu_mode = st.radio(
             "Eğitim modu",
