@@ -79,7 +79,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.45"
+APP_VERSION = "1.45.1"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -958,22 +958,59 @@ _MENU_ICONS  = [p[1] for k in _KATEGORILER.values() for p in k["panels"]]
 _KATEGORI_LISTESI = list(_KATEGORILER.keys())
 _KATEGORI_IKONLARI = [_KATEGORILER[k]["icon"] for k in _KATEGORI_LISTESI]
 
-_PILL_STYLE = {
-    "container": {"padding": "0!important", "background-color": "transparent", "margin-top": "0"},
-    "icon": {"font-size": "0.95rem"},
+# v1.45.1 — Üst pill (ana kategori) ve alt pill (alt menü) görsel hiyerarşisi
+# güçlendirildi (kullanıcı bildirimi: "üst ve alt aynı gibi görünüyor").
+# Üst: BÜYÜK font + kalın + mavi seçim — ana navigasyon
+# Alt: KÜÇÜK font + ince + yeşil seçim + "indented" arka plan kutusu — ikincil
+_PILL_STYLE_USTE = {
+    "container": {"padding": "0!important", "background-color": "transparent",
+                  "margin-top": "0", "border-bottom": "2px solid rgba(25,118,210,0.35)"},
+    "icon": {"font-size": "1.05rem"},
     "nav-link": {
-        "font-size": "0.82rem",
+        "font-size": "0.92rem",
+        "font-weight": "500",
         "text-align": "center",
-        "margin": "0 2px",
-        "padding": "6px 10px",
-        "border-radius": "8px",
+        "margin": "0 3px",
+        "padding": "9px 16px",
+        "border-radius": "10px 10px 0 0",
         "white-space": "nowrap",
     },
-    "nav-link-selected": {"background-color": "#1976d2", "font-weight": "600"},
+    "nav-link-selected": {
+        "background-color": "#1976d2",
+        "font-weight": "700",
+        "border-bottom": "3px solid #ffd54f",  # altın çubuk: "burası ana seçili"
+    },
+}
+
+_PILL_STYLE_ALT = {
+    "container": {
+        "padding": "6px 10px !important",
+        "background-color": "rgba(67,160,71,0.08)",   # hafif yeşil tint = "alt menü kutusu"
+        "border-left": "3px solid #43a047",            # sol kenar yeşil = "├─ alt"
+        "border-radius": "0 8px 8px 8px",
+        "margin-top": "0",
+        "margin-bottom": "6px",
+    },
+    "icon": {"font-size": "0.78rem"},
+    "nav-link": {
+        "font-size": "0.72rem",
+        "font-weight": "400",
+        "text-align": "center",
+        "margin": "0 2px",
+        "padding": "4px 9px",
+        "border-radius": "5px",
+        "white-space": "nowrap",
+        "opacity": "0.88",
+    },
+    "nav-link-selected": {
+        "background-color": "#43a047",
+        "font-weight": "600",
+        "opacity": "1.0",
+    },
 }
 
 with st.container(key="sticky_nav"):
-    # Üst: ana kategori pill bar (6 öğe — temiz)
+    # Üst: ana kategori pill bar (6 öğe — BÜYÜK, ana navigasyon)
     secili_kategori = option_menu(
         menu_title=None,
         options=_KATEGORI_LISTESI,
@@ -981,15 +1018,19 @@ with st.container(key="sticky_nav"):
         orientation="horizontal",
         default_index=0,
         key="ana_kategori",
-        styles=_PILL_STYLE,
+        styles=_PILL_STYLE_USTE,
     )
-    # Alt: seçili kategorinin panel pill bar'ı
+    # Seçili kategori için küçük label — "├─" karakteri hiyerarşiyi görsel anlatır
+    st.markdown(
+        f"<div style='font-size:0.72rem;opacity:0.65;margin:2px 0 -2px 12px;"
+        f"color:#43a047;letter-spacing:0.3px'>├─ <b>{secili_kategori}</b> alt menüsü</div>",
+        unsafe_allow_html=True,
+    )
+
+    # Alt: seçili kategorinin panel pill bar'ı (KÜÇÜK, yeşil tint kutusunda)
     _alt_paneller = _KATEGORILER[secili_kategori]["panels"]
     _alt_labels = [p[0] for p in _alt_paneller]
     _alt_icons  = [p[1] for p in _alt_paneller]
-    # Stil — alt-pill daha yumuşak (ikincil seviye)
-    _alt_style = {**_PILL_STYLE,
-                  "nav-link-selected": {"background-color": "#43a047", "font-weight": "600"}}
     active_menu = option_menu(
         menu_title=None,
         options=_alt_labels,
@@ -998,7 +1039,7 @@ with st.container(key="sticky_nav"):
         default_index=0,
         # Her kategorinin kendi state'i — kategori değiştirince alt pill default'a döner
         key=f"alt_panel_{secili_kategori}",
-        styles=_alt_style,
+        styles=_PILL_STYLE_ALT,
     )
 
 # ─── Metrikler ──────────────────────────────────────────────────────────────
