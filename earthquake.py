@@ -79,7 +79,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.45.5"
+APP_VERSION = "1.45.6"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -792,25 +792,26 @@ st.markdown(f"""
 # Bu manuel buton her zaman görünür ve JS ile Streamlit'in iç collapse butonuna
 # tıklayarak sidebar'ı açar. Sidebar açıkken yarı saydam kalır (rahatsız etmez).
 st.markdown("""
-<a id="custom-sidebar-toggle" href="javascript:void(0);"
-   onclick="
-     var sb = document.querySelector('[data-testid=stSidebar]');
-     var ctrl = document.querySelector('[data-testid=stSidebarCollapsedControl] button')
-             || document.querySelector('[data-testid=collapsedControl] button')
-             || document.querySelector('[data-testid=stSidebarHeader] button')
-             || document.querySelector('button[aria-label*=sidebar]')
-             || document.querySelector('button[aria-label*=enar]');
+<button id="custom-sidebar-toggle" type="button"
+   onclick="(function(e){
+     if (e) { e.preventDefault(); e.stopPropagation(); }
+     var sb = window.parent.document.querySelector('[data-testid=stSidebar]')
+           || document.querySelector('[data-testid=stSidebar]');
+     var ctrl = (window.parent.document || document).querySelector('[data-testid=stSidebarCollapsedControl] button')
+             || (window.parent.document || document).querySelector('[data-testid=collapsedControl] button')
+             || (window.parent.document || document).querySelector('[data-testid=stSidebarHeader] button')
+             || (window.parent.document || document).querySelector('button[aria-label*=sidebar]')
+             || (window.parent.document || document).querySelector('button[aria-label*=enar]');
      if (ctrl) { ctrl.click(); }
      else if (sb) {
        sb.style.transform = 'translateX(0)';
        sb.style.visibility = 'visible';
        sb.style.minWidth = '244px';
+       sb.setAttribute('aria-expanded', 'true');
      }
      return false;
-   "
-   title="Sol menüyü aç/kapat (Ctrl+B kısayolu da çalışır)">
-  ☰ Menü
-</a>
+   })(event);"
+   title="Sol menüyü aç/kapat">☰ Menü</button>
 """, unsafe_allow_html=True)
 
 # ─── Sidebar — v1.15b: Filtreler açıkta + 3 expander grup ──────────────────
