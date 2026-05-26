@@ -79,7 +79,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.48"
+APP_VERSION = "1.49"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -1766,19 +1766,40 @@ def _render_canli_radar():
 
             visible = [f for f in FAULT_LINES if in_view(f)]
 
+            # v1.49 — Ajan 5B LOD (Codex önceliği 4): yarıçap-tabanlı vertex
+            # simplification. Mapbox zoom server-side bilinmediği için kullanıcının
+            # seçtiği yarıçapa bağla. Geniş yarıçap = daha az detay (görsel temiz
+            # + render hızlı). MTA Diri Fay 2013 polyline'ları aşırı yoğun
+            # (14,500 × ~10 vertex), küçük detaylar zoom-out'ta zaten gözükmüyor.
+            if radius_km < 150:
+                _lod_step, _lod_label = 1, "Tam detay"
+            elif radius_km < 300:
+                _lod_step, _lod_label = 2, "Orta detay (1/2)"
+            elif radius_km < 700:
+                _lod_step, _lod_label = 4, "Düşük detay (1/4)"
+            else:
+                _lod_step, _lod_label = 8, "Sadece ana hatlar (1/8)"
+
             # Renge göre gruplayıp tek trace'e topla (None separator ile)
             by_color = {}
             for fault in visible:
                 color = fault["color"]
                 entry = by_color.setdefault(color, {"lats": [], "lons": [], "labels": []})
-                entry["lats"].extend(fault["lats"] + [None])
-                entry["lons"].extend(fault["lons"] + [None])
+                # Vertex simplification — uçları her zaman koru (Visvalingam basitleştirme),
+                # ortayı her _lod_step'inci ile çek.
+                f_lats, f_lons = fault["lats"], fault["lons"]
+                if _lod_step > 1 and len(f_lats) > 4:
+                    # İlk + son her zaman, ortalar her step'inci
+                    f_lats = [f_lats[0]] + f_lats[1:-1:_lod_step] + [f_lats[-1]]
+                    f_lons = [f_lons[0]] + f_lons[1:-1:_lod_step] + [f_lons[-1]]
+                entry["lats"].extend(f_lats + [None])
+                entry["lons"].extend(f_lons + [None])
                 seg = fault["segment"]
                 label = f"{fault['fay_adi']} — {seg}" if seg else fault["fay_adi"]
                 label = f"{safe_html(label)}<br>Kayma: {safe_html(fault['kayma'])}"
                 if fault["uzunluk"]:
                     label += f" · Uzunluk: {safe_html(fault['uzunluk'])} km"
-                entry["labels"].extend([label] * len(fault["lats"]) + [None])
+                entry["labels"].extend([label] * len(f_lats) + [None])
 
             for color, data in by_color.items():
                 # Gölge (siyah, alt katman)
@@ -1795,6 +1816,15 @@ def _render_canli_radar():
                     text=data["labels"],
                     hovertemplate="<b>%{text}</b><extra></extra>",
                 ))
+
+            # v1.49 — LOD seviyesi göstergesi (Codex önerisi: kullanıcı detay seviyesini bilsin)
+            _fault_count = len(visible)
+            st.caption(
+                f"🗺️ **Fay detay seviyesi:** {_lod_label} · "
+                f"Yarıçap {radius_km} km · {_fault_count} segment görünür"
+                + (" · Geniş yarıçapta görsel basitleştirme aktif (bilimsel iz korunur, vertex azaltıldı)"
+                   if _lod_step > 1 else "")
+            )
 
         if show_plates and PLATE_LINES:
             # Tip bazında grupla — convergent kırmızı, divergent mavi, transform sarı
