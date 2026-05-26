@@ -41,8 +41,8 @@ Her panelin mevcut `st.caption`, `st.markdown`, `st.info`, `st.warning`, `st.suc
 | 🔒 Fay Kilitlenme | 🟠 Temel | 2 | — |
 | 💥 Coulomb Stres | 🟢 Akademik ✅ (v1.65) | 2 | ✅ **Sprint 4b — King-Stein-Lin 1994 + Okada 1992** |
 | 🥎 Odak Mekanizması | 🟠 Temel | 2 | — |
-| ⛏️ Paleosismik Kazı | 🟠 Temel | 1 | — |
-| 🏺 Erzincan Paleo | 🟠 Temel | 2 | — |
+| ⛏️ Paleosismik Kazı | 🟢 Akademik ✅ (v1.66) | 1 | ✅ **Sprint 6 — Wallace 1981 + McCalpin 2009** |
+| 🏺 Erzincan Paleo | 🟢 Akademik ✅ (v1.66) | 2 | ✅ **Sprint 6 — Kozacı 2007 + Hartleb 2003** |
 
 ### 📊 Analiz & Modeller
 
@@ -66,7 +66,7 @@ Her panelin mevcut `st.caption`, `st.markdown`, `st.info`, `st.warning`, `st.suc
 | 🌋 Moho Derinliği | 🟠 Temel | 1 | — |
 | 🌀 SKS Splitting | 🟠 Temel | 2 | — |
 | 🏔️ Vs30 Zemin | 🟠 Temel | 2 | — |
-| 🗾 Erzincan Mikrozon | 🟠 Temel | 2 | — |
+| 🗾 Erzincan Mikrozon | 🟢 Akademik ✅ (v1.66) | 2 | ✅ **Sprint 6 — Nakamura 1989 + AFAD 2010** |
 
 ### 🎓 Eğitim & Bilgi
 
@@ -76,8 +76,8 @@ Her panelin mevcut `st.caption`, `st.markdown`, `st.info`, `st.warning`, `st.suc
 | 🎓 Bilgi Havuzu — 3D Fay Mekaniği | 🟢 Akademik ✅ (v1.57) | 1 (animasyon) | ✅ **PİLOT C tamamlandı** — Reid 1910 + 12 referans |
 | 🎓 Bilgi Havuzu — P/S/Rayleigh Dalgalar | 🟡 Orta (v1.52 güncel) | 1 (animasyon) | — |
 | 🎓 Bilgi Havuzu — Erzincan Sahnesi | 🟠 Temel | 1 (3D) | — |
-| 📜 Tarihsel Sismisite | 🟠 Temel | 2 | — |
-| 🏛️ Erzincan Arşivi | 🟡 Orta (v1.44.1 güncel) | 3 | — |
+| 📜 Tarihsel Sismisite | 🟢 Akademik ✅ (v1.66) | 2 | ✅ **Sprint 6 — Ambraseys 2009 + Ambraseys-Jackson 2000** |
+| 🏛️ Erzincan Arşivi | 🟢 Akademik ✅ (v1.66) | 3 | ✅ **Sprint 6 — Barka 1996 + Grosser 1998** |
 | 🎬 Ambraseys Animasyon | 🟠 Temel | 1 | — |
 | 🔭 Astronomik Analiz | 🟠 Temel | 5 (5 bileşen) | — |
 | 📝 Raporlar | 🔴 Eksik | 0 (TXT indir) | — |

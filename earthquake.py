@@ -78,7 +78,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.65"
+APP_VERSION = "1.66"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -7079,6 +7079,149 @@ def _render_erzincan_arsivi():
         "gerçek deprem zamanlaması Wallace–Schwartz–Coppersmith 1984 paleoseismik dağılımına tabidir."
     )
 
+    # v1.66 — Sprint 6: Erzincan Arşivi akademik standart (ACADEMIC_STANDARD v1.1)
+    st.markdown(
+        f"""<div style="
+            background:linear-gradient(90deg,{BG2} 0%,rgba(76,175,80,0.10) 100%);
+            border-left:3px solid #4CAF50;
+            border-radius:6px;
+            padding:0.55rem 0.9rem;
+            margin:0.4rem 0 0.8rem 0;
+            font-size:0.88rem;
+            color:{TEXT};
+            line-height:1.45;">
+            📊 <b>Mini rehber:</b> Erzincan KAF doğu segmenti üzerinde 1939 / 1992 / tarihsel olaylar; gerçek MTA Diri Fay
+            2013 polyline'larıyla çizilen kırık geometrisi ve birikimli slip-deficit göstergesi.
+            <b>Slip-deficit progress bar bir tahmin DEĞİLDİR</b> — yalnızca lineer interseismik birikim ölçeğidir;
+            karakteristik deprem modelinin (Schwartz-Coppersmith 1984) bir göstergesidir, kesin zaman vermez.
+            <i>1939 kırılma geometrisi, paleosismik 1668/1784 olayları, KAF Erzincan kayma hızı yöntem-bağımlılığı
+            ve karakteristik deprem modeli için aşağıdaki 📖 Akademik Açıklama panelini açın.</i>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+    render_academic_explanation(
+        title="📖 Akademik Açıklama — Erzincan KAF Arşivi (1939, 1992 + tarihsel)",
+        what=(
+            "Bu panel, **Erzincan ve çevresinin KAF doğu segmenti üzerindeki sismik geçmişini** üç katmanda "
+            "gösterir: (i) **1939 Mw 7.9 yüzey kırığı** — Karlıova-Erzincan arası ≈ 360 km MTA Diri Fay 2013 "
+            "polyline'ı (Barka 1996); (ii) **1992 Mw 6.8** Erzincan basin segmenti (≈ 55 km, Grosser et al. 1998); "
+            "(iii) **tarihsel olaylar** (Ambraseys 1988 + Ambraseys & Finkel 1988 kaynakları) güven sınıflarıyla "
+            "(A: aletsel, B: tarihsel güçlü, C: tarihsel zayıf, P: paleosismik). **Slip-deficit progress bar** "
+            "Reid 1910 elastik geri tepme teorisi (panelde *Bilgi Havuzu → 3D Fay Mekaniği*) çerçevesinde, 1939'dan "
+            "bu yana 87 yıl × ortalama kayma hızı ile birikmiş kayma açığını gösterir."
+        ),
+        how=(
+            "**Harita okuma:**\n\n"
+            "- **Kırmızı kalın çizgi:** 1939 ≈ 360 km kırılma (gerçek MTA Diri Fay 2013 polyline, ~100+ vertex).\n"
+            "- **Mavi orta çizgi:** 1992 ≈ 55 km Erzincan basin segmenti (KAF Erzincan + Kargapazarı).\n"
+            "- **Yıldız:** Erzincan şehir merkezi (39.7333°N, 39.4917°E).\n"
+            "- **Renkli noktalar:** Tarihsel olaylar (yıl + Mw), boyut Mw'ye orantılı, renk güven sınıfına göre "
+            "(kırmızı = A aletsel ≥1900, turuncu = B tarihsel güçlü, sarı = C zayıf, mor = P paleosismik).\n\n"
+            "**Slip-deficit kartları:**\n"
+            "- **Son büyük depremden:** 1939'dan bu yana geçen yıl (2026 - 1939 = **87 yıl**).\n"
+            "- **Birikimli kayma:** $87 \\times V_{slip} \\approx$ 1.6–2.1 m (kayma hızı 18–24 mm/yr aralığında).\n"
+            "- **Karakteristik kayma:** 1939 olayı co-seismic atım ≈ 4–5 m (Barka 1996 — yüzey kırığı haritalama).\n"
+            "- **Progress bar:** Birikimli / Karakteristik oranı (~%40–52)."
+        ),
+        science=(
+            "**İnterseismik kayma birikimi (lineer model):**\n\n"
+            r"$$\Delta D(t) = V_{slip} \cdot (t - t_0)$$"
+            "\n\nburada:\n"
+            "- $V_{slip}$ = uzun-vadeli kayma hızı (**mm/yr**); KAF Erzincan doğu segmenti için yöntem-bağımlı: "
+            "paleosismik **18–21 mm/yr** (Kozacı et al. 2015 *GJI*), GPS jeodezisi **22–24 mm/yr** (Reilinger 2006)\n"
+            "- $t - t_0$ = son büyük depremden bu yana zaman (**yıl**; 2026 - 1939 = 87)\n"
+            "- $\\Delta D$ = birikmiş kayma açığı (**m**)\n\n"
+            "**Karakteristik deprem modeli (Schwartz & Coppersmith 1984):**\n\n"
+            r"$$T_{recurrence} \approx \frac{D_{characteristic}}{V_{slip}}$$"
+            "\n\nKAF Erzincan için $D_{char} \\approx$ 4–5 m, $V_{slip} \\approx$ 20 mm/yr ortalama → "
+            "$T_{rec} \\approx$ 200–250 yıl tekrar aralığı (Hubert-Ferrari 2002).\n\n"
+            "**Belirsizlik kategorileri (panel kullanımı):**\n"
+            "- **A (aletsel):** ≥ 1900, ±0–5 yıl, Mw belirsizliği ±0.1\n"
+            "- **B (tarihsel güçlü):** 1000–1899, ±20–50 yıl, Mw belirsizliği ±0.3\n"
+            "- **C (tarihsel zayıf):** < 1000 veya seyrek kayıt, ±50–200 yıl\n"
+            "- **P (paleosismik):** trench bulgusu, ±50–500 yıl (radyokarbon yaş aralığı)"
+        ),
+        interpretation=(
+            "**Erzincan tarihsel sekansı (paleosismik + tarihsel kayıtlar):**\n\n"
+            "- **~1045** (M ≈ 7+, P): Trench bulgusu (Hartleb et al. 2003 *Geology*).\n"
+            "- **~1254 / 1268** (M 7.5, B): Bizans dönemi kayıt; Erzincan büyük yıkım (Ambraseys 2009 *Earthquakes "
+            "in the Mediterranean and Middle East*).\n"
+            "- **1668** (M 8.0, B): KAF ana tarihsel sekansı — Amasya-Erzincan tüm KAF doğu kanadı (Ambraseys & "
+            "Finkel 1995). 1939'dan 271 yıl önce.\n"
+            "- **1784** (M 7.6, B): Erzincan; rupture trace belirsiz (Ambraseys & Finkel 1988).\n"
+            "- **1939** (Mw 7.9, A): **Modern referans olay** — 360 km kırık, 7–8 m co-seismic atım, ≈ 33.000 ölü.\n"
+            "- **1992** (Mw 6.8, A): Erzincan basin içi kırılma; 1939 ana segmentinden ayrı (Grosser et al. 1998).\n\n"
+            "**Slip-deficit yorumu (KRİTİK):**\n"
+            "- 1939'dan 87 yıl × 18–24 mm/yr = **1.6–2.1 m** birikmiş; karakteristik atım 4 m'nin **%40–52**'si.\n"
+            "- 1668 olayından sonra 271 yıl × 20 mm/yr = ~5.4 m birikmiş → karakteristik 4 m'yi aştığında 1939 "
+            "kırıldı. Bu **örneğe dayalı** bir model, kesin tahmin değil.\n"
+            "- KAF batı yönlü göç dizisi (Stein-Barka-Dieterich 1997): 1939 → 1942 → 1943 → 1944 → ... → 1999 İzmit "
+            "→ 1999 Düzce. **Batıya** ilerledi; doğuya (Erzincan-Tercan) henüz tetikleme yok."
+        ),
+        limitations=(
+            "1. **Slip-deficit progress bar deprem tahmini DEĞİLDİR:** Karakteristik atımın %100'üne ulaşmak "
+            "olayın 'olacak' anlamına gelmez; geç de gelir, erken de. Reid 1910 modeli **olasılıksal**, "
+            "deterministik değildir.\n"
+            "2. **Lineer kayma birikimi varsayımı:** Postseismik viskoelastik gevşeme, slow-slip olayları, "
+            "afterslip gerçekte kayma birikimini zaman bağımlı kılar (Bürgmann & Dresen 2008). 87 yıl boyunca "
+            "lineer ortalama OK ama yıllık varyasyon ±%20.\n"
+            "3. **Tarihsel olaylar (B/C/P) episentr belirsizliği yüksek:** ±50–200 yıl tarih, ±0.3–0.5 Mw, "
+            "rupture trace çoğu için bilinmez. Konum jeodezik kesin değil, hasar dağılımından çıkarsama.\n"
+            "4. **Karakteristik deprem modeli her zaman geçerli değil:** Kagan & Jackson 1991 küme + supercycle "
+            "modelleri KAF için de %20–30 değişkenlik gösterir (Kozacı et al. 2015). 'Aynı 4 m kırılır' garanti "
+            "değildir.\n"
+            "5. **KAF segment etkileşimleri:** Erzincan segmenti komşu Tercan ve Karlıova segmentleriyle "
+            "ilişkilidir (Coulomb stres transferi). Tek segment slip-deficit, çok-segment kırılma "
+            "olasılığını içermez (2023 Maraş çift kırılması bu sınırın örneğidir).\n"
+            "6. **Yaygın hata — '%52 = az risk':** Yüzde değeri **belirsizlik aralığı** içindedir (%40-52). "
+            "Tehlike değerlendirmesi için **AFAD/TBDY-2018 olasılıksal harita** kullanılmalıdır, bireysel "
+            "segment slip-deficit değil."
+        ),
+        references=[
+            "**Barka, A. A. (1996).** Slip distribution along the North Anatolian fault associated with the "
+            "large earthquakes of the period 1939 to 1967. *BSSA*, 86(5), 1238–1254. "
+            "[doi.org/10.1785/BSSA0860051238](https://doi.org/10.1785/BSSA0860051238) "
+            "— *1939 Erzincan kırığı haritalama referansı.*",
+            "**Grosser, H., Baumbach, M., Berckhemer, H., et al. (1998).** The Erzincan (Turkey) earthquake "
+            "(March 13, 1992) and its aftershock sequence. *Pure and Applied Geophysics*, 152(3), 465–505. "
+            "DOI: [10.1007/s000240050163](https://doi.org/10.1007/s000240050163) "
+            "— *1992 Mw 6.8 Erzincan ana kaynak ve artçı analizi.*",
+            "**Ambraseys, N., & Finkel, C. (1995).** *The Seismicity of Turkey and Adjacent Areas: A Historical "
+            "Review, 1500–1800.* Eren Yayıncılık. ISBN: 975-7622-38-9 "
+            "— *Türkiye tarihsel sismisite arşivi (1668 dahil).*",
+            "**Hubert-Ferrari, A., Armijo, R., King, G., Meyer, B., & Barka, A. (2002).** Morphology, displacement, "
+            "and slip rates along the North Anatolian Fault, Turkey. *JGR*, 107(B10), 2235. DOI: "
+            "[10.1029/2001JB000393](https://doi.org/10.1029/2001JB000393) "
+            "— *KAF Erzincan slip-rate ve karakteristik atım.*",
+            "**Kozacı, Ö., Dolan, J. F., Yönlü, Ö., & Hartleb, R. D. (2015).** Paleoseismologic evidence for the "
+            "relatively uniform recurrence of large earthquakes along the central North Anatolian Fault. *GJI*, "
+            "202(3), 2133–2149. "
+            "[academic.oup.com/gji/article/202/3/2133](https://academic.oup.com/gji/article/202/3/2133/614779) "
+            "— *KAF doğu/orta paleosismik 18–21 mm/yr.*",
+            "**Hartleb, R. D., Dolan, J. F., Akyüz, H. S., Dawson, T. E., et al. (2003).** A 2000-year-long "
+            "paleoseismologic record of earthquakes along the central North Anatolian Fault, from trenches at "
+            "Alayurt, Turkey. *BSSA*, 93(5), 1935–1954. DOI: "
+            "[10.1785/0120010271](https://doi.org/10.1785/0120010271) "
+            "— *KAF Erzincan-Tercan trench paleosismik kayıt.*",
+            "**Stein, R. S., Barka, A. A., & Dieterich, J. H. (1997).** Progressive failure on the North "
+            "Anatolian fault since 1939 by earthquake stress triggering. *GJI*, 128(3), 594–604. DOI: "
+            "[10.1111/j.1365-246X.1997.tb05321.x](https://doi.org/10.1111/j.1365-246X.1997.tb05321.x) "
+            "— *1939 sonrası KAF batıya göç dizisi.*",
+            "**Reid, H. F. (1910).** *The Mechanics of the Earthquake.* Carnegie Institution. "
+            "[archive.org/details/mechanicsofearth00reid](https://archive.org/details/mechanicsofearth00reid) "
+            "— *Slip-deficit kavramının teorik temeli.*",
+        ],
+        disclaimer=(
+            "⚠️ **Slip-deficit %40–52 değeri bir deprem tahmini DEĞİLDİR.** Reid 1910 elastik geri tepme modeli "
+            "olasılıksaldır; karakteristik atımın %100'üne ulaşmak olayın *ne zaman* olacağını söylemez "
+            "(geç de erken de gelebilir; Geller 1997 *GJI*). Tarihsel olaylar (B/C/P güven sınıfı) episentr, "
+            "Mw ve kırık trace olarak **kesin kabul edilmemelidir**; ±50–200 yıl tarih ve ±0.3–0.5 Mw belirsizliği "
+            "tipiktir. Erzincan ve çevresi bilimsel olarak yüksek tehlikeli kabul edilir; **AFAD/TBDY-2018 resmi "
+            "tehlike haritası** ve **bina güçlendirme** kararları için referanstır."
+        ),
+        expanded=False,
+    )
+
 
 if active_menu == "🏛️ Erzincan Arşivi":
     _render_erzincan_arsivi()
@@ -9885,6 +10028,149 @@ def _render_tarihsel_sismisite():
         "±0.3 belirsizlik içerir (Ambraseys & Jackson 2000)."
     )
 
+    # v1.66 — Sprint 6: Tarihsel Sismisite akademik standart
+    st.markdown(
+        f"""<div style="
+            background:linear-gradient(90deg,{BG2} 0%,rgba(76,175,80,0.10) 100%);
+            border-left:3px solid #4CAF50;
+            border-radius:6px;
+            padding:0.55rem 0.9rem;
+            margin:0.4rem 0 0.8rem 0;
+            font-size:0.88rem;
+            color:{TEXT};
+            line-height:1.45;">
+            📊 <b>Mini rehber:</b> Harita ve tablo, MS ~365'ten günümüze Türkiye/Doğu Akdeniz tarihsel sismisitesini
+            <b>güven sınıflarına</b> göre gösterir (A: aletsel, B: tarihsel güçlü, C: zayıf, P: paleosismik).
+            <b>Mw, episentr ve hatta tarih kesin değildir</b> — Ambraseys 2009 makro-sismik şiddet kayıtlarından
+            türetilmiş tahminlerdir; ±50 yıl tarih, ±0.3–0.5 Mw belirsizliği tipiktir.
+            <i>Makro-sismik şiddet → Mw dönüşümü, Ambraseys-Jackson 2000 metodolojisi ve KAF/DAF tarihsel
+            kümelenmeleri için aşağıdaki 📖 Akademik Açıklama panelini açın.</i>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+    render_academic_explanation(
+        title="📖 Akademik Açıklama — Türkiye Tarihsel Sismisitesi (2000 yıl)",
+        what=(
+            "Bu panel, Türkiye ve Doğu Akdeniz'in **MS ~365'ten günümüze** sismik kayıt zincirini gösterir. "
+            "Veri **birincil tarihsel arşivlerden** (Bizans/Selçuklu/Osmanlı kronikleri, Roma kayıtları, "
+            "deprem hasarı raporları) türetilmiştir. **Nicholas N. Ambraseys**'in 2009 Cambridge Univ. Press "
+            "kitabı *Earthquakes in the Mediterranean and Middle East* alan standardıdır. Her olayın **güven "
+            "sınıfı** (A/B/C/P) açıkça etiketlenir; bu sınıflandırma kullanıcının verinin **belirsizlik "
+            "derecesini** doğru yorumlaması için kritiktir — 1939 Mw 7.9 ile 365 MS Girit 'megatsunami' aynı "
+            "doğrulukla bilinmez."
+        ),
+        how=(
+            "**Harita okuma:**\n\n"
+            "- **Noktalar:** Her tarihsel olay; boyut Mw'ye orantılı (≈ M6.5 → 9 px, M8 → 20 px).\n"
+            "- **Renk = güven sınıfı:**\n"
+            "  * Kırmızı (#A32D2D) — **A (aletsel, ≥1900):** sismograf kayıtlı, ±0–5 yıl, ±0.1 Mw\n"
+            "  * Turuncu (#EF9F27) — **B (tarihsel güçlü, 1000–1899):** çoklu kaynak, ±20–50 yıl, ±0.3 Mw\n"
+            "  * Sarı (#FFC107) — **C (tarihsel zayıf, <1000 veya seyrek):** tek kaynak, ±50–200 yıl\n"
+            "  * Mor (#9C27B0) — **P (paleosismik):** trench bulgusu, radyokarbon yaş ±50–500 yıl\n\n"
+            "**Tablo sütunları:**\n"
+            "- **Yıl (MS):** Tarihsel kayıt yılı.\n"
+            "- **±Yıl:** Tarih belirsizliği aralığı.\n"
+            "- **Yer:** Modern adlandırma + tarihsel coğrafi karşılığı.\n"
+            "- **Mw (tahmin):** Makro-sismik şiddet veya hasar dağılımından türetilmiş büyüklük.\n"
+            "- **±Mw:** Mw belirsizliği (A ≈ 0.1, B ≈ 0.3, C ≈ 0.5).\n"
+            "- **Güven:** A/B/C/P sınıfı + açıklama.\n"
+            "- **Tarihsel kaynak:** Birincil arşiv (Ambraseys, Guidoboni, Sbeinati, vb.)."
+        ),
+        science=(
+            "**Makro-sismik şiddet → Mw dönüşümü (Ambraseys & Jackson 2000):**\n\n"
+            "Tarihsel olaylar için doğrudan Mw ölçülemez (sismograf yok). Bunun yerine **hasar dağılımı** ve "
+            "**raporlanan şiddet alanı** (Mercalli VIII+ alanının km² genişliği) kullanılır:\n\n"
+            r"$$M_w \approx 0.46 \cdot I_0 + 1.05 \cdot \log_{10}(A_{VIII+}) + 1.32$$"
+            "\n\nburada $I_0$ = epicenter MMI şiddeti (boyutsuz, **roman rakamı**), $A_{VIII+}$ = MMI ≥ VIII "
+            "yaşanan alan (**km²**). Bu formül Ambraseys-Jackson 2000 *GJI* 141'de Türkiye/Yunanistan/Mısır "
+            "tarihsel veri kalibrasyonuyla türetilmiştir; ±0.3–0.4 Mw belirsizlik içerir.\n\n"
+            "**Episentr lokalizasyonu — hasar centroid yöntemi:**\n\n"
+            r"$$(\phi_0, \lambda_0) = \frac{\sum_i w_i (\phi_i, \lambda_i)}{\sum_i w_i}, \quad w_i = I_i^2$$"
+            "\n\nburada $w_i$ = $i$. yerleşim noktasında raporlanan şiddetin karesi (ağırlık), $(\\phi_i, "
+            "\\lambda_i)$ = yerleşim koordinatı. Tipik konum belirsizliği **±20–50 km** (tarihsel B), "
+            "**±50–200 km** (C sınıfı seyrek kayıt).\n\n"
+            "**Paleosismik radyokarbon yaş:**\n\n"
+            r"$$T_{eq} = T_{C14} \pm 2\sigma_{cal} \pm \delta_{stratigraphic}$$"
+            "\n\nradyokarbon yaş kalibre edilmiş (Reimer 2020 IntCal20), ±50–500 yıl tipik (Wallace 1981 "
+            "*BSSA* — paleosismik metodoloji)."
+        ),
+        interpretation=(
+            "**Türkiye/Erzincan tarihsel kümelenme örnekleri:**\n\n"
+            "- **MS 365 (Mw ≈ 8.5, B/C):** Girit güneyi megatsunami — Doğu Akdeniz boyunca etki "
+            "(Stiros 2001 *J. Struct. Geol.*). Tarihte kaydedilen en büyük Akdeniz olayı.\n"
+            "- **MS ~1268 / 1254 (Mw ≈ 7.5, B):** Erzincan; Bizans dönemi yıkım kaydı.\n"
+            "- **1509 (Mw 7.2, B):** İstanbul; tarihte 'Küçük Kıyamet' olarak kaydedildi.\n"
+            "- **1668 (Mw 8.0, B):** KAF ana tarihsel sekansı — Amasya-Erzincan tüm doğu kanadı.\n"
+            "- **1719 (Mw 7.4, B):** İzmit-Marmara; KAF batı.\n"
+            "- **1766 (Mw 7.1, B):** İstanbul; aynı yıl 2 büyük olay (Mayıs + Ağustos).\n"
+            "- **1784 (Mw 7.6, B):** Erzincan; rupture trace belirsiz.\n"
+            "- **1912 (Mw 7.4, A):** Saros (Mürefte); ilk aletsel kayıtlı KAF batı olayı.\n"
+            "- **1939–1999 sekansı (Mw 7.0–7.9, A):** KAF batıya göç dizisi.\n"
+            "- **2023 (Mw 7.8 + 7.5, A):** DAFZ çift kırılma.\n\n"
+            "**Yaygın yorumlar:**\n"
+            "- KAF doğu segmenti (Erzincan-Karlıova) tarihsel olarak **~200–300 yıllık** tekrar (1668→1939 "
+            "= 271 yıl).\n"
+            "- KAF batı (Marmara-İzmit) **~250 yıllık** tekrar (1719→1999 = 280 yıl).\n"
+            "- 365 MS gibi çok eski olaylar **C/P sınıfı**; konum ve Mw tartışmalıdır."
+        ),
+        limitations=(
+            "1. **Mw 1900 öncesi makro-sismik kaynaklı:** Sismograf yok; Mw raporlanan şiddet alanı ve hasar "
+            "dağılımından çıkarsama. **±0.3–0.5 Mw belirsizlik** tipik (Ambraseys & Jackson 2000).\n"
+            "2. **Episentr belirsizliği yüksek (B/C sınıfı):** 'Erzincan 1268' aslında ±50 km bir alan; modern "
+            "GPS koordinatlarıyla karşılaştırılmamalıdır.\n"
+            "3. **Tarih belirsizliği özellikle eski olaylar için kritik:** ±50–200 yıl olabilir. 'Ortaçağ 1100 "
+            "Mw 7.0' aslında 1050–1150 arası olabilir.\n"
+            "4. **Kayıt eksikliği önyargı yapar:** Az nüfuslu bölge olayları (Doğu Anadolu kırsalı, Kafkas) "
+            "kaydedilmemiş olabilir. Bu **eksik kataloglama (catalog incompleteness)** Mc ≈ 7.0 öncesi 1900 "
+            "için (Ambraseys 2009 değerlendirmesi).\n"
+            "5. **Birden fazla kaynak çelişebilir:** Aynı olay farklı arşivlerde farklı tarih/Mw verebilir; "
+            "panel kaynak adını gösterir ama uzmanlık değerlendirmesi gerekir.\n"
+            "6. **Paleosismik (P) çok kaba:** Trench kayıtları ±50–500 yıl, episentr neredeyse sadece 'bu fay "
+            "üzerinde'. Modern karşılaştırma yapılamaz.\n"
+            "7. **Yaygın hata — '1668 = Anadolu için tipik olay':** Bir olay 'tipik' değildir; tekrar aralığı "
+            "%30–50 değişkenlikle değişir (Kozacı 2015). Tarihsel ortalama gelecek için kesin tahmin değildir."
+        ),
+        references=[
+            "**Ambraseys, N. (2009).** *Earthquakes in the Mediterranean and Middle East: A Multidisciplinary "
+            "Study of Seismicity up to 1900.* Cambridge University Press. ISBN: 978-0-521-87292-8 "
+            "— *Bölgesel tarihsel sismisite arşivinin standart kaynağı (>900 sayfa).*",
+            "**Ambraseys, N., & Finkel, C. (1995).** *The Seismicity of Turkey and Adjacent Areas: A Historical "
+            "Review, 1500–1800.* Eren Yayıncılık. ISBN: 975-7622-38-9 "
+            "— *Türkiye tarihsel sismisite 1500–1800 arası odaklı.*",
+            "**Ambraseys, N. N., & Jackson, J. A. (2000).** Seismicity of the Sea of Marmara (Turkey) since "
+            "1500. *GJI*, 141(3), F1–F6. DOI: "
+            "[10.1046/j.1365-246x.2000.00137.x](https://doi.org/10.1046/j.1365-246x.2000.00137.x) "
+            "— *Marmara tarihsel sekansı + makro-sismik Mw türetimi.*",
+            "**Guidoboni, E., Comastri, A., & Traina, G. (1994).** *Catalogue of Ancient Earthquakes in the "
+            "Mediterranean Area up to the 10th Century.* ING-SGA Rome. "
+            "— *Antik (MS öncesi - 1000) Akdeniz arşivi.*",
+            "**Sbeinati, M. R., Darawcheh, R., & Mouty, M. (2005).** The historical earthquakes of Syria: an "
+            "analysis of large and moderate earthquakes from 1365 BC to 1900 AD. *Annals of Geophysics*, 48(3), "
+            "347–435. DOI: [10.4401/ag-3206](https://doi.org/10.4401/ag-3206) "
+            "— *Suriye + Güney Anadolu tarihsel kayıt.*",
+            "**Stiros, S. C. (2001).** The AD 365 Crete earthquake and possible seismic clustering during the "
+            "fourth to sixth centuries AD in the Eastern Mediterranean: a review of historical and archaeological "
+            "data. *J. Structural Geology*, 23(2–3), 545–562. DOI: "
+            "[10.1016/S0191-8141(00)00118-8](https://doi.org/10.1016/S0191-8141(00)00118-8) "
+            "— *365 MS Girit megatsunami kayıt + Doğu Akdeniz küme.*",
+            "**Reimer, P. J., et al. (2020).** The IntCal20 Northern Hemisphere radiocarbon age calibration "
+            "curve (0–55 cal kBP). *Radiocarbon*, 62(4), 725–757. DOI: "
+            "[10.1017/RDC.2020.41](https://doi.org/10.1017/RDC.2020.41) "
+            "— *Paleosismik C14 yaş kalibrasyonu (IntCal20).*",
+            "**Wallace, R. E. (1981).** Active faults, paleoseismology, and earthquake hazards in the western "
+            "United States. *Earthquake Prediction*, 4, 209–216. "
+            "— *Paleosismik metodolojinin temel çalışması.*",
+        ],
+        disclaimer=(
+            "⚠️ **Tarihsel olaylar (B/C/P güven sınıfı) episentr, Mw ve tarih olarak kesin DEĞİLDİR.** "
+            "±20–200 yıl tarih, ±0.3–0.5 Mw, ±20–200 km konum belirsizliği tipiktir. 1900 öncesi Mw makro-sismik "
+            "şiddet alanından (Ambraseys-Jackson 2000) çıkarsanır. Bu panel **tarihsel araştırma ve eğitim "
+            "amaçlıdır**; mühendislik tehlike hesabı için **AFAD/TBDY-2018 olasılıksal tehlike haritası** "
+            "kullanılmalıdır. Tarihsel ortalama tekrar aralığı **gelecek tahmin değildir** (Geller 1997)."
+        ),
+        expanded=False,
+    )
+
 
 if active_menu == "📜 Tarihsel Sismisite":
     _render_tarihsel_sismisite()
@@ -12087,6 +12373,163 @@ def _render_paleosismik_kazi():
         "Olay tanılaması: kolüvyal kama, fault-scarp degradation, fissure dolgular."
     )
 
+    # v1.66 — Sprint 6: Paleosismik Kazı akademik standart
+    st.markdown(
+        f"""<div style="
+            background:linear-gradient(90deg,{BG2} 0%,rgba(76,175,80,0.10) 100%);
+            border-left:3px solid #4CAF50;
+            border-radius:6px;
+            padding:0.55rem 0.9rem;
+            margin:0.4rem 0 0.8rem 0;
+            font-size:0.88rem;
+            color:{TEXT};
+            line-height:1.45;">
+            📊 <b>Mini rehber:</b> Paleosismik kazı (trench) tarihsel kayıtların ulaşamadığı yüzlerce-binlerce yıllık
+            deprem geçmişine açılan tek pencere; ¹⁴C ve OSL yaş tayini ile geçmiş kırılmaların zaman aralığı
+            belirlenir.
+            <b>Paleo olay tarihleri kesin değildir</b> — ±50–500 yıl radyokarbon belirsizlik aralığı tipiktir;
+            "olay var" demek "olay tam X yılında" demek değildir.
+            <i>Trench stratigrafisi, kolüvyal kama (colluvial wedge), KAF/DAF paleosismik kayıtları ve
+            karakteristik deprem modeli için aşağıdaki 📖 Akademik Açıklama panelini açın.</i>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+    render_academic_explanation(
+        title="📖 Akademik Açıklama — Paleosismik Trench Yöntemi",
+        what=(
+            "**Paleosismik (paleoseismology)**, tarihsel kayıtların ulaşamadığı **yüzlerce ile binlerce yıllık** "
+            "geçmiş depremleri **fay üzerinde açılan kazılar (trench'ler)** üzerinden inceleyen jeolojik "
+            "yöntemdir. Robert Wallace'ın 1981 *BSSA* makalesi yöntemin temel referansıdır. Bir fay üzerinde "
+            "açılan dik duvarlı trench'in stratigrafisi (çökel katmanları) incelenir: geçmişteki bir kırılma "
+            "**yüzeye ulaşmış** ise (yüzey kırığı, surface rupture), stratigrafide ayırt edici izler bırakır — "
+            "**kolüvyal kama** (colluvial wedge), fay-skarp degradasyonu, fissür dolguları, kırılmış-tarihlenmiş "
+            "katmanlar. **¹⁴C** veya **OSL** (Optically Stimulated Luminescence) yaş tayinleri olayların "
+            "zamanını belirler."
+        ),
+        how=(
+            "**Panel kullanımı:**\n\n"
+            "- **Site seçimi:** Türkiye'de aktif KAF/DAF üzerinde açılmış paleosismik kazılar (Yaylabeli, "
+            "Demir Tepe, Sürgü, Bingöl vb.) listeden seçilir.\n"
+            "- **Trench stratigrafi animasyonu:** Seçili sitenin trench diyagramı; her kırılma olayı bir "
+            "stratigrafik katmanda ayırt edilir.\n"
+            "- **Olay zaman çizelgesi (yatay bar):** Site için tanımlanmış paleo + tarihsel olaylar, her birinin "
+            "¹⁴C/OSL belirsizlik aralığıyla.\n\n"
+            "**Trench gözlem kategorileri:**\n"
+            "- **Kolüvyal kama:** Fay-skarp'tan dökülen sedimanın stratigrafik kalın 'yelek' deseni → "
+            "açık-net olay göstergesi.\n"
+            "- **Fissür dolgusu:** Sismik şok sırasında açılan çatlağa düşmüş üst-katman çökeli.\n"
+            "- **Kırılmış katman (offset bed):** Aynı katman trench iki yanında farklı seviyede → kayma miktarı "
+            "ölçülebilir.\n"
+            "- **Sıvılaşma izleri (liquefaction):** Yumuşak zemin trench'inde, MMI ≥ VII kanıtı.\n"
+            "- **Kapanma yapısı (closure):** Olay sonrası birikim çökel — yaş kalibrasyonu için kullanılır."
+        ),
+        science=(
+            "**Radyokarbon yaş tayini (¹⁴C):** Organik karbon içeren örnek (kömür, kemik, ahşap, deniz "
+            "kabuğu) atmosferdeki ¹⁴C/¹²C oranıyla denge halindeydi; canlı öldükten sonra ¹⁴C **yarı-ömür "
+            "5730 yıl** ile bozunur:\n\n"
+            r"$$N(t) = N_0 \cdot e^{-\lambda t}, \quad \lambda = \frac{\ln 2}{5730} \approx 1.21 \times 10^{-4} \text{ yıl}^{-1}$$"
+            "\n\nÖlçülen ¹⁴C/¹²C oranı → **konvansiyonel radyokarbon yaş** (yıl BP); "
+            "**IntCal20 kalibrasyon eğrisi** (Reimer et al. 2020) ile **takvim yılı**na çevrilir. Tipik "
+            "kalibre belirsizlik **±50–200 yıl** (1σ), olay yaşı ile birlikte raporlanır.\n\n"
+            "**OSL (Optically Stimulated Luminescence):** Kuvars veya feldspat tanelerinin son güneş ışığı "
+            "gördüğünden bu yana **gama radyasyonu** ile depoladıkları enerji ölçülür. Çökel gömüldükten sonra "
+            "radyasyon yığılır:\n\n"
+            r"$$\text{Age} = \frac{D_e}{\dot{D}}$$"
+            "\n\nburada $D_e$ = eşdeğer doz (**Gray**, laboratuvar ışınımıyla karşılaştırma), $\\dot{D}$ = "
+            "yıllık doz hızı (**Gy/yıl**, ortam radyometri ölçümü). Tipik ±%5–15 belirsizlik; 50–500.000 yıl "
+            "aralığında uygulanır (Aitken 1998 *Introduction to Optical Dating*).\n\n"
+            "**Karakteristik deprem tekrar (Schwartz & Coppersmith 1984):** N adet paleo olay arasında "
+            "ortalama aralık:\n\n"
+            r"$$\bar{T}_{rec} = \frac{T_{toplam}}{N - 1}, \quad \sigma_T = \sqrt{\frac{1}{N-1}\sum (T_i - \bar{T})^2}$$"
+            "\n\nKAF için $\\bar{T} \\approx$ 250 yıl, $\\sigma_T \\approx$ 50–80 yıl (Hartleb 2003, Kozacı 2015)."
+        ),
+        interpretation=(
+            "**Türkiye paleosismik anahtar sonuçlar:**\n\n"
+            "- **KAF Yaylabeli (Tercan-Erzincan, Kozacı 2007 BSSA):** Son 2000 yılda 6 olay; tipik tekrar "
+            "≈ 280–320 yıl. 1939 sonrası bir sonraki olay olasılığı 2120–2260 aralığı (epistemic).\n"
+            "- **KAF Alayurt (Hartleb 2003 BSSA):** 2000 yıllık trench kaydı; 'görece düzenli' tekrar (Kozacı "
+            "2015 GJI bunu doğruladı). Bu Reid 1910 karakteristik modeline destek.\n"
+            "- **KAF batı (Klinger 2003 BSSA):** Marmara segmenti 1500 yıllık kayıt; 1719/1999 olayları arası "
+            "280 yıl.\n"
+            "- **DAFZ (Meghraoui 2012 Tectonophysics):** Daha az detaylı kayıt; 2023 Maraş 'pre-historic' "
+            "olaylar trench analiziyle araştırılıyor (post-2023 publication).\n"
+            "- **1939 öncesi Erzincan paleo olayları:** ~1668 (B tarihsel), ~1500 (P paleo), ~1268 (B), ~1045 (P) "
+            "— Hartleb 2003 trench bulgusu.\n\n"
+            "**Sismik döngü yorumu:**\n"
+            "- KAF doğu (Erzincan): tarihsel 1268, 1500?, 1668, 1784, 1939, ... → tipik ~270 yıl aralığı.\n"
+            "- 1939 → 2026 = 87 yıl; tipik aralığın %30'u kadar zaman geçti; **'tehlike eşiği' henüz uzak** "
+            "(istatistiksel, kesin değil).\n"
+            "- AMA KAF batı yönlü göç dizisi (Stein-Barka-Dieterich 1997) Erzincan'ı **Coulomb tetikleme** "
+            "yoluyla etkileyebilir (Coulomb panel)."
+        ),
+        limitations=(
+            "1. **Paleo olay tarihleri ±50–500 yıl belirsiz:** ¹⁴C kalibre ±%5–10, OSL ±%5–15. 'MS 1100 olay' "
+            "aslında 1050–1200 olabilir; karakteristik tekrar hesabı bu belirsizliği taşır.\n"
+            "2. **Trench tek bir noktayı gösterir:** Faylar yüzlerce km uzun; bir trench segmentindeki "
+            "kayıt diğer segmentin durumunu vermez. Çoklu site karşılaştırması gerekir.\n"
+            "3. **Yüzey-kırığı olmayan olay 'görünmez':** Mw < 6.5 olaylar genellikle yüzeye ulaşmaz → trench'te "
+            "iz bırakmaz. Paleosismik **büyük olay** kataloğu, tüm sismisitenin değil.\n"
+            "4. **'Kayıt eksiği = olay yok' YANLIŞ:** Trench eski katmanlarda iz silinmiş olabilir (erozyon, "
+            "biyolojik karışım, sedimanter çökelimsizlik). 'Bu sitede 1500 yıl arası olay yok' = 'bu sitede iz "
+            "bulunamadı', olayın olmadığı kesin değil.\n"
+            "5. **Kayma miktarı (atım) trench'te kısmen ölçülür:** Tam co-seismic atım için fay boyunca çoklu "
+            "ölçüm gerekir; tek trench ±%30 belirsizlik.\n"
+            "6. **Karakteristik deprem modeli evrensel değil:** Bazı segmentler **karakteristik** (~aynı atım), "
+            "bazıları **çeşitli** (variable) tekrar gösterir. KAF görece karakteristik (Kozacı 2015), DAFZ "
+            "daha çeşitli (Meghraoui 2012).\n"
+            "7. **Yaygın hata — 'Tekrar 280 yıl, sonraki 2219':** Bu **istatistiksel ortalama**dır; gerçek "
+            "tekrar %20–30 standart sapma ile değişir. Bir sonraki olay 2050'de de 2300'de de olabilir."
+        ),
+        references=[
+            "**Wallace, R. E. (1981).** Active faults, paleoseismology, and earthquake hazards in the western "
+            "United States. *Earthquake Prediction*, 4, 209–216. "
+            "— *Paleosismik yöntemin kurucu makalesi.*",
+            "**McCalpin, J. P. (Ed.) (2009).** *Paleoseismology* (2nd ed.). Academic Press. ISBN: 978-0-12-373576-8 "
+            "— *Paleosismik yönteminin standart ders kitabı (>600 sayfa).*",
+            "**Kozacı, Ö., Dolan, J. F., Finkel, R., & Hartleb, R. (2007).** Late Holocene slip rate for the "
+            "North Anatolian fault, Turkey, from cosmogenic ³⁶Cl geochronology: Implications for the constancy "
+            "of fault loading and strain release rates. *Geology*, 35(10), 867–870. DOI: "
+            "[10.1130/G23187A.1](https://doi.org/10.1130/G23187A.1) "
+            "— *KAF Yaylabeli kozmojenik klor-36 kayma hızı.*",
+            "**Hartleb, R. D., Dolan, J. F., Akyüz, H. S., Dawson, T. E., et al. (2003).** A 2000-year-long "
+            "paleoseismologic record of earthquakes along the central North Anatolian Fault, from trenches at "
+            "Alayurt, Turkey. *BSSA*, 93(5), 1935–1954. DOI: "
+            "[10.1785/0120010271](https://doi.org/10.1785/0120010271) "
+            "— *KAF Alayurt 2000 yıllık trench kaydı.*",
+            "**Kozacı, Ö., Dolan, J. F., Yönlü, Ö., & Hartleb, R. D. (2015).** Paleoseismologic evidence for "
+            "the relatively uniform recurrence of large earthquakes along the central North Anatolian Fault. "
+            "*GJI*, 202(3), 2133–2149. "
+            "[academic.oup.com/gji/article/202/3/2133](https://academic.oup.com/gji/article/202/3/2133/614779) "
+            "— *KAF görece düzenli tekrar bulgusu.*",
+            "**Klinger, Y., Sieh, K., Altunel, E., Akoglu, A., Barka, A., et al. (2003).** Paleoseismic evidence "
+            "of characteristic slip on the western segment of the North Anatolian Fault, Turkey. *BSSA*, 93(6), "
+            "2317–2332. DOI: "
+            "[10.1785/0120010270](https://doi.org/10.1785/0120010270) "
+            "— *KAF batı (Marmara) trench paleosismik.*",
+            "**Meghraoui, M., et al. (2012).** Paleoseismology of the East Anatolian Fault (Turkey). "
+            "*Tectonophysics*, 538–540, 1–14. DOI: "
+            "[10.1016/j.tecto.2012.01.012](https://doi.org/10.1016/j.tecto.2012.01.012) "
+            "— *DAFZ paleosismik (2023 Maraş öncesi).*",
+            "**Reimer, P. J., et al. (2020).** The IntCal20 Northern Hemisphere radiocarbon age calibration "
+            "curve. *Radiocarbon*, 62(4), 725–757. DOI: "
+            "[10.1017/RDC.2020.41](https://doi.org/10.1017/RDC.2020.41) "
+            "— *¹⁴C kalibrasyon eğrisi (paleosismik yaş için standart).*",
+            "**Aitken, M. J. (1998).** *Introduction to Optical Dating: The Dating of Quaternary Sediments by "
+            "the Use of Photon-stimulated Luminescence.* Oxford University Press. ISBN: 978-0-19-854092-2 "
+            "— *OSL yaş tayini metodolojisi.*",
+        ],
+        disclaimer=(
+            "⚠️ **Paleo olay tarihleri ±50–500 yıl belirsizlik aralığı taşır.** ¹⁴C kalibrasyon (Reimer 2020 "
+            "IntCal20) ve OSL ölçümleri istatistiksel olarak değerlendirilmelidir; tek bir 'olay yılı' kesin "
+            "değildir. Trench bir fayın tek noktasını gösterir; segment-genelleme dikkat ister. Bu panel "
+            "**eğitim/araştırma amaçlıdır**; bina-bazlı tehlike değerlendirmesi için **AFAD Diri Fay Haritası + "
+            "TBDY-2018 yönetmeliği** referans alınmalıdır. Karakteristik deprem modeli (Schwartz-Coppersmith "
+            "1984) olasılıksaldır; 'tekrar 280 yıl → sonraki olay 2219' **deterministik tahmin değildir** "
+            "(Geller 1997). KAF Erzincan segmenti %20–30 değişkenlikle değişen tekrar gösterir (Kozacı 2015)."
+        ),
+        expanded=False,
+    )
+
 
 if active_menu == "⛏️ Paleosismik Kazı":
     _render_paleosismik_kazi()
@@ -12934,6 +13377,154 @@ def _render_erzincan_paleo():
         "100-200 yıl. Sismik döngü tahminleri **olasılıksal** — kesin değil."
     )
 
+    # v1.66 — Sprint 6: Erzincan Paleo akademik standart
+    st.markdown(
+        f"""<div style="
+            background:linear-gradient(90deg,{BG2} 0%,rgba(76,175,80,0.10) 100%);
+            border-left:3px solid #4CAF50;
+            border-radius:6px;
+            padding:0.55rem 0.9rem;
+            margin:0.4rem 0 0.8rem 0;
+            font-size:0.88rem;
+            color:{TEXT};
+            line-height:1.45;">
+            📊 <b>Mini rehber:</b> Erzincan KAF segmentine özel paleosismik olay kataloğu (Yaylabeli + Alayurt
+            trench'leri); 1939 öncesi 1668, 1500?, 1268, 1045 olayları ¹⁴C/tarihsel belirsizlik aralıklarıyla
+            sunulur.
+            <b>Sismik döngü tahminleri OLASILIKSALDIR — kesin değildir</b>; "1668 sonrası 271 yıl tekrar → sonraki
+            X yılında" yorumu istatistiksel ortalama olup ±%30 değişkenlik taşır (Kozacı 2015).
+            <i>Yaylabeli birincil kazı, Alayurt 2000 yıllık arşivi, 1668 segment atfı tartışması ve karakteristik
+            tekrar modelinin sınırları için aşağıdaki 📖 Akademik Açıklama panelini açın.</i>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+    render_academic_explanation(
+        title="📖 Akademik Açıklama — Erzincan Segmenti Paleosismolojisi",
+        what=(
+            "Bu panel **KAF Erzincan segmenti** üzerinde yapılmış paleosismik kazıların (özellikle **Yaylabeli** "
+            "ve **Alayurt** trench'leri) ortaya çıkardığı olay kataloğunu sunar. Erzincan, Türkiye'nin en iyi "
+            "incelenmiş KAF segmenti olmasına rağmen 1939 öncesi olaylar **belirsizlik aralıkları** taşır. "
+            "Kozacı et al. 2007 *BSSA* Yaylabeli kazısı son 2000 yılda 6–7 olay tanımlamış, Hartleb et al. 2003 "
+            "*BSSA* (Alayurt) ise 2000 yıllık görece düzenli tekrar bulmuştur. Bu kataloğun ana değeri: "
+            "**aletsel kayıt 1939'dan başlar**, oysa fay döngüsü 1000+ yıl ölçeğindedir; paleosismik tek "
+            "köprüdür."
+        ),
+        how=(
+            "**Panel okuma:**\n\n"
+            "- **Zaman çizelgesi (yatay bar):** Her olay ortalama yılı + belirsizlik aralığı (±yıl) "
+            "gösterir. 1939 (A, aletsel) tek nokta; 1668/1500/1268 sembolik kutular.\n"
+            "- **Renk:** Güven sınıfı (A: kırmızı, B: turuncu, C: sarı, P: mor — Erzincan Arşivi paneliyle aynı).\n"
+            "- **Şiddet güveni:** Mw tahminin belirsizliği (1939 ±0.1, 1668 ±0.3, paleo P ±0.5).\n\n"
+            "**Olay tablosu:**\n"
+            "- **Olay:** Tarihsel/paleo isim (1939 Erzincan, 1668 Amasya-NAFZ, vb.)\n"
+            "- **Yıl:** Olay tarihi (B/C/P için merkez tahmin)\n"
+            "- **Belirsizlik ±yıl:** ¹⁴C kalibrasyon veya tarihsel kayıt aralığı\n"
+            "- **Güven:** A/B/C/P sınıfı\n"
+            "- **Tarihlendirme Kaynağı:** Kozacı 2007 (kozmojenik), Hartleb 2003 (¹⁴C), Ambraseys 2009 "
+            "(tarihsel), vb.\n"
+            "- **Şiddet Güveni:** Mw belirsizlik kategori"
+        ),
+        science=(
+            "**Karakteristik deprem modeli (Schwartz & Coppersmith 1984) — Erzincan için:**\n\n"
+            r"$$\bar{T}_{recurrence} = \frac{T_{toplam}}{N - 1}$$"
+            "\n\nYaylabeli 6 olay × 2000 yıl → $\\bar{T} \\approx$ 333 yıl ortalama, $\\sigma_T \\approx$ "
+            "70 yıl. Alayurt'da daha düzenli ($\\sigma_T \\approx$ 50 yıl, Kozacı 2015).\n\n"
+            "**Sismik döngü olasılığı (Brownian Passage Time modeli, Matthews et al. 2002):**\n\n"
+            r"$$P(T < t | t_0) = \int_0^t f_{BPT}(\tau; \bar{T}, \alpha) \, d\tau$$"
+            "\n\nburada $\\bar{T}$ = ortalama tekrar süresi, $\\alpha = \\sigma_T / \\bar{T}$ = çeşitlilik "
+            "katsayısı (Erzincan için ≈ 0.2–0.3). $t_0$ = son olaydan bu yana geçen süre. **Bu olasılıksaldır**, "
+            "deterministik değildir.\n\n"
+            "**Slip-deficit alternatif yorum (Reid 1910):**\n\n"
+            r"$$\Delta D = V_{slip} \cdot \Delta t$$"
+            "\n\nKAF Erzincan: $V_{slip}$ = 18–24 mm/yr (yöntem-bağımlı), 1939'dan 87 yıl → 1.6–2.1 m, "
+            "karakteristik 4 m'nin %40–52'si. Detay: **Erzincan Arşivi** + **Reid 1910** (Bilgi Havuzu) "
+            "panelleri."
+        ),
+        interpretation=(
+            "**Erzincan paleosismik olay zinciri (yorum):**\n\n"
+            "- **~1045 (P, Mw ≈ 7+):** Hartleb 2003 Alayurt trench bulgusu; ¹⁴C ±100 yıl.\n"
+            "- **~1268 (B, Mw ≈ 7.5):** Bizans dönemi tarihsel kayıt; konum Erzincan civarı.\n"
+            "- **~1500 (P, ?):** Yaylabeli kazısında bir kırılma izi (Kozacı 2007); fakat tarihsel olarak "
+            "kayıtlanmamış — 'sessiz' olay olabilir.\n"
+            "- **1668 (B, Mw 8.0):** KAF ana tarihsel sekansı; **AMA Erzincan segmentine ait olması "
+            "TARTIŞMALI** (Ambraseys & Finkel 1995 — segment atfı belirsiz). 1668 daha çok Amasya-NAFZ orta "
+            "kanadına atfedilir.\n"
+            "- **1784 (B, Mw 7.6):** Erzincan tarihsel kayıt; trench izi henüz bulunmadı (kayıt eksik olabilir).\n"
+            "- **1939 (A, Mw 7.9):** Modern referans, 7–8 m co-seismic atım.\n\n"
+            "**Tekrar aralıkları (Yaylabeli):**\n"
+            "- 1268 → 1500? = 232 yıl\n"
+            "- 1500? → 1668 = 168 yıl\n"
+            "- 1668 → 1784 = 116 yıl (kısa)\n"
+            "- 1784 → 1939 = 155 yıl\n"
+            "- **Ortalama:** ~170 yıl (varyans yüksek)\n\n"
+            "**'Tehlike eşiği' yorum:** 1939 + 170 = 2109 (Yaylabeli ortalama). AMA 1939 sonrası kırılma "
+            "Erzincan-Tercan segmentinin **batı yarısında** olmuştur; doğu yarısı (Yedisu) **henüz tetiklenmedi** "
+            "(Hubert-Ferrari 2002). Bu segment alt-detay ısrar gerektirir."
+        ),
+        limitations=(
+            "1. **Paleo olay tarihleri ±50–500 yıl belirsiz:** ¹⁴C kalibre belirsizliği büyük; 1500 olayı "
+            "1400–1600 olabilir, 1045 olayı 950–1150 olabilir.\n"
+            "2. **1668 olayının Erzincan segmentine ATFI TARTIŞMALI:** Ambraseys 2009 daha çok Amasya-orta "
+            "NAFZ atfeder; Erzincan rupture trace **kesin kanıtlanmadı**.\n"
+            "3. **Yaylabeli + Alayurt tek-segment temsili:** Bu iki kazı KAF orta-doğu kesimini gösterir; "
+            "Erzincan'ın **doğu segmenti (Yedisu, Karlıova)** için ayrı veri gerekir.\n"
+            "4. **Yüzeye ulaşmayan olaylar görünmez:** Mw < 6.5 trench'te iz bırakmaz; '1500 yıl arası olay "
+            "yok' = 'iz bulunamadı', kesin yokluk değil.\n"
+            "5. **Sismik döngü ortalaması = istatistik, gelecek değil:** Tekrar 170 yıl → '2109 olay' "
+            "DEĞİL; sadece %50 olasılık bandı. Brownian Passage Time modeli ±%30 belirsizlik verir.\n"
+            "6. **KAF batıya göç dizisi etkisi belirsiz:** 1939 sonrası Erzincan doğu Coulomb pozitif lobda; "
+            "stres transfer + interseismik birikim birleşimi yorumlanmalıdır (Coulomb Stres paneli).\n"
+            "7. **Yaygın hata — '1939 + ortalama tekrar = X':** Aletsel + paleo birleşik istatistik **bireysel "
+            "olay tahmini değildir**; resmi tehlike için **AFAD/TBDY-2018 olasılıksal harita** geçerlidir."
+        ),
+        references=[
+            "**Kozacı, Ö., Dolan, J. F., Finkel, R., & Hartleb, R. (2007).** Late Holocene slip rate for the "
+            "North Anatolian Fault, Turkey, from cosmogenic ³⁶Cl geochronology: Implications for the constancy "
+            "of fault loading and strain release rates. *BSSA*, 97(5), 1513–1527. DOI: "
+            "[10.1785/0120060118](https://doi.org/10.1785/0120060118) "
+            "— *Yaylabeli birincil kazı + ³⁶Cl kayma hızı.*",
+            "**Hartleb, R. D., Dolan, J. F., Akyüz, H. S., Dawson, T. E., et al. (2003).** A 2000-year-long "
+            "paleoseismologic record of earthquakes along the central North Anatolian Fault, from trenches at "
+            "Alayurt, Turkey. *BSSA*, 93(5), 1935–1954. DOI: "
+            "[10.1785/0120010271](https://doi.org/10.1785/0120010271) "
+            "— *KAF Alayurt 2000 yıllık trench arşivi.*",
+            "**Hartleb, R. D., Dolan, J. F., Kozacı, Ö., Akyüz, H. S., & Seitz, G. (2006).** A 2500-year-long "
+            "paleoseismologic record of large, infrequent earthquakes on the North Anatolian Fault at Çukurçimen, "
+            "Turkey. *GSA Bulletin*, 118(7–8), 823–840. DOI: "
+            "[10.1130/B25849.1](https://doi.org/10.1130/B25849.1) "
+            "— *Çukurçimen 2500 yıllık arşiv.*",
+            "**Kozacı, Ö., Dolan, J. F., Yönlü, Ö., & Hartleb, R. D. (2015).** Paleoseismologic evidence for "
+            "the relatively uniform recurrence of large earthquakes along the central North Anatolian Fault. "
+            "*GJI*, 202(3), 2133–2149. "
+            "[academic.oup.com/gji/article/202/3/2133](https://academic.oup.com/gji/article/202/3/2133/614779) "
+            "— *KAF görece düzenli tekrar — Erzincan dahil sentez.*",
+            "**Barka, A. A. (1996).** Slip distribution along the North Anatolian fault associated with the "
+            "large earthquakes of the period 1939 to 1967. *BSSA*, 86(5), 1238–1254. "
+            "[doi.org/10.1785/BSSA0860051238](https://doi.org/10.1785/BSSA0860051238) "
+            "— *1939 kırığı temel kaynak.*",
+            "**Akyüz, H. S., Hartleb, R., Barka, A., Altunel, E., Sunal, G., et al. (2002).** Surface rupture "
+            "and slip distribution of the 12 November 1999 Düzce earthquake (M 7.1), North Anatolian Fault, "
+            "Bolu, Turkey. *BSSA*, 92(1), 61–66. DOI: "
+            "[10.1785/0120000817](https://doi.org/10.1785/0120000817) "
+            "— *KAF yüzey kırığı yöntemi referansı.*",
+            "**Matthews, M. V., Ellsworth, W. L., & Reasenberg, P. A. (2002).** A Brownian model for recurrent "
+            "earthquakes. *BSSA*, 92(6), 2233–2250. DOI: "
+            "[10.1785/0120010267](https://doi.org/10.1785/0120010267) "
+            "— *BPT karakteristik tekrar olasılık modeli.*",
+            "**Ambraseys, N., & Finkel, C. (1995).** *The Seismicity of Turkey and Adjacent Areas, 1500–1800.* "
+            "Eren. ISBN: 975-7622-38-9 — *1668 olayının segment atfı tartışması.*",
+        ],
+        disclaimer=(
+            "⚠️ **Erzincan paleo olay kataloğu OLASILIKSAL bir tarihtir.** Tarihler ±100–200 yıl belirsizlik "
+            "taşır; 1668 olayının Erzincan segmentine atfı tartışmalıdır (Ambraseys & Finkel 1995). Karakteristik "
+            "tekrar modeli (~170–280 yıl ortalama) **bireysel olay tahmini değildir**; gerçek tekrar %20–30 "
+            "değişkenlikle değişir (Kozacı 2015). '1939 + 170 yıl = 2109' tipi hesap **istatistik**, **kesin değil** "
+            "(Geller 1997). Erzincan ve çevresi bilimsel olarak yüksek tehlikeli kabul edilir; resmi planlama "
+            "için **AFAD/TBDY-2018 olasılıksal tehlike haritası** geçerli referans."
+        ),
+        expanded=False,
+    )
+
 
 if active_menu == "🏺 Erzincan Paleo":
     _render_erzincan_paleo()
@@ -13147,6 +13738,161 @@ def _render_erzincan_mikrozon():
         "**Goel & Chopra (1997)** *BSSA* (T_bina ≈ 0.1N kuralı). "
         "⚠️ AFAD raporu kurumsal — bağımsız peer-review yok. HVSR + saha ölçümü "
         "Nakamura 1989 peer-reviewed yöntemdir."
+    )
+
+    # v1.66 — Sprint 6: Erzincan Mikrozon akademik standart
+    st.markdown(
+        f"""<div style="
+            background:linear-gradient(90deg,{BG2} 0%,rgba(76,175,80,0.10) 100%);
+            border-left:3px solid #4CAF50;
+            border-radius:6px;
+            padding:0.55rem 0.9rem;
+            margin:0.4rem 0 0.8rem 0;
+            font-size:0.88rem;
+            color:{TEXT};
+            line-height:1.45;">
+            📊 <b>Mini rehber:</b> Erzincan ovası mikrobölgeleme — HVSR yöntemiyle (Nakamura 1989) ölçülen zemin
+            doğal periyodu (T₀) ve büyütme katsayısı (A₀); bina doğal periyodu T₀'a yaklaştığında <b>rezonans
+            riski</b> doğar.
+            <b>Bu panel resmi mikrobölgeleme haritası DEĞİLDİR</b> — eğitim/kavram amaçlıdır; bina-bazlı tehlike
+            için AFAD 2010 Erzincan Mikrobölgeleme Raporu + TBDY-2018 yerel zemin sınıfı kullanılmalıdır.
+            <i>Nakamura HVSR yöntemi, T_bina ≈ 0.1N kuralı, Erzincan ovası alüvyon-zemin amplifikasyonu için
+            aşağıdaki 📖 Akademik Açıklama panelini açın.</i>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+    render_academic_explanation(
+        title="📖 Akademik Açıklama — Erzincan Mikrobölgeleme & HVSR",
+        what=(
+            "**Mikrobölgeleme** (microzonation), bir şehir/bölgenin **yerel zemin koşullarının** sismik dalgaları "
+            "nasıl büyüttüğünü/biçim verdiğini haritalama yöntemidir. Erzincan, **alüvyon dolgulu havza** içinde "
+            "kuruludur ve KAF üzerinde olduğundan **çift risk** taşır: hem deprem kaynağına yakın hem de yumuşak "
+            "zemin amplifikasyonuna açık. Bu panel **HVSR yöntemi** (Horizontal-to-Vertical Spectral Ratio, "
+            "Nakamura 1989) ile ölçülen **zemin doğal periyodu** $T_0$ ve **büyütme katsayısı** $A_0$ kullanır. "
+            "Bina doğal periyodu **$T_{bina} \\approx 0.1 N$** (N = kat sayısı; Goel-Chopra 1997) ile bu zemin "
+            "$T_0$ arasındaki **rezonans örtüşmesi** yıkım potansiyelini artırır — 1999 İzmit Avcılar trajedisinin "
+            "temel mekanizması bu idi (Vs30 < 360 m/s + KAF kaynağı + 5–10 katlı bina rezonansı)."
+        ),
+        how=(
+            "**Panel okuma:**\n\n"
+            "- **Harita:** Erzincan ovası içinde HVSR ölçüm noktaları. Renk = risk zonu (yeşil/sarı/kırmızı), "
+            "boyut = $A_0$ büyütme katsayısı.\n"
+            "- **Tablo:** Her ölçüm noktası için $T_0$ (sn), $A_0$ (büyütme katsayısı), risk zonu.\n"
+            "- **Bina rezonans tablosu:** Tipik bina kat sayıları (2–15) için $T_{bina}$ ve hangi ölçüm "
+            "noktalarında rezonansa girer.\n\n"
+            "**Yorum kuralları:**\n"
+            "- $T_0$ kısa (< 0.3 sn) + $A_0$ küçük (< 2): sert zemin, 1–2 katlı binalar için rezonans riski.\n"
+            "- $T_0$ orta (0.3–0.8 sn) + $A_0$ orta (2–4): yumuşak zemin, 3–8 katlı binalar için risk.\n"
+            "- $T_0$ uzun (> 0.8 sn) + $A_0$ büyük (> 4): çok yumuşak zemin (alüvyon), 9+ katlı binalar "
+            "için yüksek risk (Erzincan ovası tipik).\n\n"
+            "**Bina rezonans kontrolü:**\n"
+            "$T_{bina}$ ile $T_0$'ın **logaritmik mesafesi** $|\\log_{10}(T_{bina}/T_0)| < 0.15$ ise rezonans "
+            "tehlikesi var demektir (oran ~0.7–1.4 arası)."
+        ),
+        science=(
+            "**HVSR yöntemi (Nakamura 1989):**\n\n"
+            r"$$HVSR(f) = \frac{|H(f)|}{|V(f)|} = \frac{\sqrt{|N(f)|^2 + |E(f)|^2}}{|V(f)|}$$"
+            "\n\nburada $H(f)$ = yatay bileşen Fourier spektrumu (N-S ve E-W ortalaması), $V(f)$ = düşey "
+            "bileşen. Hem ambient noise (mikrotremor) hem deprem kayıtlarından uygulanabilir. **Pik frekans** "
+            "$f_0$ → zemin doğal periyodu:\n\n"
+            r"$$T_0 = \frac{1}{f_0}$$"
+            "\n\nve **pik genlik** $A_0$ = büyütme katsayısı (boyutsuz, tipik 1–10).\n\n"
+            "**Zemin doğal periyodu ↔ Vs30 ilişkisi (Field & Jacob 1995):**\n\n"
+            r"$$T_0 = \frac{4 h}{V_s}$$"
+            "\n\nburada $h$ = sediman tabaka kalınlığı (**m**), $V_s$ = ortalama kayma dalga hızı (**m/s**). "
+            "Erzincan ovası: $h \\approx$ 100–500 m alüvyon, $V_s \\approx$ 200–400 m/s → $T_0 \\approx$ "
+            "1.0–10 sn (uzun periyot, yumuşak zemin).\n\n"
+            "**Bina doğal periyodu (Goel-Chopra 1997 BSSA, ampirik):**\n\n"
+            r"$$T_{bina} \approx 0.1 N \text{ (betonarme)}, \quad T_{bina} \approx 0.13 N \text{ (yığma/karkas)}$$"
+            "\n\nburada $N$ = kat sayısı. Tipik 5 katlı bina $T \\approx$ 0.5 sn; 10 katlı $T \\approx$ 1 sn.\n\n"
+            "**Rezonans kriteri:**\n\n"
+            r"$$\left|\log_{10}\!\left(\frac{T_{bina}}{T_0}\right)\right| < 0.15 \Leftrightarrow 0.71 \leq \frac{T_{bina}}{T_0} \leq 1.41$$"
+            "\n\nBu bantta bina + zemin **rezonans çiftli sistem** gibi davranır, sarsıntı genliği **2–5×** artar."
+        ),
+        interpretation=(
+            "**Erzincan ovası tipik zemin profili:**\n\n"
+            "- **Merkez ovada:** Alüvyon kalınlığı 200–500 m, Vs30 ≈ 200–280 m/s (NEHRP D/E sınıfı), "
+            "$T_0 \\approx$ 0.8–1.5 sn, $A_0$ = 3–5. **5–10 katlı binalar için yüksek rezonans riski.**\n"
+            "- **Kenar bölgelerde:** Alüvyon inceler, Vs30 ≈ 350–500 m/s (NEHRP C), $T_0 \\approx$ 0.3–0.6 sn, "
+            "$A_0$ = 2–3. 3–6 katlı binalar için risk.\n"
+            "- **Dağ etekleri/kaya zemin:** Vs30 > 600 m/s (NEHRP B), $T_0 < 0.2$ sn, $A_0$ ≈ 1. Düşük zemin "
+            "amplifikasyonu.\n\n"
+            "**Tarihsel ders — Erzincan/Türkiye:**\n"
+            "- **1939 Erzincan Mw 7.9:** Merkez ovada yıkım %80+; kenar dağ zonlarda %20. **Vs30 etkisi** "
+            "katastrofik fark yarattı.\n"
+            "- **1999 İzmit Avcılar trajedisi:** İstanbul'un 70 km batısı, Adapazarı civarı yumuşak zemin "
+            "+ 5–10 katlı binalar + 'doğal' rezonans = uzak mesafede ağır hasar. Modern mikrobölgeleme bu "
+            "olaydan sonra Türkiye'de zorunlu hale geldi.\n"
+            "- **2023 Hatay (Antakya):** Alüvyon ova + KKAF kaynağı + 'soft' zemin amplifikasyonu = "
+            "Antakya'da %30+ bina yıkımı.\n\n"
+            "**Pratik kullanım:**\n"
+            "- Yeni inşaat öncesi HVSR ölçümü ile $T_0$ bilinirse, $T_{bina}$ farklı kat sayısı seçilerek "
+            "rezonansdan kaçınılabilir. **Erzincan ovasında 7 katlı yerine 4 veya 12 kat seçmek** rezonansdan "
+            "kaçırabilir.\n"
+            "- TBDY-2018 yerel zemin sınıfı (ZA-ZE) Vs30 ve $T_0$ üzerinden tanımlanır; tasarım spektral "
+            "ivmesi bu sınıflara göre 1.5–3× büyütülür."
+        ),
+        limitations=(
+            "1. **Bu panel resmi Erzincan Mikrobölgeleme Haritası DEĞİLDİR:** AFAD 2010 Erzincan Mikrobölgeleme "
+            "Projesi Raporu ([deprem.afad.gov.tr/mikrobolgeleme](https://deprem.afad.gov.tr/mikrobolgeleme)) "
+            "resmi referans; bu panel eğitim/kavram amaçlıdır.\n"
+            "2. **HVSR genlik $A_0$ tartışmalı:** Nakamura 1989 yöntemi $T_0$ için güvenilir, ama $A_0$ "
+            "(büyütme) için kontroversi vardır. Bonnefoy-Claudet et al. 2006 (*Earth-Science Reviews*) "
+            "$A_0 \\neq$ doğrudan amplifikasyon der; SESAME 2004 klavuzu bunu vurgular.\n"
+            "3. **Goel-Chopra $T_{bina} \\approx 0.1N$ ampirik kural:** Modern betonarme için %20 hata payı; "
+            "yığma/karkas için daha yüksek. Gerçek $T_{bina}$ bina-bazlı analizle ölçülmelidir.\n"
+            "4. **Rezonans kriteri tek-frekans yaklaşımı:** Gerçek sismik dalga geniş bant; tek $T_0$ "
+            "yaklaşımı yetersiz kalabilir. **Site-specific response spectrum** daha doğrudur.\n"
+            "5. **Vs30 + $T_0$ ↔ zemin sınıfı dönüşümleri konvansiyon:** NEHRP, TBDY-2018, Eurocode 8 farklı "
+            "sınır değerleri kullanır; karşılaştırma dikkat ister.\n"
+            "6. **AFAD raporu peer-review değil:** AFAD raporu kurumsal teknik dokümandır; bilimsel olarak "
+            "uygulamaya konmuştur ama akademik dergide ayrı yayın yoktur. HVSR temel yöntemi (Nakamura 1989) "
+            "ise peer-reviewed.\n"
+            "7. **Yaygın hata — 'Düşük $T_0$ = güvenli':** Düşük $T_0$ (sert zemin) **kısa-periyot dalga** "
+            "amplifikasyonu yapar; 1–2 katlı binalar etkilenir. 'Hangi bina için risk' farkı önemlidir."
+        ),
+        references=[
+            "**Nakamura, Y. (1989).** A method for dynamic characteristics estimation of subsurface using "
+            "microtremor on the ground surface. *Quarterly Report RTRI* (Railway Technical Research Institute), "
+            "30(1), 25–33. "
+            "[scholar.google.com/scholar?q=Nakamura+1989+RTRI+HVSR](https://scholar.google.com/scholar?q=Nakamura+1989+HVSR+microtremor) "
+            "— *HVSR yönteminin orijinal makalesi.*",
+            "**Field, E. H., & Jacob, K. H. (1995).** A comparison and test of various site-response estimation "
+            "techniques, including three that are not reference-site dependent. *BSSA*, 85(4), 1127–1143. "
+            "[doi.org/10.1785/BSSA0850041127](https://doi.org/10.1785/BSSA0850041127) "
+            "— *HVSR doğrulama ve karşılaştırma.*",
+            "**Bonnefoy-Claudet, S., Cotton, F., & Bard, P.-Y. (2006).** The nature of noise wavefield and its "
+            "applications for site effects studies: A literature review. *Earth-Science Reviews*, 79(3–4), "
+            "205–227. DOI: "
+            "[10.1016/j.earscirev.2006.07.004](https://doi.org/10.1016/j.earscirev.2006.07.004) "
+            "— *HVSR ve mikrotremor metodolojisi eleştirel derleme.*",
+            "**SESAME (2004).** *Guidelines for the implementation of the H/V spectral ratio technique on "
+            "ambient vibrations.* European Commission, Research General Directorate. "
+            "[sesame.geopsy.org](http://sesame.geopsy.org/) "
+            "— *HVSR uygulama klavuzu (alan standardı).*",
+            "**Goel, R. K., & Chopra, A. K. (1997).** Period formulas for moment-resisting frame buildings. "
+            "*Journal of Structural Engineering*, 123(11), 1454–1461. DOI: "
+            "[10.1061/(ASCE)0733-9445(1997)123:11(1454)](https://doi.org/10.1061/(ASCE)0733-9445(1997)123:11(1454)) "
+            "— *T_bina ≈ 0.1N ampirik formülü.*",
+            "**AFAD (2010).** *Erzincan İli Mikrobölgeleme Projesi Raporu.* T.C. Başbakanlık Afet ve Acil "
+            "Durum Yönetimi Başkanlığı. "
+            "[deprem.afad.gov.tr/mikrobolgeleme](https://deprem.afad.gov.tr/mikrobolgeleme) "
+            "— *Erzincan resmi mikrobölgeleme verisi (kurumsal).*",
+            "**TBDY-2018.** *Türkiye Bina Deprem Yönetmeliği 2018.* AFAD/Bayındırlık. "
+            "[mevzuat.gov.tr/turkiye-bina-deprem-yonetmeligi](https://www.mevzuat.gov.tr/MevzuatMetin/yonetmelik/3.5.2018114-1.pdf) "
+            "— *Türkiye yerel zemin sınıfı ZA–ZE tanımları, tasarım spektrumu.*",
+            "**Sucuoğlu, H., & Akkar, S. (2014).** *Basic Earthquake Engineering.* Springer. "
+            "ISBN: 978-3-319-01026-7 — *Türkiye bina-zemin etkileşimi standart kitabı.*",
+        ],
+        disclaimer=(
+            "⚠️ **Bu panel resmi Erzincan Mikrobölgeleme Haritası DEĞİLDİR.** Resmi referans için **AFAD 2010 "
+            "Erzincan İli Mikrobölgeleme Projesi Raporu** ve **TBDY-2018 yerel zemin sınıfları** kullanılmalıdır. "
+            "HVSR $T_0$ ölçümü Nakamura 1989 peer-reviewed yöntemdir; ancak $A_0$ büyütme katsayısı yorumu "
+            "tartışmalıdır (Bonnefoy-Claudet 2006). Bu panel **eğitim/kavram amaçlıdır**; yeni bina projeleri "
+            "için **site-specific response spectrum** ve **jeoteknik sondaj** verisi gerektirir. Bina-bazlı "
+            "yapısal değerlendirme **bağımsız profesyonel mühendislik analizi** ister."
+        ),
+        expanded=False,
     )
 
 
