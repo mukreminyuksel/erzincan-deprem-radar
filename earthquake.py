@@ -5849,6 +5849,9 @@ def _render_sismik_acik():
         "dağılımına ve viskoelastik gevşemeye bağlıdır."
     )
 
+    # v1.44 — Akademik bilgi havuzu expander'ı
+    _render_bilim_notu("kaf_sismik_acik", st, baslik="🎓 Bunu Öğren — KAF Sismik Açık")
+
 
 if active_menu == "🔴 Sismik Açık":
     _render_sismik_acik()
@@ -6165,6 +6168,7 @@ def _render_shakemap():
 
 if active_menu == "🌊 ShakeMap":
     _render_shakemap()
+    _render_bilim_notu("shakemap", st, baslik="🎓 Bunu Öğren — USGS ShakeMap")
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -6442,6 +6446,9 @@ def _render_sismik_tehlike():
         "için TBDY-2018 doğrudan referansı gereklidir."
     )
 
+    # v1.44 — Akademik bilgi havuzu expander'ı
+    _render_bilim_notu("psha", st, baslik="🎓 Bunu Öğren — PSHA Sismik Tehlike")
+
 
 if active_menu == "🗺️ Sismik Tehlike":
     _render_sismik_tehlike()
@@ -6715,6 +6722,7 @@ def _render_odak_mekanizma():
 
 if active_menu == "🥎 Odak Mekanizması":
     _render_odak_mekanizma()
+    _render_bilim_notu("odak_mekanizmasi", st, baslik="🎓 Bunu Öğren — Odak Mekanizması (Beach Ball)")
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -6944,6 +6952,7 @@ def _render_b_value_time_series():
 
 if active_menu == "📉 b-Değeri Zaman Serisi":
     _render_b_value_time_series()
+    _render_bilim_notu("b_degeri", st, baslik="🎓 Bunu Öğren — Gutenberg-Richter b-Değeri")
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -7214,6 +7223,9 @@ def _render_coulomb_stress():
         "elastik dislokasyon modeli için Coulomb 3 / PSCMP kullanılır."
     )
 
+    # v1.44 — Akademik bilgi havuzu expander'ı
+    _render_bilim_notu("coulomb", st, baslik="🎓 Bunu Öğren — Coulomb Stres Transferi")
+
 
 if active_menu == "💥 Coulomb Stres":
     _render_coulomb_stress()
@@ -7473,6 +7485,7 @@ def _render_insar():
 
 if active_menu == "🛰️ InSAR Deformasyon":
     _render_insar()
+    _render_bilim_notu("insar", st, baslik="🎓 Bunu Öğren — InSAR Sentinel-1")
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -7704,6 +7717,7 @@ def _render_tarihsel_sismisite():
 
 if active_menu == "📜 Tarihsel Sismisite":
     _render_tarihsel_sismisite()
+    _render_bilim_notu("tarihi_sismisite", st, baslik="🎓 Bunu Öğren — 2000 Yıllık Sismisite")
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -7956,6 +7970,7 @@ def _render_sismik_dongu():
 
 if active_menu == "🔄 Sismik Döngü":
     _render_sismik_dongu()
+    _render_bilim_notu("sismik_dongu", st, baslik="🎓 Bunu Öğren — Sismik Döngü + BPT")
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -8149,6 +8164,7 @@ def _render_dinamik_tetikleme():
 
 if active_menu == "🌐 Dinamik Tetikleme":
     _render_dinamik_tetikleme()
+    _render_bilim_notu("coulomb", st, baslik="🎓 Bunu Öğren — Dinamik Tetikleme vs Statik CFS")
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -8314,6 +8330,7 @@ def _render_insar_zaman_serisi():
 
 if active_menu == "📡 InSAR Zaman Serisi":
     _render_insar_zaman_serisi()
+    _render_bilim_notu("insar", st, baslik="🎓 Bunu Öğren — InSAR Postseismik Gevşeme")
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -8549,6 +8566,7 @@ def _render_fay_kilitlenme():
 
 if active_menu == "🔒 Fay Kilitlenme":
     _render_fay_kilitlenme()
+    _render_bilim_notu("kaf_sismik_acik", st, baslik="🎓 Bunu Öğren — İnterseismik Kilitlenme")
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -8774,6 +8792,7 @@ def _render_moho_derinligi():
 
 if active_menu == "🌋 Moho Derinliği":
     _render_moho_derinligi()
+    _render_bilim_notu("plaka_sim", st, baslik="🎓 Bunu Öğren — Kabuk Yapısı + Tektonik")
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -8994,6 +9013,7 @@ def _render_sks_splitting():
 
 if active_menu == "🌀 SKS Splitting":
     _render_sks_splitting()
+    _render_bilim_notu("plaka_sim", st, baslik="🎓 Bunu Öğren — Mantle Anizotropi")
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -9193,6 +9213,7 @@ def _render_tsunami_katalog():
 
 if active_menu == "🌊 Tsunami Kataloğu":
     _render_tsunami_katalog()
+    _render_bilim_notu("tsunami", st, baslik="🎓 Bunu Öğren — Akdeniz Tsunami Tehlikesi")
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -9411,6 +9432,7 @@ def _render_tsunami_varis():
 
 if active_menu == "⏱️ Tsunami Varış":
     _render_tsunami_varis()
+    _render_bilim_notu("tsunami", st, baslik="🎓 Bunu Öğren — Tsunami Shallow Water Hızı")
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -9603,6 +9625,7 @@ def _render_ambraseys_animasyon():
 
 if active_menu == "🎬 Ambraseys Animasyon":
     _render_ambraseys_animasyon()
+    _render_bilim_notu("tarihi_sismisite", st, baslik="🎓 Bunu Öğren — KAF Batıya Göç")
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -9860,6 +9883,7 @@ def _render_paleosismik_kazi():
 
 if active_menu == "⛏️ Paleosismik Kazı":
     _render_paleosismik_kazi()
+    _render_bilim_notu("tarihi_sismisite", st, baslik="🎓 Bunu Öğren — Paleoseismik Trench Yöntemi")
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -10075,6 +10099,7 @@ def _render_tsunami_tehlike():
 
 if active_menu == "🗺️ Tsunami Tehlike":
     _render_tsunami_tehlike()
+    _render_bilim_notu("tsunami", st, baslik="🎓 Bunu Öğren — NEAMTHM18 Tsunami Tehlikesi")
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -10292,6 +10317,7 @@ def _render_vs30_zemin():
 
 if active_menu == "🏔️ Vs30 Zemin":
     _render_vs30_zemin()
+    _render_bilim_notu("vs30", st, baslik="🎓 Bunu Öğren — Vs30 + NEHRP Zemin Sınıfı")
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -10513,6 +10539,7 @@ def _render_hazus_kayip():
 
 if active_menu == "🏚️ HAZUS Kayıp":
     _render_hazus_kayip()
+    _render_bilim_notu("hazus", st, baslik="🎓 Bunu Öğren — HAZUS + Fragility Curves")
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -10694,6 +10721,7 @@ def _render_erzincan_paleo():
 
 if active_menu == "🏺 Erzincan Paleo":
     _render_erzincan_paleo()
+    _render_bilim_notu("erzincan", st, baslik="🎓 Bunu Öğren — Erzincan Paleosismolojisi")
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -10908,6 +10936,7 @@ def _render_erzincan_mikrozon():
 
 if active_menu == "🗾 Erzincan Mikrozon":
     _render_erzincan_mikrozon()
+    _render_bilim_notu("vs30", st, baslik="🎓 Bunu Öğren — HVSR + Zemin Büyütme")
 
 # ─── Footer ─────────────────────────────────────────────────────────────────
 st.markdown(f"""
