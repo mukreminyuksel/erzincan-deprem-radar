@@ -48,7 +48,7 @@ Her panelin mevcut `st.caption`, `st.markdown`, `st.info`, `st.warning`, `st.suc
 
 | Panel | Mevcut Seviye | Grafik Sayısı | Pilot? |
 |---|---|---:|---|
-| 📊 İstatistik & Analiz | 🟠 Temel | 8+ (b-grid, η, RTL, AMR, korelasyon, scatter) | — |
+| 📊 İstatistik & Analiz | 🟡 Orta (η/RTL/AMR akademik v1.62) | 8+ (b-grid, η, RTL, AMR, korelasyon, scatter) | ✅ **Sprint 2 — η/RTL/AMR akademik** |
 | 📉 b-Değeri Zaman Serisi | 🟠 Temel | 3 (b-değeri zaman + dağılım) | ✅ **PİLOT B** |
 | 🌐 Dinamik Tetikleme | 🟠 Temel | 2 | — |
 | 🗺️ Sismik Tehlike (PSHA) | 🟡 Orta | 2 | — |

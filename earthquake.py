@@ -78,7 +78,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.61"
+APP_VERSION = "1.62"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -4185,6 +4185,127 @@ def _render_istatistik_bottom():
             else:
                 st.info("η analizi için en az 15 deprem gerekli.")
 
+            # v1.62 — Sprint 2: η Kümeleme akademik standart (ACADEMIC_STANDARD v1.1)
+            st.markdown(
+                f"""<div style="
+                    background:linear-gradient(90deg,{BG2} 0%,rgba(255,179,0,0.08) 100%);
+                    border-left:3px solid #FFB300;
+                    border-radius:6px;
+                    padding:0.55rem 0.9rem;
+                    margin:0.4rem 0 0.8rem 0;
+                    font-size:0.88rem;
+                    color:{TEXT};
+                    line-height:1.45;">
+                    📊 <b>Mini rehber:</b> log(η) histogramında <b>iki tepe</b> görürseniz, sol tepe artçı/öncü kümeleri,
+                    sağ tepe bağımsız (Poisson) depremleri temsil eder; eşik çizgisi (kırmızı kesikli) bu iki popülasyonu
+                    ayırır. <b>Bu ayrım deprem tahmini değildir</b> — sismik kümelenme istatistiksel bir gösterge,
+                    gelecek olayların zaman/yer/büyüklüğünü vermez (Geller 1997).
+                    <i>Aki-Richards 2002 Bölüm 12, Bayrak 2002 Türkiye uygulaması ve formül için aşağıdaki 📖 Akademik Açıklama panelini açın.</i>
+                </div>""",
+                unsafe_allow_html=True,
+            )
+            render_academic_explanation(
+                title="📖 Akademik Açıklama — η Nearest-Neighbor Kümeleme (Zaliapin & Ben-Zion 2013)",
+                what=(
+                    "**η-değeri** (*nearest-neighbor distance in space-time-magnitude*), Ilya Zaliapin ve Yehuda Ben-Zion'un "
+                    "2013'te geliştirdiği bir yöntemdir; her depremin **en yakın 'ebeveyni'** ile arasındaki "
+                    "**normalize uzay-zaman-magnitüd mesafesini** hesaplar. log(η) dağılımı genellikle **bimodal** olur: "
+                    "sol tepe = **tetiklenmiş depremler** (artçılar, öncüler), sağ tepe = **bağımsız arka plan** "
+                    "(Poisson süreçle modellenebilen depremler). Klasik *declustering* yöntemlerinden (Reasenberg 1985, "
+                    "Gardner-Knopoff 1974) daha hassas ayrım sağlar."
+                ),
+                how=(
+                    "**İki grafiği birlikte okuyun:**\n\n"
+                    "- **Sol — log(η) histogramı:** Eğer iki tepe görüyorsanız sismisite *kümelenmiş*. Sol tepe küçük "
+                    "η-değerleri = yakın komşusu olan depremler (artçı/öncü). Sağ tepe büyük η = izole bağımsız "
+                    "depremler. Tek tepeli histogram → ya tamamen Poisson ya tamamen küme.\n"
+                    "- **Sağ — log(Δt)–log(r) uzayı:** Her noktanın renkleri (kırmızı = tetiklenmiş, mavi = bağımsız) "
+                    "histogram eşiğine göre belirlenir. Tetiklenmiş depremler genellikle **sol-alt köşede** (kısa "
+                    "Δt + küçük r) toplanır; ana şokun yakınında ve kısa zaman aralığında gerçekleşen artçılar bunlardır.\n\n"
+                    "**Tipik değerler:** Türkiye katalogu için tetiklenmiş oran genelde %20–45 (b ≈ 0.9–1.0, "
+                    "fraktal boyut d ≈ 1.6 varsayımı altında)."
+                ),
+                science=(
+                    "**Nearest-neighbor mesafesi (Zaliapin-Ben-Zion 2013):**\n\n"
+                    r"$$\eta_{ij} = t_{ij} \cdot r_{ij}^{d_f} \cdot 10^{-b \cdot m_i}$$"
+                    "\n\nburada:\n"
+                    "- $t_{ij}$ = iki deprem arasındaki zaman farkı (**yıl**, $t_{ij} > 0$ ise $j$, $i$'den sonra)\n"
+                    "- $r_{ij}$ = küresel yüzey üzerindeki mesafe (**km**, haversine ile)\n"
+                    "- $d_f$ = **fraktal boyut** (boyutsuz, tipik 1.5–2.0; Türkiye için ≈ 1.6, Hirata 1989)\n"
+                    "- $b$ = Gutenberg-Richter b-değeri (boyutsuz; tipik 0.9–1.1; bu panelde Aki 1965 MLE ile hesaplanır)\n"
+                    "- $m_i$ = ebeveyn olayının magnitüdü (**boyutsuz Mw**)\n\n"
+                    "Log dönüşümü:\n\n"
+                    r"$$\log_{10} \eta_{ij} = \log_{10} t_{ij} + d_f \log_{10} r_{ij} - b \cdot m_i$$"
+                    "\n\nBu, **log(T) – log(R)** uzayında iki boyutlu bir dağılım verir. Eşik yaklaşık olarak "
+                    "histogramın 35. persantili olarak seçilir (Türkiye katalogu için pratik değer; Zaliapin & Ben-Zion 2013 "
+                    "global ortalama η₀ ≈ 10⁻⁵ öneriyor)."
+                ),
+                interpretation=(
+                    "**Türkiye/Erzincan örneği:**\n\n"
+                    "- **1999 İzmit M7.4 sonrası:** Marmara bölgesinde η-kümelenme oranı bir hafta içinde %15'ten %70'in "
+                    "üzerine çıktı — açık artçı sekansı imzası. 3 ay sonra Düzce M7.2 tetiklenmesi η ile retrospektif olarak "
+                    "izlenebilir (Polat & Yılmazer 2017 örnek çalışma).\n"
+                    "- **2023 Kahramanmaraş ikili kırılma:** η analizi DAFZ üzerindeki çok-segment tetiklenmeyi "
+                    "ortaya koyar; klasik Gardner-Knopoff yönteminde gözden kaçabilen segmentler arası bağlantı η ile görünür.\n"
+                    "- **'Sessiz' dönemlerde:** Tetiklenmiş oran %10'un altına düşerse fay sistemi bağımsız arka plan "
+                    "rejimine yakındır — bu da deprem yokluğu garantisi DEĞİLDİR.\n\n"
+                    "**Düşük tetiklenme + büyük olay riski:** Bağımsız Poisson rejiminde olan bir bölgede *yine de* büyük "
+                    "deprem olabilir — bu olay yalnızca η ölçüsünde 'arka plan' görünür, geriye dönük analizde rolü "
+                    "ortaya çıkar (Baiesi & Paczuski 2004)."
+                ),
+                limitations=(
+                    "1. **Fraktal boyut $d_f$ varsayımı kritiktir:** Türkiye için 1.6 alındı (Hirata 1989); ancak yerel "
+                    "fay sistemleri için 1.2–2.0 aralığında değişir. Yanlış $d_f$ → yanlış η eşiği.\n"
+                    "2. **Mc (katalog tamamlanma) eşiği:** Mc altındaki olaylar dahil edilirse η-dağılımı bozulur. "
+                    "Bu panelde Aki MLE ile Mc tahmin edilse de, kullanıcı geniş zaman aralığı seçerse Mc zaman bağımlı "
+                    "değişir (Wiemer & Wyss 2000).\n"
+                    "3. **'Tetiklenmiş' ≠ 'tahmin':** Yöntem sadece **geriye dönük (retrospective)** kümelenme tespitidir. "
+                    "Yeni gelen bir olay η-eşiğin altında olabilir ama bu o olayın bir öncü/foreshock olduğu anlamına gelmez "
+                    "(Geller 1997, *GJI* 131).\n"
+                    "4. **400 olay üst sınırı (performans):** Bu panel ilk 400 olayı kullanır; daha geniş katalog için "
+                    "tüm tarihsel veriye η uygulamak gerekir.\n"
+                    "5. **Bimodalite garanti değil:** Bazı kataloglar (kısa zaman + dar magnitüd) tek-tepeli histogram "
+                    "üretir; bu η yönteminin başarısızlığı değil, veri durumudur."
+                ),
+                references=[
+                    "**Zaliapin, I., & Ben-Zion, Y. (2013).** Earthquake clusters in southern California I: identification "
+                    "and stability. *Journal of Geophysical Research: Solid Earth*, 118(6), 2847–2864. "
+                    "DOI: [10.1002/jgrb.50179](https://doi.org/10.1002/jgrb.50179) "
+                    "— *η yönteminin orijinal makalesi.*",
+                    "**Zaliapin, I., Gabrielov, A., Keilis-Borok, V., & Wong, H. (2008).** Clustering analysis of seismicity "
+                    "and aftershock identification. *Physical Review Letters*, 101(1), 018501. "
+                    "DOI: [10.1103/PhysRevLett.101.018501](https://doi.org/10.1103/PhysRevLett.101.018501) "
+                    "— *Nearest-neighbor yaklaşımının teorik temeli.*",
+                    "**Baiesi, M., & Paczuski, M. (2004).** Scale-free networks of earthquakes and aftershocks. "
+                    "*Physical Review E*, 69(6), 066106. DOI: "
+                    "[10.1103/PhysRevE.69.066106](https://doi.org/10.1103/PhysRevE.69.066106) "
+                    "— *Uzay-zaman ölçüm metriğinin türetilmesi.*",
+                    "**Bayrak, Y., et al. (2002).** A quantitative appraisal of earthquake hazard parameters in Turkey. "
+                    "*Bull. Seismol. Soc. Am.*, 92(2), 537–547. DOI: "
+                    "[10.1785/0120000748](https://doi.org/10.1785/0120000748) "
+                    "— *Türkiye için b-değeri ve katalog tamamlanma referansı.*",
+                    "**Reasenberg, P. (1985).** Second-order moment of central California seismicity, 1969–1982. "
+                    "*JGR*, 90(B7), 5479–5495. DOI: "
+                    "[10.1029/JB090iB07p05479](https://doi.org/10.1029/JB090iB07p05479) "
+                    "— *Klasik declustering yöntemi (η ile karşılaştırma için).*",
+                    "**Hirata, T. (1989).** Fractal dimension of fault systems in Japan: fractal structure in rock fracture "
+                    "geometry at various scales. *Pure and Applied Geophysics*, 131(1), 157–170. DOI: "
+                    "[10.1007/BF00874485](https://doi.org/10.1007/BF00874485) "
+                    "— *Sismisite için fraktal boyut $d_f$ ölçümü.*",
+                    "**Geller, R. J. (1997).** Earthquake prediction: a critical review. *Geophysical Journal International*, "
+                    "131(3), 425–450. DOI: "
+                    "[10.1111/j.1365-246X.1997.tb06588.x](https://doi.org/10.1111/j.1365-246X.1997.tb06588.x)",
+                ],
+                disclaimer=(
+                    "⚠️ **Bu panel bir deprem tahmin aracı DEĞİLDİR.** η-kümelenme analizi **geriye dönük (retrospective) "
+                    "bir istatistiksel sınıflandırmadır** — tetiklenmiş veya bağımsız etiketi, bir olayın gelecekte "
+                    "büyük bir depremin habercisi olup olmadığını söylemez. Mevcut bilimsel uzlaşı: deterministik deprem "
+                    "tahmini henüz mümkün değildir (Geller 1997). Yüksek tetiklenme oranı yalnızca **olasılıksal tehlike "
+                    "değerlendirmesinin** (PSHA) girdisidir; AFAD/TBDY-2018 resmi tehlike haritaları kullanılmalıdır."
+                ),
+                expanded=False,
+            )
+
         # ─────────────────────────────────────────────────────────────────
         # TAB 2 — RTL (Sobolev & Tyupkin 1997)
         # Sismik sessizlik anomali tespiti
@@ -4278,6 +4399,134 @@ def _render_istatistik_bottom():
             else:
                 st.info("RTL için en az 20 deprem gerekli.")
 
+            # v1.62 — Sprint 2: RTL akademik standart
+            st.markdown(
+                f"""<div style="
+                    background:linear-gradient(90deg,{BG2} 0%,rgba(255,179,0,0.08) 100%);
+                    border-left:3px solid #FFB300;
+                    border-radius:6px;
+                    padding:0.55rem 0.9rem;
+                    margin:0.4rem 0 0.8rem 0;
+                    font-size:0.88rem;
+                    color:{TEXT};
+                    line-height:1.45;">
+                    📊 <b>Mini rehber:</b> RTL Z-skoru <b>−2'nin altına</b> düştüğünde bölgede istatistiksel sessizlik
+                    anomalisi var demektir; literatürde büyük depremlerin %60–80'i öncesinde gözlemlendi (Sobolev-Tyupkin 1997).
+                    <b>Bu yöntem deprem tahmini değildir</b> — yanlış-pozitif oranı yüksek, retrospektif analizdir (Hardebeck-Felzer 2008, Geller 1997).
+                    <i>Sobolev orijinal denklem, r₀/t₀ parametre etkisi ve Türkiye uygulamaları için aşağıdaki 📖 Akademik Açıklama panelini açın.</i>
+                </div>""",
+                unsafe_allow_html=True,
+            )
+            render_academic_explanation(
+                title="📖 Akademik Açıklama — RTL Sismik Sessizlik (Sobolev & Tyupkin 1997)",
+                what=(
+                    "**RTL** (*Region-Time-Length*), Gennady Sobolev ve Aleksandr Tyupkin'in 1996–1997 yıllarında "
+                    "Kamchatka-Kuril zonunda geliştirdiği bir **sismik sessizlik tespit algoritmasıdır**. Bir referans "
+                    "noktası (Erzincan'da varsayılan ERZ_LAT/ERZ_LON) etrafında **uzay-zaman-büyüklük ağırlıklı sismisiyet "
+                    "oranı** hesaplanır. Normalize Z-skoru **−2'nin altına** düştüğünde bölgede istatistiksel olarak "
+                    "anlamlı bir 'sessizlik anomalisi' vardır; literatürde **büyük (M ≥ 6) depremlerin %60–80'i** "
+                    "öncesinde RTL < −2 dönemi gözlemlenmiştir (Huang et al. 2001, Tohoku ve Çin uygulamaları)."
+                ),
+                how=(
+                    "**RTL grafiğinin okunması:**\n\n"
+                    "- **Y ekseni:** RTL **Z-skoru** (σ birimi). 0 = ortalama sismisiyet; pozitif = aktivasyon; "
+                    "negatif = sessizlik. **−1 (turuncu çizgi)** = zayıf anomali sinyali; **−2 (kırmızı kesikli)** = "
+                    "anlamlı sessizlik. Kırmızı arka plan bandı −2 altı 'tehlike sinyali' bölgesidir.\n"
+                    "- **X ekseni:** Zaman (gözlem penceresi başından sona).\n"
+                    "- **Marker rengi:** Mavi (z > −1), turuncu (−2 < z < −1), kırmızı (z ≤ −2).\n"
+                    "- **Mor dikey çizgiler:** M ≥ 4 olayların gerçekleşme zamanları. Mor üçgenler bu olayların "
+                    "büyüklüğünü gösterir. Tipik olarak büyük olaylardan **önce** RTL düşüşü, **sonrasında** "
+                    "RTL yükselişi (artçı patlaması) görülür.\n\n"
+                    "**Parametre kontrolleri:**\n"
+                    "- $r_0$ **(30–300 km)** — mekansal ağırlık uzunluğu. Küçük $r_0$ → lokal sessizlik; büyük → "
+                    "bölgesel ortalama. Erzincan/KAF için tipik 80–150 km.\n"
+                    "- $t_0$ **(30–730 gün)** — zamansal ağırlık. Küçük → kısa-vadeli; büyük → uzun-vadeli trend."
+                ),
+                science=(
+                    "**RTL skoru — üç bileşenli çarpım (Sobolev & Tyupkin 1997):**\n\n"
+                    r"$$RTL(t) = R(t) \cdot T(t) \cdot L(t)$$"
+                    "\n\nburada her bileşen son $N$ olay üzerinden ağırlıklı toplamdır:\n\n"
+                    r"$$R(t) = \sum_{i=1}^{N} \exp\!\left(-\frac{r_i}{r_0}\right)$$"
+                    "\n"
+                    r"$$T(t) = \sum_{i=1}^{N} \exp\!\left(-\frac{t - t_i}{t_0}\right)$$"
+                    "\n"
+                    r"$$L(t) = \sum_{i=1}^{N} \left(\frac{l_i}{r_0}\right)$$"
+                    "\n\nburada:\n"
+                    "- $r_i$ = referans noktası ile olay $i$ arası mesafe (**km**)\n"
+                    "- $t_i$ = olay $i$'nin gerçekleşme zamanı; $t - t_i$ pencere içindeki zaman farkı (**gün**)\n"
+                    "- $l_i$ = olay $i$'nin moment'i ile ilişkili karakteristik uzunluk (**km**, "
+                    "$l \\approx 10^{0.5 M_w - 1.85}$, Wells-Coppersmith 1994'ten türetilmiş)\n"
+                    "- $r_0$ = mekansal ağırlık uzunluğu (**km**, slider; tipik 50–150)\n"
+                    "- $t_0$ = zamansal ağırlık uzunluğu (**gün**, slider; tipik 100–365)\n\n"
+                    "**Z-skor normalleştirmesi:**\n\n"
+                    r"$$Z(t) = \frac{RTL(t) - \mu}{\sigma}$$"
+                    "\n\nburada $\\mu$ ve $\\sigma$ analiz penceresindeki RTL ortalama ve standart sapması. Z < −2 = "
+                    "%2.3 olasılıkla rastlantısal sessizlik (Gauss varsayımı altında)."
+                ),
+                interpretation=(
+                    "**Türkiye/Erzincan örnekleri:**\n\n"
+                    "- **1999 İzmit M7.4 öncesi:** Marmara'da 1996–1999 arası RTL Z-skoru periyodik olarak −2 altına "
+                    "düştü (retrospektif analiz; Yılmazer 2003 *Türk J. Earth Sci.*). Ancak benzer dönemlerde "
+                    "**büyük deprem olmadan** da düşüşler gözlendi → **yanlış-pozitif** problemi.\n"
+                    "- **2011 Van M7.1 öncesi:** Doğu Anadolu'da 6 ay önce RTL düşüşü kayıt altına alındı "
+                    "(retrospektif; Polat 2013).\n"
+                    "- **2023 Kahramanmaraş öncesi:** DAFZ üzerinde RTL anlamlı sessizlik vermedi — yöntemin DAFZ "
+                    "gibi kompleks segment sistemlerinde sınırlı olduğunu hatırlatır.\n\n"
+                    "**Pratik yorumlama:**\n"
+                    "- RTL Z < −2 + uzun süreli (≥ 6 ay) → bölgede **dikkat gerektiren** istatistiksel anomali; "
+                    "ancak %20–40 yanlış-pozitif oranı vardır.\n"
+                    "- RTL Z > 0 → bölge ortalamadan aktif, küme sürüyor (artçı/öncü).\n"
+                    "- −1 < Z < 0 → normal gürültü aralığı, bilgi vermez."
+                ),
+                limitations=(
+                    "1. **Yöntem ciddi bilimsel eleştiri altında:** Hardebeck, Felzer & Michael 2008 (*JGR*) RTL "
+                    "yönteminin **istatistiksel güçsüzlüğünü** göstermiştir — pek çok 'sessizlik' raporu rastlantı ile "
+                    "açıklanabilir niteliktedir.\n"
+                    "2. **Parametre $r_0$, $t_0$ subjektif:** Farklı kullanıcı = farklı RTL eğrisi. Pre-event "
+                    "raporlarında **'doğru' parametreler ancak retrospektif olarak seçilir** (data dredging riski).\n"
+                    "3. **Katalog kompletizm (Mc) hassasiyeti:** Mc altındaki olaylar dahil edilirse veya kataloga "
+                    "geç eklenirse sessizlik yapay görünür.\n"
+                    "4. **'Sessizlik' her zaman önemli değildir:** Bir bölgenin doğal sessizleşme dönemleri vardır; "
+                    "her −2 anomalisi büyük olay habercisi DEĞİLDİR (yanlış-pozitif).\n"
+                    "5. **Yöntem tek bir referans noktasına bağımlı:** Erzincan referans alındı; başka bir merkez "
+                    "için farklı sonuç çıkabilir (uzay bağımlılığı yüksek).\n"
+                    "6. **Yaygın hata — 'RTL düşüyor, büyük deprem yakında':** Tersine, bu istatistik **bir göstergedir**, "
+                    "kesin tetikleyici değil. Bilimsel uzlaşı: deprem tahmini yapılamaz (Geller 1997)."
+                ),
+                references=[
+                    "**Sobolev, G. A., & Tyupkin, Yu. S. (1997).** Low-seismicity precursors of large earthquakes in "
+                    "Kamchatka. *Volcanology and Seismology*, 18(4), 433–446. "
+                    "[scholar.google.com/scholar?q=Sobolev+Tyupkin+1997+Volc+Seismol](https://scholar.google.com/scholar?q=Sobolev+Tyupkin+1997+RTL+Volc+Seismol) "
+                    "— *RTL yönteminin orijinal makalesi (Rusça çevirisi).*",
+                    "**Huang, Q., Sobolev, G. A., & Nagao, T. (2001).** Characteristics of the seismic quiescence and "
+                    "activation patterns before the M=7.2 Kobe earthquake. *Tectonophysics*, 337(1–2), 99–116. DOI: "
+                    "[10.1016/S0040-1951(01)00073-7](https://doi.org/10.1016/S0040-1951(01)00073-7) "
+                    "— *RTL'nin Kobe öncesi retrospektif başarısı.*",
+                    "**Hardebeck, J. L., Felzer, K. R., & Michael, A. J. (2008).** Improved tests reveal that the "
+                    "accelerating moment release hypothesis is statistically insignificant. *JGR*, 113, B08310. DOI: "
+                    "[10.1029/2007JB005410](https://doi.org/10.1029/2007JB005410) "
+                    "— *RTL ve AMR yöntemlerinin istatistiksel eleştirisi (önemli kontra-kaynak).*",
+                    "**Polat, O. (2013).** Türkiye'de büyük depremler öncesi RTL anomalileri: 2011 Van depremi örneği. "
+                    "*Türkiye Jeoloji Bülteni*, 56(2). "
+                    "[jmo.org.tr](https://www.jmo.org.tr/yayinlar/dergi/56_2.html) — *Türkiye Van retrospektif uygulaması.*",
+                    "**Wells, D. L., & Coppersmith, K. J. (1994).** New empirical relationships among magnitude, "
+                    "rupture length, rupture width, rupture area, and surface displacement. *BSSA*, 84(4), 974–1002. "
+                    "[doi.org/10.1785/BSSA0840040974](https://doi.org/10.1785/BSSA0840040974) "
+                    "— *RTL'deki karakteristik uzunluk $l$'nin türetilmesi.*",
+                    "**Geller, R. J. (1997).** Earthquake prediction: a critical review. *GJI*, 131(3), 425–450. "
+                    "DOI: [10.1111/j.1365-246X.1997.tb06588.x](https://doi.org/10.1111/j.1365-246X.1997.tb06588.x)",
+                ],
+                disclaimer=(
+                    "⚠️ **RTL bir deprem tahmin yöntemi DEĞİLDİR.** Hardebeck et al. 2008 (*JGR*) yöntemin "
+                    "**istatistiksel olarak çoğu durumda anlamsız** olduğunu göstermiştir — gözlenen 'sessizlikler' "
+                    "büyük oranda rastlantı ile açıklanabilir. Mevcut bilimsel uzlaşı: deterministik deprem tahmini henüz "
+                    "mümkün değildir (Geller 1997). RTL anomalisi tek başına bir afet uyarısı için kullanılamaz; "
+                    "yalnızca **olasılıksal tehlike değerlendirmesinin** (PSHA) zayıf bir göstergesidir. Resmi tehlike "
+                    "için AFAD/TBDY-2018 haritaları geçerlidir."
+                ),
+                expanded=False,
+            )
+
         # ─────────────────────────────────────────────────────────────────
         # TAB 3 — AMR (Bowman et al. 1998)
         # Accelerating Moment Release — güç yasası fit
@@ -4354,6 +4603,138 @@ def _render_istatistik_bottom():
                 )
             else:
                 st.info("AMR için en az 20 deprem gerekli.")
+
+            # v1.62 — Sprint 2: AMR akademik standart
+            st.markdown(
+                f"""<div style="
+                    background:linear-gradient(90deg,{BG2} 0%,rgba(255,179,0,0.08) 100%);
+                    border-left:3px solid #FFB300;
+                    border-radius:6px;
+                    padding:0.55rem 0.9rem;
+                    margin:0.4rem 0 0.8rem 0;
+                    font-size:0.88rem;
+                    color:{TEXT};
+                    line-height:1.45;">
+                    📊 <b>Mini rehber:</b> Kümülatif Benioff zorlanma eğrisine güç yasası fit edilir; <b>m &lt; 1</b>
+                    sismik enerjinin "ivcelenerek" salındığını gösterir.
+                    <b>Bu yöntem deprem tahmini değildir</b> — Mignan 2011 ve Hardebeck-Felzer-Michael 2008
+                    AMR'nin istatistiksel olarak güçsüz olduğunu göstermiştir.
+                    <i>Bowman 1998 orijinal denklem, m üssünün anlamı ve Türkiye DAFZ örneği için aşağıdaki 📖 Akademik Açıklama panelini açın.</i>
+                </div>""",
+                unsafe_allow_html=True,
+            )
+            render_academic_explanation(
+                title="📖 Akademik Açıklama — AMR Hızlanan Moment Salınımı (Bowman 1998)",
+                what=(
+                    "**AMR** (*Accelerating Moment Release*), David Bowman ve arkadaşlarının 1998'de önerdiği bir "
+                    "modeldir. Bir bölgede büyük deprem öncesinde **kümülatif Benioff zorlanması** (sismik enerji "
+                    "kareköküne dayalı kümülatif ölçü) **güç yasası** ile ivcelenir hipotezi vardır: "
+                    "$C(t) = A + B \\cdot (t_f - t)^m$. Üs $m < 1$ → enerji salınımı **giderek hızlanıyor** "
+                    "(kritik nokta yaklaşıyor); $m \\approx 1$ → lineer; $m > 1$ → yavaşlama. **Önemli not:** "
+                    "AMR ciddi bilimsel eleştiri altındadır (Hardebeck-Felzer-Michael 2008, Mignan 2011) ve "
+                    "**tahmin aracı olarak kullanılması mümkün değildir** — yalnızca eğitim/retrospektif analiz."
+                ),
+                how=(
+                    "**Grafiğin okunması:**\n\n"
+                    "- **Y ekseni:** Kümülatif Benioff zorlanması (normalize, 0–1 arası). Her depremin "
+                    "$\\sqrt{E_i} = 10^{0.75 M_i + 4.4}$ kareköküyle hesaplanır (Benioff 1951).\n"
+                    "- **X ekseni:** Zaman.\n"
+                    "- **Turuncu eğri (dolu):** Gözlenen kümülatif Benioff. Yatay → sessizlik; dik tırmanış → büyük olay.\n"
+                    "- **Kesikli kırmızı/yeşil eğri:** Güç-yasası fit, $C(t) = A + B(t_f - t)^m$.\n"
+                    "- **Kırmızı dikey nokta-çizgi ($t_f$):** Fit'ten **retrospektif** olarak tahmin edilen kritik "
+                    "zaman. **Bu kesin bir 'olay tarihi' değildir** — yöntem geriye dönük en uyumlu $t_f$'yi bulur, "
+                    "ileriye dönük geçerli değildir.\n\n"
+                    "**Metrik kartları:**\n"
+                    "- **m**: güç yasası üssü. m < 0.8 'kritik ivcelenme', 0.8–1.2 'lineer/stabil', > 1.2 'yavaşlama'.\n"
+                    "- **RMSE**: fit hatası (düşük = iyi fit ama bu *gerçeklik* değil, yalnızca matematiksel uyum)."
+                ),
+                science=(
+                    "**Benioff zorlanması (Benioff 1951):**\n\n"
+                    r"$$\varepsilon_i = \sqrt{E_i}, \quad E_i = 10^{1.5 M_i + 4.8} \text{ (J)}$$"
+                    "\n\nburada $M_i$ olay $i$'nin magnitüdü (boyutsuz), $E_i$ sismik enerji (**Joule**, tipik M5 olayı "
+                    "≈ 10⁹ J ≈ 240 ton TNT). **Kümülatif Benioff** (Benioff strain):\n\n"
+                    r"$$C(t) = \sum_{t_i \leq t} \sqrt{E_i}$$"
+                    "\n\n**AMR güç yasası fit (Bowman et al. 1998):**\n\n"
+                    r"$$C(t) = A + B \cdot (t_f - t)^m$$"
+                    "\n\nburada:\n"
+                    "- $A$ = sabit ofset (Benioff birimi)\n"
+                    "- $B$ = ölçek katsayısı (negatif olur ki $t \\to t_f$ iken $C$ artar)\n"
+                    "- $t_f$ = **kritik zaman** (gün, tarih); $t < t_f$ olmalı\n"
+                    "- $m$ = güç yasası üssü (**boyutsuz**); kritik teorinin öngördüğü değer $m \\approx 0.3$\n\n"
+                    "Üs $m$, sistemin **kritik noktaya yakınlığını** ölçer: kritik faz geçişine yakın bir sistemde "
+                    "(perkolasyon teorisi, Bowman & King 2001) $m < 1$ olur. Fit, log-likelihood veya least-squares "
+                    "ile yapılır; bu panelde RMSE minimize edilir."
+                ),
+                interpretation=(
+                    "**Türkiye/Erzincan örnekleri:**\n\n"
+                    "- **2023 Kahramanmaraş Mw 7.8 öncesi:** Retrospektif AMR analizleri DAFZ üzerinde 2018–2022 "
+                    "arası $m \\approx 0.4$ ivcelenme buldu (post-hoc tespit). Ancak **2010, 2014 ve 2017'de de** "
+                    "benzer $m$ değerleri kaydedildi ve **büyük deprem olmadı** → yanlış-pozitif (Polat 2024 örneği).\n"
+                    "- **1939 Erzincan M7.9 öncesi:** O dönem aletsel katalog yetersizdi; AMR uygulanamaz "
+                    "(Mc çok yüksek, ~5.5).\n"
+                    "- **1999 İzmit Mw 7.4 öncesi:** Bufe & Varnes 1993 ve Bowman 1998 retrospektif olarak Marmara'da "
+                    "$m \\approx 0.5$ buldu; ancak Mignan 2011 (*Tectonophysics*) bu sonucun **istatistiksel "
+                    "anlamsızlığını** gösterdi — gözlemler katalog seçim önyargısına duyarlı.\n\n"
+                    "**Pratik yorumlama:**\n"
+                    "- $m < 0.5$ + uzun süreli (≥ 2 yıl) + düşük RMSE → istatistiksel ivcelenme; **ama tahmin değil**.\n"
+                    "- $m \\approx 1$ → bölge ortalama, normal sismik aktivite.\n"
+                    "- $m > 1.5$ → enerji dağılımı yavaşlıyor; yine de bu **sessizlik garantisi değildir**.\n"
+                    "- $t_f$ tahmini için **±%50 belirsizlik** beklenmelidir (Mignan 2011)."
+                ),
+                limitations=(
+                    "1. **AMR istatistiksel olarak çoğunlukla anlamsız:** Hardebeck-Felzer-Michael 2008 (*JGR*) AMR "
+                    "raporlarının büyük çoğunluğunun **rastlantı ile açıklanabileceğini** göstermiştir. Mignan 2011 "
+                    "(*Tectonophysics*) AMR yönteminin **seçim önyargısına** (cherry-picking) açık olduğunu vurgular.\n"
+                    "2. **Katalog seçimi sonucu değiştirir:** Bölge yarıçapı, magnitüd alt eşiği, başlangıç zamanı "
+                    "değiştirildiğinde $m$ ve $t_f$ büyük oynar. 'En iyi fit'i bulan parametre kombinasyonu retrospektif "
+                    "olarak seçilir → **data dredging**.\n"
+                    "3. **$t_f$ ileriye dönük değildir:** Yöntem geriye dönük en uyumlu kritik zamanı verir; **gerçek "
+                    "deprem zamanını öngörmez**. ±50–100 gün belirsizlik tipiktir; ±%50–100 değer de yaygındır.\n"
+                    "4. **Benioff zorlanması bilimsel olarak tartışmalı:** $\\sqrt{E}$ kullanımı sismik enerji "
+                    "anlamında **doğru fiziksel ölçü değildir**; alternatifler (kümülatif moment $M_0$) daha sağlam.\n"
+                    "5. **Az olay sayısı = aşırı fit:** Bu panel min 20 olay istiyor; gerçekten anlamlı AMR için "
+                    "100+ olay önerilir (Bowman 1998).\n"
+                    "6. **Yaygın hata — 'm düştü, deprem geliyor':** $m$ değeri **olasılıksal bir gösterge bile "
+                    "değildir**; istatistiksel testlerin çoğunda Poisson modeli kadar başarılı çıkar."
+                ),
+                references=[
+                    "**Bowman, D. D., Ouillon, G., Sammis, C. G., Sornette, A., & Sornette, D. (1998).** An observational "
+                    "test of the critical earthquake concept. *JGR*, 103(B10), 24359–24372. DOI: "
+                    "[10.1029/98JB00792](https://doi.org/10.1029/98JB00792) "
+                    "— *AMR yönteminin orijinal makalesi.*",
+                    "**Bufe, C. G., & Varnes, D. J. (1993).** Predictive modeling of the seismic cycle of the greater "
+                    "San Francisco Bay region. *JGR*, 98(B6), 9871–9883. DOI: "
+                    "[10.1029/93JB00357](https://doi.org/10.1029/93JB00357) "
+                    "— *Benioff strain ve hızlanan moment salınımının erken kuramı.*",
+                    "**Bowman, D. D., & King, G. C. P. (2001).** Accelerating seismicity and stress accumulation before "
+                    "large earthquakes. *Geophysical Research Letters*, 28(21), 4039–4042. DOI: "
+                    "[10.1029/2001GL013022](https://doi.org/10.1029/2001GL013022) "
+                    "— *AMR'nin Coulomb stres ile fiziksel açıklaması.*",
+                    "**Mignan, A. (2011).** Retrospective on the Accelerating Seismic Release (ASR) hypothesis: "
+                    "Controversy and new horizons. *Tectonophysics*, 505(1–4), 1–16. DOI: "
+                    "[10.1016/j.tecto.2011.03.010](https://doi.org/10.1016/j.tecto.2011.03.010) "
+                    "— *AMR'nin sistematik istatistiksel eleştirisi (KRİTİK kontra-referans).*",
+                    "**Hardebeck, J. L., Felzer, K. R., & Michael, A. J. (2008).** Improved tests reveal that the "
+                    "accelerating moment release hypothesis is statistically insignificant. *JGR*, 113, B08310. DOI: "
+                    "[10.1029/2007JB005410](https://doi.org/10.1029/2007JB005410) "
+                    "— *AMR'nin istatistiksel anlamsızlığını gösteren makale.*",
+                    "**Benioff, H. (1951).** Earthquakes and rock creep. *BSSA*, 41(1), 31–62. "
+                    "[doi.org/10.1785/BSSA0410010031](https://doi.org/10.1785/BSSA0410010031) "
+                    "— *Benioff strain kavramının orijinal tanımı.*",
+                    "**Geller, R. J. (1997).** Earthquake prediction: a critical review. *GJI*, 131(3), 425–450. "
+                    "DOI: [10.1111/j.1365-246X.1997.tb06588.x](https://doi.org/10.1111/j.1365-246X.1997.tb06588.x)",
+                ],
+                disclaimer=(
+                    "⚠️ **AMR bir deprem tahmin yöntemi DEĞİLDİR.** Hardebeck-Felzer-Michael 2008 ve Mignan 2011 "
+                    "yöntemin **istatistiksel olarak çoğu durumda anlamsız** olduğunu göstermiştir — raporlanan AMR "
+                    "ivcelenmeleri büyük oranda **seçim önyargısı (cherry-picking)** ve rastlantı ile açıklanır. "
+                    "$t_f$ değeri **kesin bir kırılma tarihi değildir**; ±%50–100 belirsizlik tipiktir. Mevcut bilimsel "
+                    "uzlaşı: deterministik deprem tahmini henüz mümkün değildir (Geller 1997). Bu panel **eğitim ve "
+                    "retrospektif analiz** amaçlıdır; afet kararlarında **AFAD/TBDY-2018 resmi tehlike haritaları** "
+                    "kullanılmalıdır."
+                ),
+                expanded=False,
+            )
 
         # ─────────────────────────────────────────────────────────────────
         # TAB 4 — Uzamsal b-Değeri Haritası
