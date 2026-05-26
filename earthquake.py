@@ -2068,7 +2068,7 @@ def _render_canli_radar():
         fig_act.update_yaxes(title_text="Kumulatif Sayi", gridcolor=GRID)
 
     st.plotly_chart(fig_act, use_container_width=True,
-                    config={"displayModeBar": False, "displaylogo": False})
+                    config={"displayModeBar": True, "displaylogo": False})
 
     # ─── Buyukluk + Derinlik dagilimi ───────────────────────────────────────────
     col_h1, col_h2 = st.columns(2)
@@ -2090,7 +2090,7 @@ def _render_canli_radar():
                               marker_line_color="rgba(255,255,255,0.2)")
         fig_h1.update_layout(**hist_layout)
         st.plotly_chart(fig_h1, use_container_width=True,
-                        config={"displayModeBar": False, "displaylogo": False})
+                        config={"displayModeBar": True, "displaylogo": False})
 
     with col_h2:
         st.markdown('<div class="chart-title">🏔️ Derinlik Dagilimi</div>', unsafe_allow_html=True)
@@ -2101,7 +2101,7 @@ def _render_canli_radar():
                               marker_line_color="rgba(255,255,255,0.2)")
         fig_h2.update_layout(**hist_layout)
         st.plotly_chart(fig_h2, use_container_width=True,
-                        config={"displayModeBar": False, "displaylogo": False})
+                        config={"displayModeBar": True, "displaylogo": False})
 
 if active_menu == "🌍 Canlı Radar":
     _render_canli_radar()
@@ -2131,7 +2131,7 @@ if active_menu == "⚙️ Sistem & Veri":
         xaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT)),
         yaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT), title="Kayıt"),
     )
-    st.plotly_chart(fig_health, use_container_width=True, config={"displayModeBar": False, "displaylogo": False})
+    st.plotly_chart(fig_health, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown('<div class="chart-title">📊 2. Veri Kalitesi Kontrolü</div>', unsafe_allow_html=True)
@@ -2187,7 +2187,7 @@ if active_menu == "🧭 Fay Sistemleri":
             xaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT)),
             yaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT), title="Olay"),
         )
-        st.plotly_chart(fig_fault, use_container_width=True, config={"displayModeBar": False, "displaylogo": False})
+        st.plotly_chart(fig_fault, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
     with f2:
         top_faults = fault_df["Yakın Fay"].value_counts().head(10).reset_index()
         top_faults.columns = ["Fay", "Olay"]
@@ -2201,7 +2201,7 @@ if active_menu == "🧭 Fay Sistemleri":
             xaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT)),
             yaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT)),
         )
-        st.plotly_chart(fig_top_faults, use_container_width=True, config={"displayModeBar": False, "displaylogo": False})
+        st.plotly_chart(fig_top_faults, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
     st.dataframe(fault_df.head(100), use_container_width=True, hide_index=True)
 
 @st.fragment
@@ -2246,7 +2246,7 @@ def _render_istatistik_top():
         xaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT)),
         yaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT), range=[0, 45]),
     )
-    st.plotly_chart(fig_score, use_container_width=True, config={"displayModeBar": False, "displaylogo": False})
+    st.plotly_chart(fig_score, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
     st.info("Bu skor deprem tahmini değildir; sadece seçilen veri penceresindeki aktiviteyi özetleyen karar destek göstergesidir.")
 
 if active_menu == "📊 İstatistik & Analiz":
@@ -2432,7 +2432,7 @@ if active_menu == "🎓 Bilgi Havuzu":
                     )],
                 )],
             )
-            st.plotly_chart(fig_fault_demo, use_container_width=True, config={"displayModeBar": False, "displaylogo": False})
+            st.plotly_chart(fig_fault_demo, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
             st.markdown("---")
             st.markdown(f"**Tanım:** {info['desc']}")
@@ -2565,7 +2565,7 @@ if active_menu == "🎓 Bilgi Havuzu":
                     )]
                 )]
             )
-            st.plotly_chart(fig_wave2d, use_container_width=True, config={"displayModeBar": False, "displaylogo": False})
+            st.plotly_chart(fig_wave2d, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
             st.markdown("---")
             if "P Dalgası" in wave_type:
@@ -2709,7 +2709,7 @@ if active_menu == "🎓 Bilgi Havuzu":
                 ),
                 legend=dict(font=dict(color=TEXT), bgcolor="rgba(0,0,0,0)", orientation="h", x=0, y=1.1),
             )
-            st.plotly_chart(fig_erz, use_container_width=True, config={"displayModeBar": False, "displaylogo": False})
+            st.plotly_chart(fig_erz, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
             c1, c2, c3 = st.columns(3)
             c1.metric("Mekanizma", scenario["mechanism"])
@@ -2839,7 +2839,7 @@ def _render_istatistik_bottom():
                 xaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT, size=9)),
                 yaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT, size=9)),
             )
-            st.plotly_chart(fig_src, use_container_width=True, config={"displayModeBar": False, "displaylogo": False})
+            st.plotly_chart(fig_src, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
         with energy_col:
             st.markdown('<div class="chart-title">⚡ Kümülatif Enerji Salınımı</div>', unsafe_allow_html=True)
             fig_energy = go.Figure(go.Scatter(
@@ -2855,7 +2855,7 @@ def _render_istatistik_bottom():
                 xaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT, size=9)),
                 yaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT, size=9), title="Joule"),
             )
-            st.plotly_chart(fig_energy, use_container_width=True, config={"displayModeBar": False, "displaylogo": False})
+            st.plotly_chart(fig_energy, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
             st.info("💡 **Basitçe:** Bu grafik, fay hattında biriken enerjinin zaman içindeki tablosudur. Eğrinin yatay ve düz ilerlediği dönemler fayın **'kilitlendiği' ve enerji biriktirdiği** (suskunluk) tehlikeli zamanları gösterir. Çizginin aniden dik bir şekilde yukarı fırladığı anlar ise büyük bir depremin patlayarak bu gerilimi boşalttığı rahatlama anlarıdır. Eğer uzun süredir çizgi düz ilerliyorsa, fay büyük bir olaya hazırlanıyor demektir.")
 
         # ════════════════════════════════════════════════════════════════
@@ -2988,7 +2988,7 @@ def _render_istatistik_bottom():
                         yaxis=dict(tickfont=dict(color=TEXT)),
                     )
                     st.plotly_chart(fig_corr, use_container_width=True,
-                                    config={"displayModeBar": False, "displaylogo": False})
+                                    config={"displayModeBar": True, "displaylogo": False})
 
                 with col_sc:
                     st.markdown('<div class="chart-title">📍 Öncü Adaylar — Zaman & Büyüklük</div>', unsafe_allow_html=True)
@@ -3050,7 +3050,7 @@ def _render_istatistik_bottom():
                         hovermode="closest",
                     )
                     st.plotly_chart(fig_pre, use_container_width=True,
-                                    config={"displayModeBar": False, "displaylogo": False})
+                                    config={"displayModeBar": True, "displaylogo": False})
                     st.info("💡 **Basitçe:** Büyük bir deprem gelmeden günler veya haftalar önce, fay hattında çatırdamalar başlar ve küçük sarsıntılar oluşur. Buna **Öncü Deprem** (Foreshock) denir. Bu grafik, bölgedeki sarsıntıların sıradan rastgele titreşimler mi yoksa yaklaşan büyük bir ana depremin ayak sesleri mi (anormal kümelenme) olduğunu matematiksel olarak test eder.")
 
                 # Önemli korelasyon tespitleri
@@ -3182,7 +3182,7 @@ def _render_istatistik_bottom():
                         legend=dict(font=dict(color=TEXT), bgcolor="rgba(0,0,0,0)"),
                     )
                     st.plotly_chart(fig_b, use_container_width=True,
-                                    config={"displayModeBar": False, "displaylogo": False})
+                                    config={"displayModeBar": True, "displaylogo": False})
                     st.info("💡 **Basitçe (b-Değeri):** **b-Değeri**, sismolojinin en önemli uyarıcılarından biridir. Küçük depremlerin büyük depremlere olan oranını gösterir. Mavi çizginin yokuş aşağı inmesi (değerin düşmesi), fay hattındaki **stresin (gerilimin) aşırı yükseldiğini** ve kayaların artık kopma noktasına yaklaştığını gösterir. b-değerinin aniden çakılması, büyük bir depremin habercisi olarak kabul edilir.")
                     st.caption(f"Pencere: {WINDOW} deprem | Mc ≈ M{Mc:.1f} | Veri noktası: {len(b_vals)}")
                 else:
@@ -3239,7 +3239,7 @@ def _render_istatistik_bottom():
                                 orientation="h", x=0, y=1.08),
                 )
                 st.plotly_chart(fig_ben, use_container_width=True,
-                                config={"displayModeBar": False, "displaylogo": False})
+                                config={"displayModeBar": True, "displaylogo": False})
                 st.info("💡 **Basitçe:** Yeraltındaki kayalar lastik gibi esneyebilir. **Benioff Zorlanması**, bu esnemenin miktarını ölçer. Grafik sürekli yukarı doğru tırmanıyorsa, tektonik plakalar birbirini itiyor ve yeraltındaki kayalar giderek daha fazla bükülüyor demektir. Eğrinin zirveye ulaştığı nokta, kayanın artık dayanamayıp kırıldığı (deprem) anı temsil eder.")
 
             # ── Epimerkez Göç Analizi ───────────────────────────────────
@@ -3296,7 +3296,7 @@ def _render_istatistik_bottom():
                     hovermode="closest",
                 )
                 st.plotly_chart(fig_mig, use_container_width=True,
-                                config={"displayModeBar": False, "displaylogo": False})
+                                config={"displayModeBar": True, "displaylogo": False})
                 st.info("💡 **Basitçe:** Depremler bazen rastgele değil, tıpkı devrilen domino taşları gibi belli bir yöne doğru ilerler. Bu harita, sarsıntıların **doğuya mı, batıya mı** doğru kaydığını gösterir. Fay üzerindeki enerjinin bir noktadan başka bir noktaya transfer edilmesi (göç etmesi), yakında hangi şehrin veya fay segmentinin tehlikeye gireceğini anlamamızı sağlar.")
 
             with col_mig2:
@@ -3350,7 +3350,7 @@ def _render_istatistik_bottom():
                     hovermode="closest",
                 )
                 st.plotly_chart(fig_dep_mig, use_container_width=True,
-                                config={"displayModeBar": False, "displaylogo": False})
+                                config={"displayModeBar": True, "displaylogo": False})
                 st.info("💡 **Basitçe:** Depremlerin sadece haritada değil, **yeraltındaki derinliklerinde de bir hareketi** vardır. Sarsıntıların 20 km derinlikten başlayıp gün geçtikçe 5 km, 2 km gibi yüzeye doğru tırmanması, yeraltındaki kırılmanın (veya magmanın) yüzeye doğru bir yol bulmaya çalıştığını ve yakında yıkıcı bir sığ deprem üretebileceğini işaret eder.")
         else:
             st.info("Bilimsel analiz için en az 20 deprem gerekli. Zaman aralığını veya yarıçapı genişletin.")
@@ -3453,7 +3453,7 @@ def _render_istatistik_bottom():
                                        gridcolor=GRID, tickfont=dict(color=TEXT)),
                         )
                         st.plotly_chart(fig_eta_h, use_container_width=True,
-                                        config={"displayModeBar": False, "displaylogo": False})
+                                        config={"displayModeBar": True, "displaylogo": False})
 
                     with col_es:
                         clustered = eta_arr < eta_thresh
@@ -3485,7 +3485,7 @@ def _render_istatistik_bottom():
                                         x=0, y=1.08, orientation="h"),
                         )
                         st.plotly_chart(fig_eta_s, use_container_width=True,
-                                        config={"displayModeBar": False, "displaylogo": False})
+                                        config={"displayModeBar": True, "displaylogo": False})
                         st.info("💡 **Basitçe:** Tıpkı bir virüsün insanlara bulaşması gibi, depremler de birbirini tetikler (ETAS Modeli). Bu grafik, yaşanan sarsıntıların sadece eski bir depremin **zararsız artçıları mı**, yoksa yepyeni ve daha büyük bir depremi doğuracak **tehlikeli tetikleyiciler mi** olduğunu analiz eder. 'Bulaşıcılık' seviyesi yüksekse alarm zilleri çalmaya başlar.")
 
                     n_clust = int(clustered.sum())
@@ -3579,7 +3579,7 @@ def _render_istatistik_bottom():
                         hovermode="x unified",
                     )
                     st.plotly_chart(fig_rtl, use_container_width=True,
-                                    config={"displayModeBar": False, "displaylogo": False})
+                                    config={"displayModeBar": True, "displaylogo": False})
                     st.info("💡 **Basitçe:** Fay hatları büyük bir deprem üretmeden önce genellikle tamamen sessizleşir. **RTL Skoru**, bu fırtına öncesi sessizliği tespit eder. Grafikteki çizgi sıfırın altına (negatif bölgeye) inip uzun süre orada kalıyorsa, fay hattı tamamen **kilitlenmiş ve enerjisini hapsediyor** demektir. Bu kilit ne kadar uzun sürerse, kırılma o kadar şiddetli olur.")
 
                     anomaly_periods = sum(1 for z in rtl_z if z < -2)
@@ -3661,7 +3661,7 @@ def _render_istatistik_bottom():
                                 x=0, y=1.06, orientation="h"),
                 )
                 st.plotly_chart(fig_amr, use_container_width=True,
-                                config={"displayModeBar": False, "displaylogo": False})
+                                config={"displayModeBar": True, "displaylogo": False})
                 st.info("💡 **Basitçe:** Büyük bir dal kırılmadan önce çatırdama sesleri nasıl giderek hızlanır ve artarsa, fay hatları da aynısını yapar. **AMR Analizi**, bu sismik çatırdamaların ritmini ölçer. Kırmızı çizgi giderek hızlanarak dikey bir duvara tırmanıyorsa (hızlanan enerji salınımı), fayın kritik bir kopma noktasına doğru hızla ilerlediğini anlarız.")
                 st.caption(
                     "⚠️ AMR tₓ tahmini istatistiksel bir fit olup kesin deprem tahmini değildir. "
@@ -3748,7 +3748,7 @@ def _render_istatistik_bottom():
                         hovermode="closest",
                     )
                     st.plotly_chart(fig_bmap, use_container_width=True,
-                                    config={"displayModeBar": False, "displaylogo": False})
+                                    config={"displayModeBar": True, "displaylogo": False})
                     st.info("💡 **Basitçe:** Bu harita, yeraltının bir nevi 'Tansiyon (Kan Basıncı) Haritası'dır. Haritadaki **kırmızı ve koyu sarı bölgeler**, kayaların en çok sıkıştığı, b-değerinin düştüğü ve büyük bir kırılma (deprem) ihtimalinin en yüksek olduğu stres noktalarını (Asperite) işaret eder. Açık mavi bölgeler ise enerjisini boşaltmış rahat bölgelerdir.")
 
                     valid_b = b_grid[~np.isnan(b_grid)]
@@ -3918,7 +3918,7 @@ def _render_astronomik():
                 fig_phase.add_vrect(x0=90, x1=100, fillcolor="rgba(255,180,80,0.10)", line_width=0,
                                    annotation_text="Spring (Dolunay)", annotation_position="top right",
                                    annotation_font_size=9)
-                st.plotly_chart(fig_phase, use_container_width=True, config={"displayModeBar": False, "displaylogo": False})
+                st.plotly_chart(fig_phase, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
                 spring_eq = astro_df[(astro_df["ay_faz"] < 10) | (astro_df["ay_faz"] > 90)]
                 neap_eq = astro_df[(astro_df["ay_faz"] > 40) & (astro_df["ay_faz"] < 60)]
@@ -3965,7 +3965,7 @@ def _render_astronomik():
                 )
                 fig_ts.update_yaxes(title_text="Ay Çekim Proxy", secondary_y=False, gridcolor=GRID, color="#90caf9")
                 fig_ts.update_yaxes(title_text="Magnitude", secondary_y=True, gridcolor=GRID, color="#ff5252")
-                st.plotly_chart(fig_ts, use_container_width=True, config={"displayModeBar": False, "displaylogo": False})
+                st.plotly_chart(fig_ts, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
                 # ───────────────────────────────────────────────────────────
                 # BİLEŞEN 4 — FFT Periyodogram (Deprem Sıklığı Frekans Analizi)
@@ -4019,7 +4019,7 @@ def _render_astronomik():
                             fig_fft.add_vline(x=period, line=dict(color=color, dash="dash", width=1),
                                              annotation_text=label, annotation_position="top",
                                              annotation_font=dict(color=color, size=9))
-                    st.plotly_chart(fig_fft, use_container_width=True, config={"displayModeBar": False, "displaylogo": False})
+                    st.plotly_chart(fig_fft, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
                     st.caption("⚠️ Kısa veri pencerelerinde FFT gürültülüdür; 60+ gün verisi olduğunda daha güvenilir tepeler gözlemlenir.")
                 else:
                     st.info("FFT analizi için en az 10 günlük veri gerekli.")
@@ -4060,7 +4060,7 @@ def _render_astronomik():
                 )
                 fig_planet.update_yaxes(title_text="Gezegen Çekim Proxy", secondary_y=False, gridcolor=GRID, color="#ffb74d")
                 fig_planet.update_yaxes(title_text="Magnitude", secondary_y=True, gridcolor=GRID, color="#80deea")
-                st.plotly_chart(fig_planet, use_container_width=True, config={"displayModeBar": False, "displaylogo": False})
+                st.plotly_chart(fig_planet, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
                 st.markdown("---")
                 st.info(
@@ -4936,7 +4936,7 @@ if active_menu == "🚨 Erken Uyarı":
             yaxis=dict(visible=False, range=[0, 1.4]),
             showlegend=False,
         )
-        st.plotly_chart(fig_tl, use_container_width=True, config={"displayModeBar": False, "displaylogo": False})
+        st.plotly_chart(fig_tl, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
         # ────────────────────────────────────────────────────────────────────
         # Eğitimsel "Ne yapmalı?" kartı
@@ -5885,7 +5885,7 @@ def _render_sismik_acik():
             bgcolor="rgba(0,0,0,0)", font=dict(color=TEXT, size=11),
         ),
     )
-    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
     # ── GANTT ŞERİDİ: Son depremden bugüne geçen süre ──────────────────────
     st.markdown(
@@ -5953,7 +5953,7 @@ def _render_sismik_acik():
         plot_bgcolor=BG2,
         bargap=0.35,
     )
-    st.plotly_chart(fig_gantt, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig_gantt, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
     # ── ÖZET TABLO ─────────────────────────────────────────────────────────
     st.markdown('<div class="chart-title">📋 Segment Özeti</div>', unsafe_allow_html=True)
@@ -6253,7 +6253,7 @@ def _render_shakemap():
             bordercolor=BORDER, borderwidth=1,
         ),
     )
-    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
     # ── Bölüm C: Bilgi kartları (4 kolon) ──────────────────────────────────
     mmi_merkez = _shakemap_mmi_from_pga(400 if mw >= 7 else (92 if mw >= 6 else 9.2))
@@ -6527,7 +6527,7 @@ def _render_sismik_tehlike():
         margin=dict(l=0, r=0, t=10, b=0),
         paper_bgcolor=BG2,
     )
-    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
     # ── Bölüm C: 4 bilgi kartı ─────────────────────────────────────────────
     pga_max = df_psha["pga_rp"].max()
@@ -6748,7 +6748,7 @@ def _render_odak_mekanizma():
             bgcolor="rgba(0,0,0,0)", font=dict(color=TEXT, size=11),
         ),
     )
-    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
     # ── Beach ball seçici ──────────────────────────────────────────────────
     st.markdown('<div class="chart-title">🎯 Olay Detayı — Beach Ball Diyagramı</div>', unsafe_allow_html=True)
@@ -6813,7 +6813,7 @@ def _render_odak_mekanizma():
             legend=dict(font=dict(color=TEXT, size=10)),
             title=dict(text=f"Beach Ball — {ev['yer']}", font=dict(color=TEXT, size=13)),
         )
-        st.plotly_chart(fig_bb, use_container_width=True, config={"displayModeBar": False})
+        st.plotly_chart(fig_bb, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
         st.caption("Siyah = sıkışma kadranı (P ekseni), beyaz = genişleme kadranı (T ekseni). Altın çizgi = fay strike yönü.")
 
     with col_info:
@@ -7017,7 +7017,7 @@ def _render_b_value_time_series():
         paper_bgcolor=BG2, plot_bgcolor=BG2,
         legend=dict(font=dict(color=TEXT, size=10), bgcolor="rgba(0,0,0,0.3)"),
     )
-    st.plotly_chart(fig_b, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig_b, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
     # ── Grafik 2: Mc evolution ─────────────────────────────────────────────
     fig_mc = go.Figure()
@@ -7039,7 +7039,7 @@ def _render_b_value_time_series():
         paper_bgcolor=BG2, plot_bgcolor=BG2,
         showlegend=False,
     )
-    st.plotly_chart(fig_mc, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig_mc, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
     # ── Bilgi kartları ─────────────────────────────────────────────────────
     b_current = b_vals[-1] if b_vals else None
@@ -7306,7 +7306,7 @@ def _render_coulomb_stress():
             bgcolor="rgba(0,0,0,0)", font=dict(color=TEXT, size=11),
         ),
     )
-    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
     # ── Hedef noktada CFS değeri ───────────────────────────────────────────
     # En yakın grid noktasını bul
@@ -7567,7 +7567,7 @@ def _render_insar():
             bgcolor="rgba(0,0,0,0)", font=dict(color=TEXT, size=11),
         ),
     )
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
     # ── Bilgi kartları ─────────────────────────────────────────────────────
     fringe_count = int(o["max_los_m"] / 0.028)  # Sentinel-1 C-band yarı dalgaboyu ~2.8 cm
@@ -7781,7 +7781,7 @@ def _render_tarihsel_sismisite():
         margin=dict(l=0, r=0, t=10, b=0),
         paper_bgcolor=BG2,
     )
-    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
     # ── Zaman çizelgesi (scatter) ──────────────────────────────────────────
     st.markdown('<div class="chart-title">⏳ Zaman Çizelgesi (yıl × Mw)</div>', unsafe_allow_html=True)
@@ -7810,7 +7810,7 @@ def _render_tarihsel_sismisite():
         margin=dict(l=10, r=10, t=10, b=40),
         paper_bgcolor=BG2, plot_bgcolor=BG2,
     )
-    st.plotly_chart(fig_time, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig_time, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
     # ── Bilgi kartları ─────────────────────────────────────────────────────
     biggest = df_filt.loc[df_filt["mw"].idxmax()]
@@ -8064,7 +8064,7 @@ def _render_sismik_dongu():
         paper_bgcolor=BG2, plot_bgcolor=BG2,
         legend=dict(font=dict(color=TEXT, size=10), bgcolor="rgba(0,0,0,0.3)"),
     )
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
     # ── Bilgi kartları ─────────────────────────────────────────────────────
     c1, c2, c3, c4 = st.columns(4)
@@ -8245,7 +8245,7 @@ def _render_dinamik_tetikleme():
             bordercolor=BORDER, borderwidth=1,
         ),
     )
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
     # ── Bilgi kartları ─────────────────────────────────────────────────────
     n_gozlem = len(o["gozlem_yerleri"])
@@ -8412,7 +8412,7 @@ def _render_insar_zaman_serisi():
         paper_bgcolor=BG2, plot_bgcolor=BG2,
         legend=dict(font=dict(color=TEXT, size=10), bgcolor="rgba(0,0,0,0.3)"),
     )
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
     post_pct = 100.0 * o["postseismic_total_m"] / o["coseismic_los_m"]
     c1, c2, c3, c4 = st.columns(4)
@@ -8627,7 +8627,7 @@ def _render_fay_kilitlenme():
             bordercolor=BORDER, borderwidth=1,
         ),
     )
-    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
     # ── Kilitlenme barchart ────────────────────────────────────────────────
     st.markdown('<div class="chart-title">📊 Segment Kilitlenme Karşılaştırması</div>',
@@ -8654,7 +8654,7 @@ def _render_fay_kilitlenme():
         paper_bgcolor=BG2, plot_bgcolor=BG2,
         showlegend=False,
     )
-    st.plotly_chart(fig_bar, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig_bar, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
     # ── Bilgi kartları ─────────────────────────────────────────────────────
     en_kilitli = df_k.loc[df_k["phi"].idxmax()]
@@ -8842,7 +8842,7 @@ def _render_moho_derinligi():
         margin=dict(l=0, r=0, t=10, b=0),
         paper_bgcolor=BG2,
     )
-    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
     # ── W-E kesit profili ─────────────────────────────────────────────────
     st.markdown('<div class="chart-title">📈 W-E Kesit Profili — Boylama Göre Moho</div>',
@@ -8873,7 +8873,7 @@ def _render_moho_derinligi():
         paper_bgcolor=BG2, plot_bgcolor=BG2,
         showlegend=False,
     )
-    st.plotly_chart(fig_we, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig_we, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
     # ── Bilgi kartları ─────────────────────────────────────────────────────
     en_kalin = df_m.loc[df_m["moho_km"].idxmax()]
@@ -9055,7 +9055,7 @@ def _render_sks_splitting():
         legend=dict(orientation="h", yanchor="bottom", y=1.0, xanchor="left", x=0.0,
                     bgcolor="rgba(0,0,0,0)", font=dict(color=TEXT, size=11)),
     )
-    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
     # ── Rose diagram (azimut dağılımı) ─────────────────────────────────────
     st.markdown('<div class="chart-title">🧭 Fast-Axis Azimuth Dağılımı (Rose Diyagram)</div>',
@@ -9096,7 +9096,7 @@ def _render_sks_splitting():
         showlegend=False,
         title=dict(text="Fast Axis Frekansı (KD=45°, KB=135°)", font=dict(color=TEXT, size=12)),
     )
-    st.plotly_chart(fig_rose, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig_rose, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
     # ── Bilgi kartları ─────────────────────────────────────────────────────
     c1, c2, c3, c4 = st.columns(4)
@@ -9284,7 +9284,7 @@ def _render_tsunami_katalog():
         margin=dict(l=0, r=0, t=10, b=0),
         paper_bgcolor=BG2,
     )
-    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
     # ── Zaman serisi (runup vs yıl) ────────────────────────────────────────
     st.markdown('<div class="chart-title">⏳ Zaman Çizelgesi (yıl × runup)</div>', unsafe_allow_html=True)
@@ -9309,7 +9309,7 @@ def _render_tsunami_katalog():
         paper_bgcolor=BG2, plot_bgcolor=BG2,
         showlegend=False,
     )
-    st.plotly_chart(fig_t, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig_t, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
     # ── Bilgi kartları ─────────────────────────────────────────────────────
     biggest = df_filt.loc[df_filt["runup_m"].idxmax()]
@@ -9498,7 +9498,7 @@ def _render_tsunami_varis():
                     bgcolor="rgba(0,0,0,0.55)", font=dict(color="#fff", size=10),
                     bordercolor=BORDER, borderwidth=1),
     )
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
     # ── Bar chart varış süreleri ──────────────────────────────────────────
     st.markdown('<div class="chart-title">📊 Kıyı Hedefleri — Varış Süresi (dk)</div>', unsafe_allow_html=True)
@@ -9524,7 +9524,7 @@ def _render_tsunami_varis():
         paper_bgcolor=BG2, plot_bgcolor=BG2,
         showlegend=False,
     )
-    st.plotly_chart(fig_bar, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig_bar, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
     en_yakin = df_v.iloc[0]
     en_uzak = df_v.iloc[-1]
@@ -9721,7 +9721,7 @@ def _render_ambraseys_animasyon():
         sliders=sliders,
         updatemenus=updatemenus,
     )
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
     st.markdown("💡 **Slider'ı sürükleyin veya ▶ Oynat butonuna basın** — KAF olayları yıllar içinde batıya kayar.")
 
@@ -9903,7 +9903,7 @@ def _render_paleosismik_kazi():
         margin=dict(l=0, r=0, t=10, b=0),
         paper_bgcolor=BG2,
     )
-    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
     # ── Site seçici + slot diyagram ────────────────────────────────────────
     sec = st.selectbox(
@@ -9966,7 +9966,7 @@ def _render_paleosismik_kazi():
         paper_bgcolor=BG2, plot_bgcolor=BG2,
         showlegend=False,
     )
-    st.plotly_chart(fig_slot, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig_slot, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
     # ── İstatistikler ──────────────────────────────────────────────────────
     n_paleo = sum(1 for ev in site["olaylar"] if ev["tip"] == "paleo")
@@ -10163,7 +10163,7 @@ def _render_tsunami_tehlike():
         margin=dict(l=0, r=0, t=10, b=0),
         paper_bgcolor=BG2,
     )
-    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
     # ── Bar chart kıyı sıralaması ──────────────────────────────────────────
     st.markdown('<div class="chart-title">📊 Kıyı Bazlı Tsunami Yükseklik Sıralaması</div>',
@@ -10188,7 +10188,7 @@ def _render_tsunami_tehlike():
         paper_bgcolor=BG2, plot_bgcolor=BG2,
         showlegend=False,
     )
-    st.plotly_chart(fig_bar, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig_bar, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
     # ── Bilgi kartları ─────────────────────────────────────────────────────
     en_yuksek = df_t.loc[df_t["h_rp"].idxmax()]
@@ -10381,7 +10381,7 @@ def _render_vs30_zemin():
         legend=dict(orientation="h", yanchor="bottom", y=1.0, xanchor="left", x=0.0,
                     bgcolor="rgba(0,0,0,0)", font=dict(color=TEXT, size=11)),
     )
-    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
     # ── Amplifikasyon hesaplayıcı ──────────────────────────────────────────
     st.markdown('<div class="chart-title">🧮 Zemin Büyütme Hesaplayıcı</div>', unsafe_allow_html=True)
@@ -10600,7 +10600,7 @@ def _render_hazus_kayip():
         paper_bgcolor=BG2, plot_bgcolor=BG2,
         legend=dict(font=dict(color=TEXT, size=10), bgcolor="rgba(0,0,0,0.3)"),
     )
-    st.plotly_chart(fig_frag, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig_frag, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
     # ── Bant dağılımı pie ──────────────────────────────────────────────────
     st.markdown('<div class="chart-title">🥧 Hasar Dağılımı (Verilen PGA için)</div>',
@@ -10622,7 +10622,7 @@ def _render_hazus_kayip():
         margin=dict(l=10, r=10, t=10, b=10),
         legend=dict(font=dict(color=TEXT, size=10)),
     )
-    st.plotly_chart(fig_pie, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig_pie, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
     # ── Can kaybı tahmini ──────────────────────────────────────────────────
     nufus_full = nufus * 1000
@@ -10775,7 +10775,7 @@ def _render_erzincan_paleo():
         paper_bgcolor=BG2, plot_bgcolor=BG2,
         showlegend=False,
     )
-    st.plotly_chart(fig_tl, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig_tl, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
     # ── Olaylar arası süre dağılımı (histogram) ────────────────────────────
     yillar_sorted = sorted([ev["yil"] for ev in _ERZINCAN_PALEO_OLAYLAR])
@@ -10805,7 +10805,7 @@ def _render_erzincan_paleo():
             paper_bgcolor=BG2, plot_bgcolor=BG2,
             showlegend=False,
         )
-        st.plotly_chart(fig_int, use_container_width=True, config={"displayModeBar": False})
+        st.plotly_chart(fig_int, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
     with col_h2:
         # Olaylar arası süre listesi
@@ -10957,7 +10957,7 @@ def _render_erzincan_mikrozon():
         margin=dict(l=0, r=0, t=10, b=0),
         paper_bgcolor=BG2,
     )
-    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
     st.markdown('<div class="chart-title">🏢 Bina Rezonans Kontrolü</div>', unsafe_allow_html=True)
     col_kat, col_nokta = st.columns(2)
@@ -11013,7 +11013,7 @@ def _render_erzincan_mikrozon():
         paper_bgcolor=BG2, plot_bgcolor=BG2,
         legend=dict(font=dict(color=TEXT, size=10), bgcolor="rgba(0,0,0,0.3)"),
     )
-    st.plotly_chart(fig_spec, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig_spec, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
 
     rezon_color = "#A32D2D" if in_resonance else ("#EF9F27" if rezonans_riski < 0.30 else "#1D9E75")
     rezon_etiket = "🚨 REZONANS" if in_resonance else ("⚠️ Yakın" if rezonans_riski < 0.30 else "✓ Güvenli")
