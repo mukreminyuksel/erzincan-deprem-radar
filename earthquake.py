@@ -79,7 +79,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.49"
+APP_VERSION = "1.50"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -6140,6 +6140,64 @@ def _render_sismik_acik():
             line=dict(width=_KAF_RISK_KALINLIK[risk_key], color=_KAF_RISK_RENK[risk_key]),
             name=f"{_KAF_RISK_ETIKET[risk_key]} risk",
             hoverinfo="skip",
+        ))
+
+    # v1.50 — Ajan 4B (Codex önceliği 5): Türkiye 20. yüzyıl + güncel ana
+    # depremler epicenter overlay (Ambraseys 2002 + AFAD + USGS kataloğundan).
+    # Kullanıcı checkbox ile aç/kapat — tooltip "yaklaşık epicenter, kırık izi
+    # değildir" disclaimer (Codex bilimsel namus uyarısı).
+    _show_historic = st.checkbox(
+        "🏛️ Tarihsel deprem epicenter overlay (Mw ≥ 6.4, 1912-2023)",
+        value=True, key="kaf_sismik_acik_historic_overlay",
+        help="Türkiye tarihsel ana depremleri (~20 olay) — kırık izi DEĞİL, "
+             "yaklaşık episantr noktaları. Kaynak: Ambraseys 2002 + AFAD + USGS."
+    )
+    if _show_historic:
+        # (yıl, ay, gün, lat, lon, Mw, isim, kaynak)
+        _historic_events = [
+            (1912,  8,  9, 40.60, 27.00, 7.4, "Saros (Mürefte)",       "Ambraseys 2002"),
+            (1939, 12, 26, 39.80, 39.51, 7.8, "Erzincan",              "Barka 1996"),
+            (1942, 12, 20, 40.87, 36.47, 7.0, "Niksar-Erbaa",          "Barka 1996"),
+            (1943, 11, 26, 41.05, 33.72, 7.6, "Tosya-Ladik",           "Stein 1997"),
+            (1944,  2,  1, 41.05, 32.59, 7.4, "Gerede-Bolu",           "Stein 1997"),
+            (1953,  3, 18, 39.99, 27.36, 7.2, "Yenice-Gönen",          "Ambraseys 1988"),
+            (1957,  5, 26, 40.67, 31.00, 7.1, "Abant",                 "Ambraseys 2002"),
+            (1966,  8, 19, 39.17, 41.56, 6.9, "Varto",                 "USGS"),
+            (1967,  7, 22, 40.67, 30.69, 7.1, "Mudurnu Vadisi",        "Ambraseys 1988"),
+            (1976, 11, 24, 39.05, 44.04, 7.3, "Çaldıran-Muradiye",     "USGS"),
+            (1983, 10, 30, 40.33, 42.19, 6.9, "Erzurum-Kars (Horasan)","USGS"),
+            (1992,  3, 13, 39.71, 39.60, 6.8, "Erzincan",              "Özalaybey 1993"),
+            (1999,  8, 17, 40.75, 29.86, 7.6, "İzmit (Gölcük)",        "USGS / Reilinger 2000"),
+            (1999, 11, 12, 40.79, 31.21, 7.2, "Düzce",                 "Akyüz 2002"),
+            (2003,  5,  1, 38.94, 40.51, 6.4, "Bingöl",                "USGS"),
+            (2011, 10, 23, 38.72, 43.51, 7.1, "Van-Tabanlı",           "USGS / AFAD"),
+            (2020,  1, 24, 38.39, 39.06, 6.8, "Elazığ-Sivrice",        "AFAD"),
+            (2020, 10, 30, 37.90, 26.78, 6.9, "İzmir (Samos açıkları)","AFAD / USGS"),
+            (2023,  2,  6, 37.17, 37.08, 7.8, "Kahramanmaraş-Pazarcık","AFAD / USGS"),
+            (2023,  2,  6, 38.02, 37.20, 7.5, "Kahramanmaraş-Elbistan","AFAD / USGS"),
+        ]
+        _h_lats = [e[3] for e in _historic_events]
+        _h_lons = [e[4] for e in _historic_events]
+        _h_mws  = [e[5] for e in _historic_events]
+        _h_texts = [
+            f"<b>{e[6]}</b> ({e[0]})<br>Mw {e[5]:.1f}<br>"
+            f"Tarih: {e[2]:02d}.{e[1]:02d}.{e[0]}<br>"
+            f"Konum: {e[3]:.2f}°N, {e[4]:.2f}°E<br>"
+            f"Kaynak: {e[7]}<br>"
+            f"<i>⚠️ Yaklaşık episantr — kırık izi değil</i>"
+            for e in _historic_events
+        ]
+        # Marker boyutu Mw'ye göre orantılı (6.4 → ~10px, 7.8 → ~22px)
+        _h_sizes = [max(8, (mw - 5.5) * 9) for mw in _h_mws]
+        # Marker rengi: Mw ≥ 7.5 koyu kırmızı, 7.0-7.5 turuncu, <7.0 sarı
+        _h_colors = ["#b71c1c" if mw >= 7.5 else "#e65100" if mw >= 7.0 else "#f9a825"
+                     for mw in _h_mws]
+        fig_map.add_trace(go.Scattermapbox(
+            lat=_h_lats, lon=_h_lons, mode="markers",
+            marker=dict(size=_h_sizes, color=_h_colors,
+                        opacity=0.85),
+            text=_h_texts, hovertemplate="%{text}<extra></extra>",
+            name="🏛️ Tarihsel deprem (Mw≥6.4)",
         ))
 
     fig_map.update_layout(
