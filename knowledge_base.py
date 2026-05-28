@@ -4922,7 +4922,7 @@ LEARNING_PATH: list[dict] = [
         "adim": 7, "baslik": "Tehlike Analizi & Jeodezi", "seviye": "İleri",
         "aciklama": "Olasılıksal sismik tehlike (PSHA, Cornell 1968), fay kilitlenmesi (φ), plaka hareketi "
                     "(referans çerçevesi) ve b-değeri uzamsal değişimi.",
-        "konular": ["psha", "fay_kilitlenme", "kaf_tektonigi", "b_degeri_uzamsal"],
+        "konular": ["psha", "kaf_tektonigi", "b_degeri_uzamsal"],
         "kitap": "McGuire (2004) *Seismic Hazard*; Reilinger (2006) GPS; Reiter (1990).",
         "paneller": ["🗺️ Sismik Tehlike", "🔒 Fay Kilitlenme", "🌍 Plaka Simülasyonu"],
         "kazanim": "'50 yılda %10 ≠ 10 yılda olur', dönüş periyodu, kilitlenme yorumu.",

@@ -1,5 +1,23 @@
 # Changelog
 
+## v1.74–v1.81 - 2026-05-28 — 📚 FAZ B: AKADEMİK BİLGİ MERKEZİ (büyük sürüm)
+
+**Amaç:** Kullanıcı vizyonu — "kitaplardan bilgiler, ileri düzey pratik kaynaklar, yeni teknolojiler, araştırmalar". Panel-açıklama standardından (Faz A) ayrı, eğitim/kaynak merkezi. Mevcut `📚 Akademik Kütüphane` → 4-sekmeli **Akademik Bilgi Merkezi**.
+
+**Batch 0 (v1.74):** `features/BILGI_MERKEZI_SCHEMA.md` şeması + 4-sekme iskeleti. KEŞİF: knowledge_base.py'de zaten 18 kitap + 17 yayın + bilim insanları/dergiler/araçlar/kurumlar vardı ama UI'a bağlı değildi — bağlandı.
+
+**Batch 1 (v1.75–1.77):** Kitap Rehberi 18→29 (11 Türkçe, web-doğrulamalı: Celep, Darılmaz 2023, Doğangün, Antoniou 2024, Uzsoy, Kasımzade, Chopra-TR, Day, Eyidoğan, TBDY El Kitabı). `features/KAYNAKCA.md` otomatik kaynakça + **6 yönetmelik/standart** (TBDY-2018, ÇYTHYE-2016, TS 500, Eurocode 8, ASCE 7, FEMA P-58).
+
+**Batch 2 (v1.78–1.79):** Konular 10→26. 16 yeni konu (magnitüd, sismometre, fay tipleri, artçı/öncü, response spektrum, likefaksiyon, mikrobölgeleme, GMPE, tomografi, erken uyarı + ileri: moment/enerji, stick-slip, **deprem tahmini-neden zor**, ambient noise, b-değeri uzamsal, yavaş depremler). +5 REFERENCES (Geller, Dieterich, Kanamori-Brodsky, Shapiro, Beroza-Ide).
+
+**Batch 4 (v1.80):** Öğrenme Yolu (9 adım: başlangıç→araştırma, her adım konu+kitap+panel+kazanım) + Sözlük (63 terim, aranabilir, Türkçe+EN+sembol+yanlış-anlama notu).
+
+**Batch 3 (v1.81):** Güncel Araştırma 5 teknoloji cephesi (modern+klasik): ML/AI (EQTransformer, PhaseNet, DeVries), DAS fiber-optik (Zhan 2020), GNSS-EEW, EEW modern, InSAR otomasyonu. + **EBYU Deprem Teknolojileri Enstitüsü** (deprem.ebyu.edu.tr — Türkiye'nin 2. deprem enstitüsü).
+
+**Kalite:** Sıfır uydurma DOI/ISBN (kritik ISBN/DOI'ler web-doğrulandı); kitaplardan tam metin yok (telif: kavram+bölüm+erişim); Türkiye/Erzincan odağı; CI yeşil (ruff+pytest); performans korundu (sekme içi ağır hesap yok).
+
+---
+
 ## v1.54–v1.72 - 2026-05-26→28 — 🎓 AKADEMİK STANDART PROJESİ (büyük sürüm)
 
 **Amaç:** Tüm uygulamayı (~35 panel / 39 açıklama bloğu) yüzeysel açıklamalardan peer-reviewed kaynaklı, formüllü, sınırlamaları açık **akademik standarda** yükseltmek. Codex "sıkılaştırılmış B" stratejisi: önce standart + 3 pilot, sonra sprint sprint.
