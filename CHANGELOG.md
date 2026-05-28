@@ -1,5 +1,37 @@
 # Changelog
 
+## v1.54–v1.72 - 2026-05-26→28 — 🎓 AKADEMİK STANDART PROJESİ (büyük sürüm)
+
+**Amaç:** Tüm uygulamayı (~35 panel / 39 açıklama bloğu) yüzeysel açıklamalardan peer-reviewed kaynaklı, formüllü, sınırlamaları açık **akademik standarda** yükseltmek. Codex "sıkılaştırılmış B" stratejisi: önce standart + 3 pilot, sonra sprint sprint.
+
+**Faz 0 (v1.54):** `features/ACADEMIC_STANDARD.md` (6-bölüm şablon: Ne/Nasıl Okunur/Formül/Yorumlama/Sınırlamalar/Kaynaklar + kaynak disiplini + disclaimer zonları), `features/CONTENT_AUDIT.md`, `render_academic_explanation()` helper.
+
+**Faz 1 Pilot (v1.55–1.57):** Canlı Radar · b-Değeri/Gutenberg-Richter · Elastik Geri Tepme (Reid 1910).
+
+**Standart v1.1 (v1.58–1.59):** Türkiye örneği zorunlu, formül birimi, Geller 1997 disclaimer kapsamı, LaTeX/referans politikası, grafik-altı **mini-rehber** (kategori-renkli).
+
+**Performans (v1.60–1.61):** Sismik Açık/Coulomb donma fix (çift GEM render → None-separated tek-trace, 730→17 trace). Fay Sistemleri 3.6M haversine cache'lendi.
+
+**Sprint 2 (v1.62):** η Kümeleme · RTL · AMR.
+**Sprint 3 (v1.63):** Erken Uyarı · ShakeMap.
+**Sprint 4 (v1.64–1.65):** Plaka Simülasyonu · Coulomb Stres.
+**Sprint 5 (v1.67):** Odak Mekanizması · InSAR Deformasyon · InSAR Zaman Serisi · Fay Kilitlenme · Moho · SKS Splitting.
+**Sprint 6 (v1.66):** Erzincan Arşivi · Erzincan Paleo · Erzincan Mikrozon · Paleosismik Kazı · Tarihsel Sismisite.
+**Sprint 7 (v1.69–1.71):** 18 panel — risk/olasılık (Sismik Açık, Sismik Döngü, Artçı Tahmin, PSHA, HAZUS) + fizik/ortam (Tsunami×3, Vs30, Fay Sistemleri, Astronomik, Dinamik Tetikleme) + eğitim/meta (Bilgi Havuzu P/S, Erzincan Sahnesi, Ambraseys, Akademik Kütüphane, Raporlar, Sistem).
+
+**QA fix'leri:** v1.68 KaTeX mobil overflow CSS (`.katex-display{overflow-x:auto}`), v1.72 literal template sızıntısı (`v{sürüm}`, `{city}`).
+
+**Kalite metrikleri:**
+- 39 akademik açıklama bloğu + 39 mini-rehber + 39 disclaimer
+- ~150 benzersiz peer-reviewed referans, **sıfır uydurma DOI**
+- 198 dengeli `$$` LaTeX bloğu (KaTeX uyumlu, mobil overflow korumalı)
+- Sıfır ağır-hesap ihlali (expander §4.9)
+- Bilimsel namus: yöntem eleştirileri dahil (Hardebeck 2008, Kagan-Jackson 1991, Hough 2018), "deprem tahmini değildir" + "korelasyon≠nedensellik" tekrar
+
+**Deploy fix (e23f8f8):** `earthquake_core.py`'de `filter_historical_events` + `normalize_historical_event` commitlenmemişti → origin/main ImportError ile çöküyordu. Commitlendi (15/15 test geçiyor).
+
+---
+
 ## v1.21.1 - 2026-05-26 — Plaka Simülasyonu modlar arası 5× görsel kademe
 
 Kullanıcı bildirimi: "10 bin yıl, 1 milyon ya da 1 milyar yıldaki hareketler aynı görünüyor, mesafeler ve kaymalar aynısı, oysa daha farklı olmalı"
