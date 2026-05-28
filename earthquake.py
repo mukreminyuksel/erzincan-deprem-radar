@@ -87,7 +87,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.73"
+APP_VERSION = "1.74"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -16519,28 +16519,6 @@ def _render_akademik_kutuphane():
             PLOTLY_CONFIG,
             REFERENCES,
             TOPICS,
-            anim_coulomb_stress,
-            anim_elastik_geri_tepme,
-            anim_erzincan_tarihi,
-            anim_gutenberg_richter,
-            anim_insar,
-            anim_kaf_tektonigi,
-            anim_moment_tensor,
-            anim_psha,
-            # Animasyon fonksiyonları — v3.1
-            anim_sismik_dalgalar,
-            anim_tsunami_yayilim,
-            interaktif_coulomb_stres,
-            interaktif_elastik_geri_tepme,
-            interaktif_erzincan_tarihi,
-            # İnteraktif widget fonksiyonları — v3.1
-            interaktif_gr_kanunu,
-            interaktif_insar,
-            interaktif_kaf_tektonigi,
-            interaktif_moment_tensor,
-            interaktif_psha,
-            interaktif_sismik_dalgalar,
-            interaktif_tsunami_fizigi,
         )
     except ImportError as e:
         st.error(
@@ -16553,16 +16531,86 @@ def _render_akademik_kutuphane():
         )
         return
 
-    st.markdown("## 📚 Akademik Öğrenim Kütüphanesi")
+    # v1.74 — Faz B Batch 0: 4-sekmeli Akademik Bilgi Merkezi
+    # Mevcut knowledge_base verileri (ESSENTIAL_TEXTBOOKS, RECENT_PUBLICATIONS_EQ,
+    # KEY_SCHOLARS, KEY_JOURNALS_EQ, DATABASES_AND_SOFTWARE, TURKISH_INSTITUTIONS)
+    # defansif import — eksikse sekme placeholder gösterir.
+    try:
+        from knowledge_base import (
+            DATABASES_AND_SOFTWARE,
+            ESSENTIAL_TEXTBOOKS,
+            KEY_JOURNALS_EQ,
+            KEY_SCHOLARS,
+            RECENT_PUBLICATIONS_EQ,
+            TURKISH_INSTITUTIONS,
+        )
+    except ImportError:
+        ESSENTIAL_TEXTBOOKS = []
+        RECENT_PUBLICATIONS_EQ = []
+        KEY_SCHOLARS = {}
+        KEY_JOURNALS_EQ = []
+        DATABASES_AND_SOFTWARE = []
+        TURKISH_INSTITUTIONS = []
+    try:
+        from knowledge_base import GLOSSARY, LEARNING_PATH
+    except ImportError:
+        LEARNING_PATH = []
+        GLOSSARY = {}
+
+    st.markdown("## 📚 Akademik Bilgi Merkezi")
     st.markdown(
-        "*Deprem biliminin temel kavramlarını animasyon, interaktif grafik ve "
-        "akademik kaynaklarla keşfedin.*"
+        "*Deprem biliminin temel kavramlarını konular, kitaplar, güncel araştırmalar ve "
+        "öğrenme yoluyla keşfedin — animasyon, interaktif grafik ve peer-reviewed kaynaklarla.*"
     )
     st.caption(
         "Bu ekran öğretici amaçlıdır; resmi tehlike haritası veya mühendislik hesabı değildir. "
-        "Kaynaklar peer-reviewed yayınlara dayanmaktadır."
+        "Kaynaklar peer-reviewed yayınlara/ISBN'li kitaplara dayanır. Kitaplardan tam metin değil, "
+        "kavram + bölüm önerisi sunulur (telif)."
     )
 
+    tab_konular, tab_kitaplar, tab_arastirma, tab_ogrenme = st.tabs(
+        ["📖 Konular", "📚 Kitap Rehberi", "🔬 Güncel Araştırma & Teknoloji", "🧭 Öğrenme Yolu + Sözlük"]
+    )
+
+    with tab_kitaplar:
+        _kutuphane_kitap_rehberi(ESSENTIAL_TEXTBOOKS)
+    with tab_arastirma:
+        _kutuphane_arastirma(
+            RECENT_PUBLICATIONS_EQ, KEY_SCHOLARS, KEY_JOURNALS_EQ,
+            DATABASES_AND_SOFTWARE, TURKISH_INSTITUTIONS,
+        )
+    with tab_ogrenme:
+        _kutuphane_ogrenme(LEARNING_PATH, GLOSSARY)
+
+    # ── 📖 KONULAR SEKMESİ (mevcut TOPICS içeriği) ──────────────────────────
+    with tab_konular:
+        _kutuphane_konular(TOPICS, ACIKLAMALAR, REFERENCES, PLOTLY_CONFIG)
+
+
+def _kutuphane_konular(TOPICS, ACIKLAMALAR, REFERENCES, PLOTLY_CONFIG):
+    """📖 Konular sekmesi — TOPICS kartları + seçili konu detayı (animasyon/interaktif/kaynaklar)."""
+    from knowledge_base import (
+        anim_coulomb_stress,
+        anim_elastik_geri_tepme,
+        anim_erzincan_tarihi,
+        anim_gutenberg_richter,
+        anim_insar,
+        anim_kaf_tektonigi,
+        anim_moment_tensor,
+        anim_psha,
+        anim_sismik_dalgalar,
+        anim_tsunami_yayilim,
+        interaktif_coulomb_stres,
+        interaktif_elastik_geri_tepme,
+        interaktif_erzincan_tarihi,
+        interaktif_gr_kanunu,
+        interaktif_insar,
+        interaktif_kaf_tektonigi,
+        interaktif_moment_tensor,
+        interaktif_psha,
+        interaktif_sismik_dalgalar,
+        interaktif_tsunami_fizigi,
+    )
     # ── Kategori filtresi
     kategoriler_set = sorted({t["kategori"] for t in TOPICS.values()})
     kategoriler = ["Tümü"] + kategoriler_set
@@ -16695,6 +16743,142 @@ def _render_akademik_kutuphane():
                 st.divider()
         else:
             st.info("Bu konu için kaynak bilgisi tanımlanmamış.")
+
+
+def _kutuphane_kitap_rehberi(textbooks):
+    """📚 Kitap Rehberi sekmesi — ESSENTIAL_TEXTBOOKS (ISBN'li temel eserler)."""
+    if not textbooks:
+        st.info("📚 Kitap rehberi içeriği hazırlanıyor.")
+        return
+    st.markdown("### 📚 Temel Kitaplar — Sismoloji & Deprem Mühendisliği")
+    st.caption(
+        f"{len(textbooks)} ISBN'li standart eser. Telif gereği tam metin değil; "
+        "odak konusu, baskı ve erişim bilgisi verilir. Akademik kullanımda orijinal kitabı atıf alın."
+    )
+    odaklar = sorted({(b.get("odak") or "Genel").split(",")[0].strip() for b in textbooks})
+    secili = st.selectbox("🔍 Odak konusu", ["Tümü"] + odaklar, key="kitap_odak_filtre")
+    for b in textbooks:
+        odak = (b.get("odak") or "Genel")
+        if secili != "Tümü" and not odak.startswith(secili):
+            continue
+        baslik = b.get("baslik_tr") or b.get("baslik_en") or "?"
+        baslik_en = b.get("baslik_en")
+        isbn = b.get("isbn_us") or b.get("isbn_si") or "—"
+        with st.expander(f"📖 {b.get('yazar','?')} ({b.get('yil','?')}) — {baslik}"):
+            if baslik_en and baslik_en != baslik:
+                st.markdown(f"*{baslik_en}*")
+            meta = []
+            if b.get("baski"):
+                meta.append(f"**Baskı:** {b['baski']}")
+            if b.get("yayinevi"):
+                meta.append(f"**Yayınevi:** {b['yayinevi']}")
+            meta.append(f"**ISBN:** {isbn}")
+            st.markdown(" · ".join(meta))
+            if b.get("odak"):
+                st.markdown(f"**Odak:** {b['odak']}")
+            if b.get("notlar"):
+                st.markdown(f"**Not:** {b['notlar']}")
+            if b.get("url"):
+                st.markdown(f"[🔗 Yayıncı / kaynak sayfası]({b['url']})")
+    st.caption("⚠️ Kitap içeriği telif kapsamındadır; bu rehber yalnızca yön gösterir.")
+
+
+def _kutuphane_arastirma(pubs, scholars, journals, dbs, institutions):
+    """🔬 Güncel Araştırma & Teknoloji sekmesi — peer-reviewed yayınlar + bilim insanları + dergiler + araçlar + kurumlar."""
+    st.markdown("### 🔬 Güncel Araştırma & Teknoloji")
+    st.caption(
+        "Peer-reviewed güncel yayınlar (DOI'li) + temel/klasik kaynaklar. "
+        "Modern teknoloji için son yıllar, temel yöntem için öncü makaleler birlikte."
+    )
+    if pubs:
+        kategoriler = sorted({p.get("kategori", "Diğer") for p in pubs})
+        secili = st.selectbox("🔍 Kategori", ["Tümü"] + kategoriler, key="arastirma_kat_filtre")
+        for p in pubs:
+            if secili != "Tümü" and p.get("kategori") != secili:
+                continue
+            with st.expander(f"📄 [{p.get('kategori','?')}] {p.get('baslik','?')} ({p.get('yil','?')})"):
+                st.markdown(f"**Dergi:** {p.get('dergi','?')}")
+                if p.get("doi"):
+                    url = p.get("url") or f"https://doi.org/{p['doi']}"
+                    st.markdown(f"**DOI:** [{p['doi']}]({url})")
+                if p.get("ozet"):
+                    st.markdown(f"> {p['ozet']}")
+    else:
+        st.info("Güncel araştırma içeriği hazırlanıyor.")
+
+    if scholars:
+        st.divider()
+        st.markdown("#### 👤 Türkiye'den Öne Çıkan Bilim İnsanları")
+        sc_list = list(scholars.values()) if isinstance(scholars, dict) else scholars
+        # KEY_SCHOLARS bazı sürümlerde değer olarak liste tutabilir → düzleştir
+        flat = []
+        for s in sc_list:
+            if isinstance(s, list):
+                flat.extend(s)
+            elif isinstance(s, dict):
+                flat.append(s)
+        for s in flat:
+            ad = s.get("ad", "?")
+            kurum = s.get("kurum", "")
+            uzmanlik = s.get("uzmanlik", "")
+            st.markdown(f"- **{ad}** — {kurum}" + (f" · *{uzmanlik}*" if uzmanlik else ""))
+
+    if journals:
+        st.divider()
+        st.markdown("#### 📰 Temel Akademik Dergiler")
+        for j in journals:
+            ad = j.get("ad", "?")
+            url = j.get("url")
+            yay = j.get("yayinci", "")
+            line = f"- **{ad}**" + (f" ({yay})" if yay else "")
+            st.markdown(f"{line} — [🔗]({url})" if url else line)
+
+    if dbs:
+        st.divider()
+        st.markdown("#### 🗄️ Veritabanları & Yazılımlar")
+        for d in dbs:
+            ad = d.get("ad", "?")
+            url = d.get("url")
+            tur = d.get("tur", "")
+            line = f"- **{ad}**" + (f" — {tur}" if tur else "")
+            st.markdown(f"{line} · [🔗]({url})" if url else line)
+
+    if institutions:
+        st.divider()
+        st.markdown("#### 🏛️ Türkiye Kurumları")
+        for ins in institutions:
+            ad = ins.get("tam_ad_tr") or ins.get("kisa_ad") or "?"
+            url = ins.get("url")
+            kisa = ins.get("kisa_ad", "")
+            line = f"- **{ad}**" + (f" ({kisa})" if kisa and kisa != ad else "")
+            st.markdown(f"{line} — [🔗]({url})" if url else line)
+
+
+def _kutuphane_ogrenme(learning_path, glossary):
+    """🧭 Öğrenme Yolu + 📔 Sözlük sekmesi (Batch 4'te doldurulacak)."""
+    st.markdown("### 🧭 Öğrenme Yolu")
+    if learning_path:
+        for step in learning_path:
+            st.markdown(
+                f"**{step.get('adim','?')}. {step.get('baslik','?')}** "
+                f"· {step.get('seviye','')}"
+            )
+            if step.get("aciklama"):
+                st.markdown(f"> {step['aciklama']}")
+    else:
+        st.info(
+            "🚧 Sıralı öğrenme yolu (başlangıç → ileri) hazırlanıyor. "
+            "Şimdilik **📖 Konular** sekmesinden seviye filtresiyle (🟢 Başlangıç → 🔴 İleri) ilerleyebilirsiniz."
+        )
+    st.divider()
+    st.markdown("### 📔 Terim Sözlüğü")
+    if glossary:
+        for _, g in sorted(glossary.items(), key=lambda kv: kv[1].get("terim", "")):
+            st.markdown(
+                f"- **{g.get('terim','?')}** ({g.get('en','')}): {g.get('tanim','')}"
+            )
+    else:
+        st.info("🚧 Deprem bilimi terim sözlüğü hazırlanıyor (Batch 4).")
 
 
 if active_menu == "📚 Akademik Kütüphane":
