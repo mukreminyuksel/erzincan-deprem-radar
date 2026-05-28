@@ -140,6 +140,97 @@ TOPICS: dict = {
         "animasyon_adi": "anim_erzincan_tarihi",
         "aciklama": "Paleosismik kazılar (Hartleb 2006): son 2500 yılda 9 büyük deprem; ortalama tekrar süresi ~280 ± 60 yıl; 1939 M7.8 son büyük olay; 1992 M6.8; BPT modeli ile güncel kırılma olasılığı.",
     },
+    # ── Batch 2 (v1.78) — 10 yeni temel konu (animasyon yok; açıklama+kaynak dolu) ──
+    "magnitud_olcekleri": {
+        "baslik": "Magnitüd Ölçekleri (ML, Mw, mb, Ms)",
+        "emoji": "📏",
+        "kategori": "Temel Sismoloji",
+        "ozet": "Richter (ML), moment magnitüd (Mw), cisim/yüzey dalgası (mb/Ms) farkları ve doygunluk.",
+        "seviye": "Başlangıç",
+        "refs": ["Hanks1979", "GutenbergRichter1944", "AkiRichards2002", "Kanamori2015"],
+        "aciklama": "Mw = (2/3)·log₁₀(M₀) − 6.07 doygunluğa uğramaz; ML/mb/Ms büyük olaylarda doygunlaşır. AFAD/Kandilli farklı tip raporlayabilir — kaynaklar arası fark bilimsel belirsizliktir.",
+    },
+    "sismometre": {
+        "baslik": "Sismometre & Sismogram Okuma",
+        "emoji": "📟",
+        "kategori": "Temel Sismoloji",
+        "ozet": "Sismik dalgalar nasıl kaydedilir; sismogramdan P/S varışı ve mesafe nasıl okunur?",
+        "seviye": "Başlangıç",
+        "refs": ["SheriffGeldart1995", "Shearer2019", "SteinWys2003", "AkiRichards2002"],
+        "aciklama": "Atalet kütlesi + bobin/mıknatıs ile yer hareketi voltaja çevrilir. S−P zaman farkı × ~8 km/s ≈ episentr mesafesi; 3+ istasyon → triangülasyon ile konum.",
+    },
+    "fay_tipleri_odak": {
+        "baslik": "Fay Tipleri & Odak Derinliği",
+        "emoji": "🪨",
+        "kategori": "Fay Mekaniği",
+        "ozet": "Doğrultu-atımlı / normal / ters fay; sığ-orta-derin odak ve Türkiye rejimleri.",
+        "seviye": "Başlangıç",
+        "refs": ["Sengör2005", "Reid1910", "Barka1996", "AkiRichards2002"],
+        "aciklama": "KAF/DAF doğrultu-atımlı (yatay kayma), Ege normal (açılma), Doğu Anadolu ters (sıkışma). Türkiye depremleri çoğunlukla sığ (0–20 km) kabuk içi — bu yüzeyde daha yıkıcıdır.",
+    },
+    "artci_oncu_diziler": {
+        "baslik": "Artçı & Öncü Deprem Dizileri",
+        "emoji": "🔁",
+        "kategori": "İstatistiksel Sismoloji",
+        "ozet": "Omori sönümü, Båth yasası, öncü-artçı ayrımı ve 'tetiklenmiş ana şok' kavramı.",
+        "seviye": "Orta",
+        "refs": ["Ozturk2011", "Field2017_ETAS", "WiemerWyss2000", "Matthews2002"],
+        "aciklama": "Artçı sıklığı n(t)=K/(t+c)^p ile söner; en büyük artçı ≈ ana şok − 1.2 (Båth). 2023 Maraş M7.5, M7.8'in artçısı değil tetiklenmiş ikinci ana şoktur. Öncüler ancak geriye dönük belirlenir.",
+    },
+    "response_spektrum": {
+        "baslik": "Davranış (Response) & Tasarım Spektrumu",
+        "emoji": "📐",
+        "kategori": "Mühendislik Sismolojisi",
+        "ozet": "Tek serbestlik dereceli sistemin tepkisi; TBDY-2018 tasarım spektrumunun temeli.",
+        "seviye": "Orta",
+        "refs": ["Chopra2020", "ClouPen2003", "AFAD_TBDY2018", "SucuogluAkkar2014"],
+        "aciklama": "Spektrum, farklı periyotlardaki binaların bir yer hareketine maksimum tepkisini gösterir. T_bina ≈ 0.1N. TBDY-2018 tasarım spektrumu Vs30 zemin sınıfına göre değişir; rezonans yıkıcıdır.",
+    },
+    "likefaksiyon": {
+        "baslik": "Likefaksiyon (Zemin Sıvılaşması)",
+        "emoji": "💧",
+        "kategori": "Mühendislik Sismolojisi",
+        "ozet": "Suya doygun gevşek kumun sarsıntıda sıvı gibi davranması; bina batması/yan yatması.",
+        "seviye": "Orta",
+        "refs": ["SeedIdriss1982", "Atakan2002", "SucuogluAkkar2014"],
+        "aciklama": "Boşluk suyu basıncı artıp efektif gerilmeyi sıfırlar (σ'=σ−u→0). 1999 Adapazarı, 2023 Hatay/İskenderun, Gölcük tipik. SPT-N, CRR/CSR oranı ile değerlendirilir. Erzincan ovası alüvyonu risklidir.",
+    },
+    "mikrobolgeleme": {
+        "baslik": "Mikrobölgeleme & Zemin Büyütmesi",
+        "emoji": "🗺️",
+        "kategori": "Mühendislik Sismolojisi",
+        "ozet": "Yerel zeminin sarsıntıyı büyütmesi; HVSR, Vs30 ve şehir-ölçekli risk haritalama.",
+        "seviye": "Orta",
+        "refs": ["Wald2007_Vs30", "Atakan2002", "AFAD_TBDY2018", "Boore2014"],
+        "aciklama": "Yumuşak zemin (düşük Vs30) sarsıntıyı 1.5–3× büyütür; T₀=4H/Vs zemin periyodu bina periyoduyla çakışınca rezonans. 1985 Mexico City, 1999 Avcılar dersi. AFAD mikrobölgeleme zorunludur.",
+    },
+    "gmpe_sonumleme": {
+        "baslik": "Sönümleme & GMPE (Yer Hareketi Tahmini)",
+        "emoji": "📉",
+        "kategori": "Mühendislik Sismolojisi",
+        "ozet": "PGA/PGV'nin mesafeyle azalması; Akkar-Bommer 2010 gibi Türkiye-kalibre denklemler.",
+        "seviye": "İleri",
+        "refs": ["Akkar2010", "Boore2014", "Gulerce2011", "Gulerce2016_Turkey"],
+        "aciklama": "GMPE: log(PGA)=f(M, R, zemin, fay tipi)±σ. Akkar-Bommer 2010 Türkiye/Avrupa kalibre. ±%50 saçılım PSHA'ya epistemik belirsizlik katar; tek bir kesin değer vermez.",
+    },
+    "sismik_tomografi": {
+        "baslik": "Sismik Tomografi",
+        "emoji": "🧅",
+        "kategori": "Temel Sismoloji",
+        "ozet": "Sismik dalga hızlarından yerin iç yapısını görüntüleme (tıbbi tomografi benzeri).",
+        "seviye": "İleri",
+        "refs": ["Shearer2019", "AkiRichards2002", "SteinWys2003", "Kanamori2015"],
+        "aciklama": "Çok sayıda dalga yolu varış zamanı ters-çözülerek (inversiyon) 3B hız modeli elde edilir. Yavaş bölgeler sıcak/eriyik, hızlı bölgeler soğuk/rijit. Anadolu altı manto yapısı (slab tear) bu yöntemle haritalandı.",
+    },
+    "erken_uyari_konu": {
+        "baslik": "Erken Uyarı Sistemleri (Kavram)",
+        "emoji": "🚨",
+        "kategori": "Mühendislik Sismolojisi",
+        "ozet": "P-dalgasını yakalayıp S gelmeden uyarı; saniyeler neyi değiştirir, sınırları ne?",
+        "seviye": "Orta",
+        "refs": ["Wald1999_ShakeMap", "AFAD_TBDY2018", "SucuogluAkkar2014"],
+        "aciklama": "Hızlı P (~6 km/s) ile yıkıcı S (~3.5 km/s) arası saniyeler uyarı penceresidir (Δt≈0.12·R). Merkez üssünde 'kör bölge' uyarı veremez. AFAD-EWS Marmara pilotu; tahmin DEĞİL, tepki sistemidir.",
+    },
 }
 
 ACIKLAMALAR: dict[str, str] = {
@@ -502,6 +593,171 @@ artan araştırma ilgisini sayısal olarak belgelemektedir.
 - **Şengör et al. (2005)** — `Sengör2005`: KAF tektonik bağlamı. DOI:10.1146/annurev.earth.33.101802.120345
 - **Barka (1997)** — `Barka1997`: 1939 Erzincan kayma dağılımı. DOI:10.1785/BSSA0870020017
 - **Çetin et al. (2025)** — `Biblio2025_NatHaz`: 577 KM makalesinin bibliyometrik analizi.
+""",
+
+    # ── Batch 2 (v1.78) — 10 yeni temel konu açıklaması ──
+    "magnitud_olcekleri": """
+### Magnitüd Ölçekleri — Hangi "Büyüklük"?
+
+Bir depremin "büyüklüğü" tek bir sayı değildir; **nasıl ölçüldüğüne** göre farklı ölçekler vardır.
+
+**Richter (yerel) magnitüd $M_L$ (1935):** Wood-Anderson sismograf genliğinden; küçük-orta yerel depremler için. Büyük olaylarda **doygunlaşır** (~6.5 üstünü ayırt edemez).
+
+**Moment magnitüd $M_w$ (Hanks-Kanamori 1979) — modern standart:**
+$$M_w = \\tfrac{2}{3}\\log_{10}(M_0) - 6.07$$
+$M_0 = \\mu \\cdot A \\cdot \\bar{D}$ (sismik moment, N·m). **Doygunlaşmaz** — en büyük depremleri bile doğru ölçer.
+
+**Cisim dalgası $m_b$ ve yüzey dalgası $M_s$:** Farklı dalga tiplerinden; ikisi de büyük olaylarda doygunlaşır.
+
+**Türkiye:** AFAD ve Kandilli (KOERI) bir olayı farklı tiplerde raporlayabilir → küçük farklar normaldir (Scordilis 2006 dönüşümü). 2023 Maraş: $M_w$ 7.8.
+
+**Yaygın hata:** "Richter 9" ifadesi yanlış — büyük olaylar $M_w$ ile verilir. Ölçek **logaritmiktir**: $M_w$ 7, $M_w$ 6'dan ~32× daha fazla enerji açığa çıkarır.
+""",
+    "sismometre": """
+### Sismometre & Sismogram Okuma
+
+**Sismometre**, yer hareketini ölçen alettir. Temel ilke: bir **atalet kütlesi** (yere göre hareketsiz kalmaya çalışır) ile yer arasındaki bağıl hareket, bobin-mıknatıs ile voltaja çevrilir. Modern geniş-bant sismometreler 0.01–100 Hz aralığını kaydeder.
+
+**Sismogram okuma:**
+1. **P varışı:** İlk, küçük genlikli sıçrama (hızlı, ~6 km/s).
+2. **S varışı:** Daha büyük genlik (~3.5 km/s).
+3. **Yüzey dalgaları:** En büyük, en geç (Rayleigh/Love).
+
+**Mesafe hesabı (S−P yöntemi):**
+$$\\Delta_{km} \\approx (t_S - t_P) \\times 8$$
+3+ istasyondan mesafeler → **triangülasyon** ile episentr.
+
+**Türkiye:** AFAD + Kandilli (KOERI) yüzlerce istasyonla ulusal ağ işletir; veriler bu uygulamanın 9 kaynağından ikisidir.
+
+**Yaygın hata:** Tek istasyon konum vermez (sadece mesafe halkası); kesin konum için çok-istasyon gerekir.
+""",
+    "fay_tipleri_odak": """
+### Fay Tipleri & Odak Derinliği
+
+Faylar, blokların **göreli hareket yönüne** göre sınıflanır:
+
+- **Doğrultu-atımlı (strike-slip):** Bloklar yatay kayar. **KAF (sağ-yanal)** ve **DAF (sol-yanal)** bu tiptir; Anadolu'nun batıya kaçışını taşır.
+- **Normal fay:** Üst blok aşağı düşer (açılma/gerilme). **Ege** bölgesi tipiktir.
+- **Ters/bindirme fay:** Üst blok yukarı çıkar (sıkışma). **Doğu Anadolu** (Bitlis-Zagros).
+
+**Odak derinliği:**
+- **Sığ (0–70 km):** Türkiye depremlerinin çoğu kabuk içi, **sığ** (5–20 km) — bu yüzeyde **daha yıkıcıdır**.
+- Orta (70–300 km) ve derin (>300 km): Türkiye'de nadir (dalma-batma yok).
+
+**Erzincan:** KAF doğrultu-atımlı, sığ odak (1939: ~10–15 km). Sığ + yüksek magnitüd = ağır hasar.
+
+**Yaygın hata:** "Derin deprem daha tehlikeli" yanlış — sığ depremler yüzeyde daha şiddetli sarsıntı üretir.
+""",
+    "artci_oncu_diziler": """
+### Artçı & Öncü Deprem Dizileri
+
+Büyük bir deprem ("ana şok") sonrası **artçı** dizisi gelir.
+
+**Omori-Utsu yasası** — artçı sıklığı zamanla söner:
+$$n(t) = \\frac{K}{(t + c)^p}$$
+$p \\approx 1$; ilk gün en yoğun, sonra hızla azalır (ama haftalar-aylar sürebilir).
+
+**Båth yasası:** En büyük artçı ≈ ana şok − 1.2 magnitüd.
+
+**Öncü (foreshock):** Ana şoktan önceki olaylar — ancak **geriye dönük** belirlenir; gerçek zamanlı "bu bir öncüdür" denemez.
+
+**Tetiklenmiş ana şok ≠ artçı:** 1999 İzmit → 3 ay sonra Düzce; 2023 Maraş M7.8 → 9 saat sonra M7.5 — bunlar artçı değil, **Coulomb stres transferiyle tetiklenmiş yeni ana şoklardır**.
+
+**Türkiye:** AFAD büyük olay sonrası "7 günde M5+ olasılığı" bültenlerini Reasenberg-Jones modeliyle üretir.
+
+**Yaygın hata:** "Artçılar bitti, güvendeyiz" — olasılık düşer ama sıfırlanmaz; hasarlı yapı riski sürer.
+""",
+    "response_spektrum": """
+### Davranış (Response) & Tasarım Spektrumu
+
+**Davranış spektrumu**, farklı doğal periyotlardaki binaların belirli bir yer hareketine **maksimum tepkisini** (ivme/hız/yerdeğiştirme) gösteren eğridir. Her bina tek serbestlik dereceli (SDOF) bir salınıcı gibi modellenir.
+
+**Bina doğal periyodu:** $T_{bina} \\approx 0.1 N$ (N = kat sayısı). 5 katlı ≈ 0.5 s.
+
+**Rezonans:** Bina periyodu zemin baskın periyoduna ($T_0$) yaklaşınca sarsıntı büyür → yıkım. 1985 Mexico City ve 1999 Avcılar bu mekanizmayla yıkıldı.
+
+**Tasarım spektrumu (TBDY-2018):** Birçok depremin davranış spektrumlarının zarfı + zemin sınıfı (Vs30) düzeltmesi. Mühendis binayı bu spektruma göre tasarlar.
+
+**Erzincan:** Ova alüvyonu (ZD/ZE) uzun $T_0$ → orta-yüksek katlı binalar için rezonans riski.
+
+**Yaygın hata:** "Sağlam zemin her bina için iyi" — sert zemin kısa periyot dalgayı büyütür, 1-2 katlı binayı etkiler. Hangi bina için risk, zemin + bina periyodu birlikte değerlendirilir.
+""",
+    "likefaksiyon": """
+### Likefaksiyon (Zemin Sıvılaşması)
+
+Suya doygun, gevşek **kumlu** zemin, sarsıntıda geçici olarak **sıvı gibi** davranır — taşıma gücünü kaybeder, binalar batar/yan yatar.
+
+**Mekanizma:** Sarsıntı zemin tanelerini sıkıştırmaya çalışır; boşluk suyu basıncı ($u$) artar, **efektif gerilme** sıfıra düşer:
+$$\\sigma' = \\sigma - u \\to 0$$
+Efektif gerilme sıfır = zemin direnci sıfır.
+
+**Değerlendirme:** SPT-N darbe sayısı + **CSR/CRR** oranı (sarsıntı talebi / zemin direnci; Seed-Idriss 1982).
+
+**Türkiye örnekleri:** 1999 Adapazarı (binalar yan yattı), Gölcük (kıyı çökmesi), 2023 Hatay/İskenderun (liman + binalar). **Erzincan ovası** alüvyonu + yüksek su tablası = risk.
+
+**Yaygın hata:** "Bina sağlamsa likefaksiyon önemsiz" — zemin sıvılaşırsa en sağlam bina bile temelden batar; zemin iyileştirme (jet grout, taş kolon) gerekir.
+""",
+    "mikrobolgeleme": """
+### Mikrobölgeleme & Zemin Büyütmesi
+
+Aynı depremde, **yerel zemin koşulları** sarsıntıyı şehirden şehre, hatta mahalleden mahalleye değiştirir. **Mikrobölgeleme**, bunu harita ölçeğinde belirler.
+
+**Zemin büyütmesi:** Yumuşak zemin (düşük **Vs30**) sismik dalgayı **1.5–3×** büyütür (Borcherdt 1994). Sert kaya büyütmez.
+
+**Zemin baskın periyodu:**
+$$T_0 = \\frac{4H}{V_s}$$
+$H$ = sediman kalınlığı, $V_s$ = ortalama kayma hızı. $T_0$ bina periyoduyla çakışırsa rezonans.
+
+**Yöntemler:** HVSR (mikrotremor, Nakamura 1989), MASW, sondaj.
+
+**Türkiye:** 1999 sonrası mikrobölgeleme zorunlu (AFAD). **Erzincan İli Mikrobölgeleme Projesi** ova için ZD/ZE sınıfları tanımlar.
+
+**Yaygın hata:** "Depremin merkezinden uzağız, güvendeyiz" — 1985 Mexico City episentrden 400 km uzaktı ama göl zemini büyütmesiyle yıkıldı.
+""",
+    "gmpe_sonumleme": """
+### Sönümleme & GMPE (Yer Hareketi Tahmin Denklemleri)
+
+Sismik enerji kaynaktan uzaklaştıkça **söner** (geometrik yayılım + anelastik soğurma). **GMPE** (Ground Motion Prediction Equation), belirli bir M ve mesafede beklenen yer hareketini (PGA/PGV/spektral ivme) tahmin eder.
+
+**Genel form:**
+$$\\log_{10}(PGA) = f(M, R, \\text{zemin}, \\text{fay tipi}) \\pm \\sigma$$
+$M$ magnitüd, $R$ mesafe (km), $\\sigma$ standart sapma (saçılım).
+
+**Akkar & Bommer 2010:** Türkiye + Avrupa-Orta Doğu kalibreli GMPE; bu uygulamanın Erken Uyarı/ShakeMap panellerinde kullanılır. Gülerce 2016 Türkiye-spesifik NGA uyarlaması.
+
+**Belirsizlik:** ±%50 saçılım ($\\sigma$) tipiktir → PSHA'ya **epistemik belirsizlik** katar; tek bir kesin PGA vermez (logic-tree ile ele alınır).
+
+**Yaygın hata:** "GMPE kesin PGA verir" — hayır, olasılıksal bir dağılımdır; aynı M-R için gözlemler geniş saçılır.
+""",
+    "sismik_tomografi": """
+### Sismik Tomografi
+
+Tıbbi tomografi (BT) gibi, ama yer için: çok sayıda depremden gelen dalgaların **varış zamanları** kullanılarak yerin iç **hız yapısı** 3 boyutlu görüntülenir.
+
+**İlke:** Dalga yavaş bölgeden geçerse geç varır, hızlıdan geçerse erken. Binlerce dalga yolunun varış zamanı **ters-çözülür** (inversiyon) → 3B hız modeli.
+
+**Yorum:**
+- **Yavaş bölge** ($V_p$ düşük): sıcak, kısmen eriyik, akışkan içeren (manto yükselimi, magma).
+- **Hızlı bölge:** soğuk, rijit (eski litosfer, dalan levha).
+
+**Türkiye:** Anadolu altı manto tomografisi (Biryol 2010) — Afrika levhasının **parçalanmış (slab tear)** yapısını ortaya koydu; bu Anadolu'nun yükselmesi ve volkanizmasıyla ilişkili.
+
+**Yaygın hata:** "Tomografi deprem yerini gösterir" — hayır, **yapıyı** gösterir; deprem konumu ayrı (sismometre triangülasyonu).
+""",
+    "erken_uyari_konu": """
+### Erken Uyarı Sistemleri (EEW) — Kavram
+
+Deprem **olduktan sonra**, hızlı **P-dalgasını** yakalayıp yıkıcı **S-dalgası** gelmeden uzak şehirlere **saniyeler** içinde uyarı gönderme prensibi.
+
+**Uyarı penceresi:**
+$$\\Delta t = t_S - t_P \\approx 0.12 \\times R$$
+($R$ = mesafe km). 100 km → ~12 s; 250 km → ~30 s. Bu sürede tren yavaşlar, gaz kesilir, ameliyat durur, insanlar pozisyon alır.
+
+**Kör bölge:** Merkez üssüne yakın (~0–30 km) P ve S neredeyse aynı anda gelir → uyarı **imkânsızdır**.
+
+**Türkiye:** AFAD-EWS Marmara'da pilot; Japonya JMA-EEW (2007), Meksika SASMEX, ABD ShakeAlert operasyonel.
+
+**KRİTİK — yaygın hata:** EEW **deprem tahmini DEĞİLDİR.** Deprem zaten başladıktan sonra, hızlı dalganın yavaş dalgaya göre avantajını kullanan bir **tepki** sistemidir (Geller 1997: tahmin mümkün değil).
 """,
 }
 
