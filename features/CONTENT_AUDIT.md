@@ -25,7 +25,7 @@ Her panelin mevcut `st.caption`, `st.markdown`, `st.info`, `st.warning`, `st.suc
 
 | Panel | Mevcut Seviye | Grafik Sayısı | Pilot? |
 |---|---|---:|---|
-| 🌍 Canlı Radar | 🟠 Temel | 5 (harita + saatlik + derinlik + scroll list + scoreboard) | ✅ **PİLOT A** |
+| 🌍 Canlı Radar | 🟢 Akademik ✅ (v1.55) | 5 (harita + saatlik + derinlik + scroll list + scoreboard) | ✅ **PİLOT A — Hanks-Kanamori 1979 + Sinnott 1984** |
 | 🌊 ShakeMap | 🟢 Akademik ✅ (v1.63) | 3 | ✅ **Sprint 3 — Wald 1999 + Worden 2012 + Bakun-Wentworth 1997** |
 | 🔴 Sismik Açık | 🟡 Orta | 2 (harita + Gantt) | — |
 | 🚨 Erken Uyarı | 🟢 Akademik ✅ (v1.63) | 2 (timeline + skor kartları) | ✅ **Sprint 3 — Allen-Kanamori 2003 + AFAD-EWS** |
@@ -38,9 +38,9 @@ Her panelin mevcut `st.caption`, `st.markdown`, `st.info`, `st.warning`, `st.suc
 |---|---|---:|---|
 | 🧭 Fay Sistemleri | 🟠 Temel | 2 | — |
 | 🌍 Plaka Simülasyonu | 🟢 Akademik ✅ (v1.64) | 1 (animasyon) | ✅ **Sprint 4a — V_rel formülü + NNR-MORVEL56** |
-| 🔒 Fay Kilitlenme | 🟠 Temel | 2 | — |
+| 🔒 Fay Kilitlenme | 🟢 Akademik ✅ (v1.67) | 2 | ✅ **Sprint 5 — Savage-Burford 1973 + Reilinger 2006** |
 | 💥 Coulomb Stres | 🟢 Akademik ✅ (v1.65) | 2 | ✅ **Sprint 4b — King-Stein-Lin 1994 + Okada 1992** |
-| 🥎 Odak Mekanizması | 🟠 Temel | 2 | — |
+| 🥎 Odak Mekanizması | 🟢 Akademik ✅ (v1.67) | 2 | ✅ **Sprint 5 — Dziewonski 1981 + Aki-Richards 2002** |
 | ⛏️ Paleosismik Kazı | 🟢 Akademik ✅ (v1.66) | 1 | ✅ **Sprint 6 — Wallace 1981 + McCalpin 2009** |
 | 🏺 Erzincan Paleo | 🟢 Akademik ✅ (v1.66) | 2 | ✅ **Sprint 6 — Kozacı 2007 + Hartleb 2003** |
 
@@ -49,7 +49,7 @@ Her panelin mevcut `st.caption`, `st.markdown`, `st.info`, `st.warning`, `st.suc
 | Panel | Mevcut Seviye | Grafik Sayısı | Pilot? |
 |---|---|---:|---|
 | 📊 İstatistik & Analiz | 🟡 Orta (η/RTL/AMR akademik v1.62) | 8+ (b-grid, η, RTL, AMR, korelasyon, scatter) | ✅ **Sprint 2 — η/RTL/AMR akademik** |
-| 📉 b-Değeri Zaman Serisi | 🟠 Temel | 3 (b-değeri zaman + dağılım) | ✅ **PİLOT B** |
+| 📉 b-Değeri Zaman Serisi | 🟢 Akademik ✅ (v1.56) | 3 (b-değeri zaman + dağılım) | ✅ **PİLOT B — Aki 1965 MLE + Bayrak 2002** |
 | 🌐 Dinamik Tetikleme | 🟠 Temel | 2 | — |
 | 🗺️ Sismik Tehlike (PSHA) | 🟡 Orta | 2 | — |
 | 🗺️ Tsunami Tehlike | 🟠 Temel | 2 | — |
@@ -61,10 +61,10 @@ Her panelin mevcut `st.caption`, `st.markdown`, `st.info`, `st.warning`, `st.suc
 
 | Panel | Mevcut Seviye | Grafik Sayısı | Pilot? |
 |---|---|---:|---|
-| 🛰️ InSAR Deformasyon | 🟠 Temel | 2 | — |
-| 📡 InSAR Zaman Serisi | 🟠 Temel | 2 | — |
-| 🌋 Moho Derinliği | 🟠 Temel | 1 | — |
-| 🌀 SKS Splitting | 🟠 Temel | 2 | — |
+| 🛰️ InSAR Deformasyon | 🟢 Akademik ✅ (v1.67) | 2 | ✅ **Sprint 5 — Massonnet 1993 + Sentinel-1** |
+| 📡 InSAR Zaman Serisi | 🟢 Akademik ✅ (v1.67) | 2 | ✅ **Sprint 5 — Ferretti 2001 PS + Berardino 2002 SBAS** |
+| 🌋 Moho Derinliği | 🟢 Akademik ✅ (v1.67) | 1 | ✅ **Sprint 5 — Mohorovičić 1910 + Zhu-Kanamori 2000** |
+| 🌀 SKS Splitting | 🟢 Akademik ✅ (v1.67) | 2 | ✅ **Sprint 5 — Silver-Chan 1991 + Sandvol 2003** |
 | 🏔️ Vs30 Zemin | 🟠 Temel | 2 | — |
 | 🗾 Erzincan Mikrozon | 🟢 Akademik ✅ (v1.66) | 2 | ✅ **Sprint 6 — Nakamura 1989 + AFAD 2010** |
 
@@ -92,14 +92,18 @@ Her panelin mevcut `st.caption`, `st.markdown`, `st.info`, `st.warning`, `st.suc
 
 ## Özet Tablo
 
-| Seviye | Panel Sayısı | % |
-|---|---:|---:|
-| 🔴 Eksik | 2 | 6% |
-| 🟠 Temel | 25 | 71% |
-| 🟡 Orta | 8 | 23% |
-| 🟢 Akademik | **0** | **0%** |
+**Güncel durum (v1.67 — Faz 1 Pilot + Sprint 2/3/4/5/6 sonrası):**
 
-**Sonuç:** Hiçbir panel hedef seviye olan **Akademik** standardında değil. Çoğunluk (%71) **Temel** seviyede — yüzeysel açıklama + 1-2 kaynak. Faz 1 Pilot bu seviyeyi 🟢 Akademik'e yükseltmenin **kanıtı** olacak.
+| Seviye | Panel Sayısı | % | Not |
+|---|---:|---:|---|
+| 🟢 Akademik | **18** | **51%** | Pilot A/B/C + Sprint 2-6 (21 render bloğu; İstatistik 4 alt-panel tek satır) |
+| 🟡 Orta | 4 | 11% | Sismik Açık, PSHA, HAZUS, P/S Dalgalar, Akademik Kütüphane |
+| 🟠 Temel | 11 | 32% | Kalan paneller (Sprint 7 hedefi) |
+| 🔴 Eksik | 2 | 6% | Raporlar + 1 |
+
+**İlk audit (v1.0):** 0% akademik, %71 temel. **v1.67:** %51 akademik — Faz 1 + 5 sprint ile 18 panel 🟢'ye çıkarıldı (21 `render_academic_explanation` bloğu).
+
+**Kalan (Sprint 7 — Eğitim & meta):** Sismik Açık, Sismik Döngü, Artçı Tahmin, Dinamik Tetikleme, PSHA, Tsunami (3×), HAZUS, Vs30, Fay Sistemleri, Astronomik, Bilgi Havuzu P/S + Erzincan Sahnesi, Akademik Kütüphane, Ambraseys Animasyon, Raporlar, Sistem.
 
 ---
 

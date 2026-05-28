@@ -78,7 +78,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.66"
+APP_VERSION = "1.67"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -8741,6 +8741,135 @@ def _render_odak_mekanizma():
         "tam moment tensor inversiyonu için ObsPy/PyROCKO referansı önerilir."
     )
 
+    # v1.67 — Sprint 5: Odak Mekanizması akademik standart (ACADEMIC_STANDARD v1.1)
+    st.markdown(
+        f"""<div style="
+            background:linear-gradient(90deg,{BG2} 0%,rgba(156,39,176,0.10) 100%);
+            border-left:3px solid #9C27B0;
+            border-radius:6px;
+            padding:0.55rem 0.9rem;
+            margin:0.4rem 0 0.8rem 0;
+            font-size:0.88rem;
+            color:{TEXT};
+            line-height:1.45;">
+            📊 <b>Mini rehber:</b> "Beach ball" (plaj topu) diyagramı bir depremin fay düzlemini ve kayma yönünü
+            gösterir; siyah lobların deseni fay tipini (doğrultu-atımlı / normal / ters) ele verir.
+            <b>Beach ball iki olası fay düzlemi gösterir (nodal planes) — hangisinin gerçek olduğu tek başına
+            belirlenemez;</b> jeolojik/artçı verisiyle ayırt edilir.
+            <i>Moment tensor, strike/dip/rake konvansiyonu, çift-kuvvet-çifti (double-couple) modeli ve
+            Türkiye fay tipleri için aşağıdaki 📖 Akademik Açıklama panelini açın.</i>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+    render_academic_explanation(
+        title="📖 Akademik Açıklama — Odak Mekanizması (Moment Tensor & Beach Ball)",
+        what=(
+            "**Odak mekanizması** (focal mechanism), bir depremin **fay düzlemi geometrisini** ve **kayma "
+            "yönünü** sismik dalga ilk-hareket (first-motion) veya tam dalga formu inversiyonuyla belirleyen "
+            "yöntemdir. Sonuç **'beach ball'** (plaj topu) diyagramıyla gösterilir: kürenin alt yarısının "
+            "stereografik izdüşümü, sıkışma (siyah) ve genleşme (beyaz) kadranlarını ayırır. **GCMT** (Global "
+            "Centroid Moment Tensor) projesi (Dziewonski 1981, Ekström 2012) global standarttır. Bu panel "
+            "Türkiye'nin 13 büyük olayının (1939 Erzincan'dan 2023 Maraş'a) odak mekanizmalarını gösterir; "
+            "her beach ball deseni fay tipini (doğrultu-atımlı/normal/ters) görsel olarak ele verir."
+        ),
+        how=(
+            "**Beach ball okuma:**\n\n"
+            "- **Doğrultu-atımlı (strike-slip):** İki dik siyah-beyaz kama (satranç tahtası deseni). KAF/DAF "
+            "tipik. Sağ-yanal (KAF) ve sol-yanal (DAF) beach ball deseni aynı görünür — fark rake işaretinde.\n"
+            "- **Normal fay (genleşme):** Beyaz merkez + siyah dış kenarlar (Ege açılma rejimi, Bodrum 2017, "
+            "İzmir 2020).\n"
+            "- **Ters/bindirme (sıkışma):** Siyah merkez + beyaz dış (Van 2011 — Doğu Anadolu sıkışma).\n\n"
+            "**Üç açı (Aki & Richards konvansiyonu):**\n"
+            "- **Strike (doğrultu, 0–360°):** Fay çizgisinin kuzeyle açısı.\n"
+            "- **Dip (eğim, 0–90°):** Fay düzleminin yatayla açısı (90° = düşey, KAF gibi).\n"
+            "- **Rake (kayma açısı, −180° – +180°):** Üst bloğun kayma yönü. 0° = sol-yanal, ±180° = sağ-yanal, "
+            "+90° = ters, −90° = normal.\n\n"
+            "**Renk:** Panel fay tipini renkle kodlar (KAF sağ-yanal kırmızı, DAF sol-yanal turuncu, normal "
+            "mavi, ters yeşil)."
+        ),
+        science=(
+            "**Sismik moment tensörü (Aki & Richards 2002, Bölüm 3-4):**\n\n"
+            r"$$M_{ij} = \mu \cdot A \cdot \bar{D} \cdot (n_i s_j + n_j s_i)$$"
+            "\n\nburada $\\mu$ kayma modülü (**Pa**, ≈ 30 GPa), $A$ kırılma alanı (**m²**), $\\bar{D}$ ortalama "
+            "atım (**m**), $\\hat{n}$ fay normal vektörü, $\\hat{s}$ kayma yön vektörü (ikisi de boyutsuz birim "
+            "vektör). $M_{ij}$ 3×3 simetrik tensör (**N·m**).\n\n"
+            "**Skaler sismik moment:**\n\n"
+            r"$$M_0 = \mu A \bar{D} = \frac{1}{\sqrt{2}} \left( \sum_{i,j} M_{ij}^2 \right)^{1/2}$$"
+            "\n\nMoment magnitüd (Hanks & Kanamori 1979):\n\n"
+            r"$$M_w = \frac{2}{3} \log_{10}(M_0) - 6.07 \quad (M_0 \text{ N·m cinsinden})$$"
+            "\n\n**Çift-kuvvet-çifti (double-couple) modeli:** Deprem kaynağı iki dik 'nodal plane' içeren bir "
+            "çift kuvvet çiftidir. **İki düzlem matematiksel olarak eşdeğerdir** — biri gerçek fay, diğeri "
+            "'auxiliary plane'. Sismik veri tek başına hangisinin gerçek olduğunu **ayırt edemez** (nodal plane "
+            "ambiguity); jeolojik haritalama veya artçı dağılımı gerekir.\n\n"
+            "**P/T eksenleri:** Sıkışma (P) ve gerilme (T) ekseni beach ball'dan okunabilir; bölgesel gerilme "
+            "alanını verir (Türkiye için: KAF boyunca P ekseni KB-GD)."
+        ),
+        interpretation=(
+            "**Türkiye fay tipleri (panel kataloğu):**\n\n"
+            "- **1939 Erzincan (Mw 7.9, sağ-yanal):** strike 105°, dip 80°, rake −10° — KAF doğrultu-atımlı.\n"
+            "- **1999 İzmit (Mw 7.6, sağ-yanal):** strike 91°, dip 87°, rake −179° — KAF batı, neredeyse düşey.\n"
+            "- **2011 Van (Mw 7.1, ters):** strike 252°, dip 50°, rake 60° — Doğu Anadolu sıkışma rejimi "
+            "(Bitlis-Zagros).\n"
+            "- **2017 Bodrum-Kos (Mw 6.6, normal):** strike 275°, dip 39°, rake −89° — Ege açılma rejimi.\n"
+            "- **2020 İzmir/Samos (Mw 6.9, normal):** Ege graben sistemi.\n"
+            "- **2023 Pazarcık (Mw 7.8, sol-yanal):** strike 228°, dip 89°, rake 1° — DAFZ sol-yanal.\n\n"
+            "**Tektonik yorum:**\n"
+            "- KAF boyunca **sağ-yanal** (Anadolu batıya kaçış), DAFZ boyunca **sol-yanal** (aynı kaçışın "
+            "konjuge sınırı).\n"
+            "- Ege'de **normal** faylar (açılma/extension, Hellenik slab rollback).\n"
+            "- Doğu Anadolu'da **ters** faylar (Arabistan-Avrasya sıkışması).\n"
+            "- Beach ball deseni → bir bölgenin **gerilme rejimini** tek bakışta verir."
+        ),
+        limitations=(
+            "1. **Nodal plane ambiguity:** Beach ball **iki olası fay düzlemi** gösterir; sismik veri tek başına "
+            "hangisinin gerçek fay olduğunu **belirleyemez**. Jeolojik haritalama (yüzey kırığı) veya artçı "
+            "dağılımı gereklidir.\n"
+            "2. **Double-couple varsayımı:** Bazı kaynaklar (volkanik, patlama, çökme) **non-double-couple** "
+            "bileşen içerir; bu model saf tektonik kırılma varsayar.\n"
+            "3. **Bu panel basitleştirilmiş beach ball:** Görsel kuple deseni eğitim amaçlı; tam moment tensor "
+            "inversiyonu için **ObsPy** veya **PyROCKO** + gerçek dalga formu verisi gerekir.\n"
+            "4. **Centroid ≠ episentr:** GCMT 'centroid' moment merkezi, ilk-kırılma noktası (episentr) ile "
+            "10–30 km farklı olabilir; büyük olaylarda kırılma uzunluğu boyunca dağılır.\n"
+            "5. **1939 gibi eski olaylar rekonstrüksiyon:** GCMT 1976'da başladı; 1939 strike/dip/rake "
+            "**Ketin 1948 + Barka 1988 yüzey kırığı haritalamasından** geriye dönük çıkarıldı, ±10–20° belirsiz.\n"
+            "6. **Yaygın hata — 'Beach ball deprem yerini gösterir':** Beach ball **mekanizma/yön** gösterir, "
+            "konum/zaman/büyüklük tahmini DEĞİLDİR. Gelecek deprem öngörüsüyle ilgisi yoktur."
+        ),
+        references=[
+            "**Dziewonski, A. M., Chou, T.-A., & Woodhouse, J. H. (1981).** Determination of earthquake source "
+            "parameters from waveform data for studies of global and regional seismicity. *JGR*, 86(B4), "
+            "2825–2852. DOI: [10.1029/JB086iB04p02825](https://doi.org/10.1029/JB086iB04p02825) "
+            "— *Centroid moment tensor yönteminin orijinal makalesi.*",
+            "**Ekström, G., Nettles, M., & Dziewonski, A. M. (2012).** The global CMT project 2004–2010: "
+            "Centroid-moment tensors for 13,017 earthquakes. *Physics of the Earth and Planetary Interiors*, "
+            "200–201, 1–9. DOI: "
+            "[10.1016/j.pepi.2012.04.002](https://doi.org/10.1016/j.pepi.2012.04.002) "
+            "— *Modern GCMT katalog referansı.*",
+            "**Aki, K., & Richards, P. G. (2002).** *Quantitative Seismology* (2nd ed.), Bölüm 3–4: Moment "
+            "Tensor and Source Mechanisms. University Science Books. ISBN: 978-1-891389-63-4 "
+            "— *Moment tensor ve beach ball konvansiyonunun standart referansı.*",
+            "**Hanks, T. C., & Kanamori, H. (1979).** A moment magnitude scale. *JGR*, 84(B5), 2348–2350. "
+            "DOI: [10.1029/JB084iB05p02348](https://doi.org/10.1029/JB084iB05p02348) "
+            "— *Moment magnitüd ölçeği.*",
+            "**Tibi, R., Bock, G., Xia, Y., et al. (2001).** Rupture processes of the 1999 August 17 Izmit and "
+            "November 12 Düzce (Turkey) earthquakes. *GJI*, 144(2), F1–F7. DOI: "
+            "[10.1046/j.1365-246x.2001.00360.x](https://doi.org/10.1046/j.1365-246x.2001.00360.x) "
+            "— *İzmit/Düzce kaynak mekanizması.*",
+            "**Barka, A. (1996).** Slip distribution along the North Anatolian fault. *BSSA*, 86(5), 1238–1254. "
+            "[doi.org/10.1785/BSSA0860051238](https://doi.org/10.1785/BSSA0860051238) "
+            "— *1939 Erzincan mekanizma rekonstrüksiyonu.*",
+        ],
+        disclaimer=(
+            "⚠️ **Beach ball bir deprem mekanizmasını gösterir, tahmin aracı DEĞİLDİR.** Diyagram olayın fay "
+            "tipini ve kayma yönünü verir; **gelecek deprem zamanı/yeri/büyüklüğü ile ilgisi yoktur**. "
+            "İki nodal plane'den hangisinin gerçek fay olduğu sismik veri ile **tek başına ayırt edilemez** "
+            "(jeolojik veri gerekir). Bu panel basitleştirilmiş görsel beach ball'dur; araştırma için tam "
+            "moment tensor inversiyonu (ObsPy/PyROCKO + dalga formu) kullanılmalıdır. 1939 gibi GCMT öncesi "
+            "olayların mekanizması yüzey kırığından rekonstrüksiyondur (±10–20° belirsiz)."
+        ),
+        expanded=False,
+    )
+
 
 if active_menu == "🥎 Odak Mekanizması":
     _render_odak_mekanizma()
@@ -9777,6 +9906,137 @@ def _render_insar():
         "⚠️ Harita sentetik gösterim — gerçek interferogram için COMET LiCS portalı kullanılmalıdır."
     )
 
+    # v1.67 — Sprint 5: InSAR Deformasyon akademik standart
+    st.markdown(
+        f"""<div style="
+            background:linear-gradient(90deg,{BG2} 0%,rgba(76,175,80,0.10) 100%);
+            border-left:3px solid #4CAF50;
+            border-radius:6px;
+            padding:0.55rem 0.9rem;
+            margin:0.4rem 0 0.8rem 0;
+            font-size:0.88rem;
+            color:{TEXT};
+            line-height:1.45;">
+            📊 <b>Mini rehber:</b> InSAR (radar interferometri), iki uydu geçişi arasında yer yüzeyinin <b>uydu bakış
+            yönündeki (LOS)</b> cm-altı deformasyonunu renkli "fringe" desenleriyle ölçer; bir tam fringe ≈ yarım
+            dalgaboyu (~2.8 cm, C-bant).
+            <b>InSAR yalnızca LOS bileşenini ölçer — 3B hareket vektörü tek geçişten çıkarılamaz</b>; yörünge
+            geometrisi ve atmosfer gecikmesi belirsizlik katar.
+            <i>Faz farkı denklemi, LOS projeksiyonu, İzmit/Maraş co-seismic deformasyon örnekleri için aşağıdaki
+            📖 Akademik Açıklama panelini açın.</i>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+    render_academic_explanation(
+        title="📖 Akademik Açıklama — InSAR Radar İnterferometri (Co-seismic Deformasyon)",
+        what=(
+            "**InSAR** (Interferometric Synthetic Aperture Radar), bir bölgenin **iki farklı zamandaki** uydu "
+            "radar görüntüsünün **faz farkını** alarak yer yüzeyinin **milimetre-santimetre** ölçeğindeki "
+            "deformasyonunu haritalar. Massonnet et al. 1993 *Nature* makalesi (1992 Landers depremi) yöntemin "
+            "doğuşudur. Deprem öncesi ve sonrası iki görüntü → **co-seismic interferogram**: yer yüzeyindeki "
+            "kalıcı deformasyon renkli **fringe** (saçak) desenleriyle görünür. Bu panel İzmit 1999, Van 2011, "
+            "Kahramanmaraş 2023 gibi olayların InSAR deformasyon desenlerini kavramsal olarak gösterir. "
+            "**Sentinel-1** (ESA, ücretsiz) bugün Türkiye için 6-12 günlük düzenli kapsama sağlar."
+        ),
+        how=(
+            "**Harita okuma:**\n\n"
+            "- **Kırmızı (+LOS):** Yüzey uydudan **uzağa** hareket etti (subsidence/çökme veya uydudan "
+            "uzaklaşan yatay hareket).\n"
+            "- **Mavi (−LOS):** Yüzey uyduya **doğru** hareket etti (uplift/yükselme veya yaklaşma).\n"
+            "- **Beyaz:** Deformasyon yok veya ölçüm eşiği altında.\n"
+            "- **Fringe (renk döngüsü):** Bir tam renk döngüsü = **yarım dalgaboyu** LOS yer değiştirme. "
+            "C-bant (Sentinel-1, λ=5.6 cm) için 1 fringe ≈ **2.8 cm**.\n\n"
+            "**Fringe sayma:** Fay boyunca kaç fringe sayılırsa, o noktadaki kümülatif LOS deformasyon = "
+            "fringe_sayısı × 2.8 cm. Fay yakınında fringe **sıklaşır** (yüksek gradyan = yüksek deformasyon).\n\n"
+            "**Yorum anahtarı tablosu** (yukarıda): renk → LOS işareti → fiziksel hareket."
+        ),
+        science=(
+            "**İnterferometrik faz farkı (Massonnet & Feigl 1998):**\n\n"
+            r"$$\Delta\phi = \phi_2 - \phi_1 = \frac{4\pi}{\lambda} \Delta r_{LOS} + \phi_{atm} + \phi_{topo} + \phi_{orbit} + \phi_{noise}$$"
+            "\n\nburada:\n"
+            "- $\\Delta\\phi$ = ölçülen faz farkı (**radyan**, $2\\pi$ döngülü = sarmal/wrapped)\n"
+            "- $\\lambda$ = radar dalgaboyu (**cm**; C-bant Sentinel-1 = 5.6 cm, L-bant ALOS = 23.6 cm)\n"
+            "- $\\Delta r_{LOS}$ = uydu bakış yönündeki (Line-of-Sight) yer değiştirme (**cm** — aranan büyüklük)\n"
+            "- $\\phi_{atm}$ = atmosferik gecikme (troposfer su buharı — en büyük hata kaynağı)\n"
+            "- $\\phi_{topo}$ = topografik faz (DEM ile çıkarılır)\n"
+            "- $\\phi_{orbit}$ = yörünge belirsizliği\n\n"
+            "**LOS → fringe dönüşümü:** Bir tam fringe ($\\Delta\\phi = 2\\pi$) →\n\n"
+            r"$$\Delta r_{LOS} = \frac{\lambda}{2} \approx 2.8 \text{ cm (C-bant)}$$"
+            "\n\n**LOS projeksiyon (3B hareketten):**\n\n"
+            r"$$\Delta r_{LOS} = u_E \sin\theta \sin\alpha - u_N \sin\theta \cos\alpha + u_U \cos\theta$$"
+            "\n\nburada $u_E, u_N, u_U$ = doğu/kuzey/düşey yer değiştirme bileşenleri (**cm**), $\\theta$ = "
+            "bakış açısı (incidence, Sentinel-1 ≈ 30–46°), $\\alpha$ = uydu uçuş azimutu. **Tek geçiş yalnızca "
+            "1 LOS bileşeni verir → 3B vektör için en az 3 farklı geometri (ascending + descending + azimut) "
+            "gerekir.**"
+        ),
+        interpretation=(
+            "**Türkiye co-seismic InSAR örnekleri:**\n\n"
+            "- **1999 İzmit Mw 7.4 (Wright et al. 2001, ERS-2):** KAF boyunca ~5 m sağ-yanal yüzey kayması; "
+            "InSAR fringe deseni fayın iki yanında zıt LOS işareti gösterdi — doğrultu-atımlı imza.\n"
+            "- **2011 Van Mw 7.1:** Ters fay; InSAR ~70 cm uplift kaydetti (uydudan uzaklaşma yok, yaklaşma).\n"
+            "- **2023 Kahramanmaraş Mw 7.8+7.5 (Xu et al. 2023, Sentinel-1):** DAFZ boyunca ~300 km kırık; "
+            "InSAR co-seismic deformasyon 5–6 m yatay kayma, çift kırılma geometrisi açıkça görüldü. Uydu verisi "
+            "kırık haritalamayı **günler içinde** sağladı (klasik saha çalışması haftalar alırdı).\n\n"
+            "**Pratik yorum:**\n"
+            "- Fringe **sıklığı** = deformasyon gradyanı; fay izinde yoğun fringe.\n"
+            "- Fringe **kopması (decorrelation)** = ya çok hızlı deformasyon ya bitki örtüsü/kar değişimi.\n"
+            "- LOS ≠ gerçek yer değiştirme; sadece uydu yönündeki bileşen. Düşey vs yatay ayrımı için "
+            "ascending + descending birleştirme gerekir."
+        ),
+        limitations=(
+            "1. **Sadece LOS (1B) ölçülür:** Tek interferogram yer değiştirmenin yalnızca uydu-bakış bileşenini "
+            "verir. **3B vektör için** ascending + descending + (mümkünse) azimut offset birleştirme gerekir. "
+            "Tek geçişten 'yer X cm yükseldi' demek YANLIŞ olabilir.\n"
+            "2. **Atmosferik gecikme en büyük hata:** Troposfer su buharı değişimi cm ölçeğinde yapay sinyal "
+            "üretir (Massonnet-Feigl 1998). Düzeltme için GACOS/meteoroloji modeli veya zaman serisi (PS-InSAR) "
+            "gerekir.\n"
+            "3. **Decorrelation (korelasyon kaybı):** Bitki örtüsü, kar, tarım, çok hızlı deformasyon faz "
+            "tutarlılığını bozar. Erzincan ovası tarım alanları yaz-kış decorrelation riski taşır.\n"
+            "4. **Bu panel sentetik gösterimdir:** Gerçek interferogram için **COMET LiCS** portalı "
+            "([comet.nerc.ac.uk/COMET-LiCS-portal](https://comet.nerc.ac.uk/COMET-LiCS-portal/)) veya ESA "
+            "Sentinel-1 SLC verisi + ISCE/SNAP işleme gerekir.\n"
+            "5. **Faz unwrapping belirsizliği:** Sarmal (wrapped) faz tam yer değiştirmeye çevrilirken "
+            "(unwrapping) hata yapılabilir, özellikle yüksek gradyanlı fay yakınında.\n"
+            "6. **Yaygın hata — 'InSAR deprem öngörür':** InSAR **co-seismic** (deprem sonrası) veya "
+            "**interseismic** (yavaş birikim) deformasyon ölçer; **gelecek deprem tahmini DEĞİLDİR**. "
+            "Interseismic InSAR slip-deficit haritalamaya katkı verir ama tahmin sağlamaz (Geller 1997)."
+        ),
+        references=[
+            "**Massonnet, D., Rossi, M., Carmona, C., Adragna, F., Peltzer, G., Feigl, K., & Rabaute, T. (1993).** "
+            "The displacement field of the Landers earthquake mapped by radar interferometry. *Nature*, 364, "
+            "138–142. DOI: [10.1038/364138a0](https://doi.org/10.1038/364138a0) "
+            "— *InSAR'ın doğuşu (ilk co-seismic interferogram).*",
+            "**Massonnet, D., & Feigl, K. L. (1998).** Radar interferometry and its application to changes in "
+            "the Earth's surface. *Reviews of Geophysics*, 36(4), 441–500. DOI: "
+            "[10.1029/97RG03139](https://doi.org/10.1029/97RG03139) "
+            "— *InSAR yönteminin standart derlemesi.*",
+            "**Wright, T. J., Parsons, B., Fielding, E. J., & Bird, P. (2001).** Earthquake deformation cycle "
+            "on the North Anatolian Fault: InSAR results. *GRL* / EPSL — İzmit 1999 ERS-2 InSAR. "
+            "[doi.org/10.1029/2000GL012850](https://doi.org/10.1029/2000GL012850) "
+            "— *KAF İzmit InSAR deformasyon.*",
+            "**Xu, X., Sandwell, D. T., Klein, E., & Bock, Y. (2023).** Surface deformation associated with "
+            "the 2023 Mw 7.8 and 7.5 Kahramanmaraş, Turkey, earthquake sequence from Sentinel-1 InSAR. "
+            "*EPSL* / *GRL*. DOI: [10.1029/2023GL104604](https://doi.org/10.1029/2023GL104604) "
+            "— *2023 Maraş Sentinel-1 co-seismic deformasyon.*",
+            "**Bürgmann, R., Rosen, P. A., & Fielding, E. J. (2000).** Synthetic aperture radar interferometry "
+            "to measure Earth's surface topography and its deformation. *Annual Review of Earth and Planetary "
+            "Sciences*, 28, 169–209. DOI: "
+            "[10.1146/annurev.earth.28.1.169](https://doi.org/10.1146/annurev.earth.28.1.169) "
+            "— *InSAR yer bilimleri uygulamaları derlemesi.*",
+            "**Geller, R. J. (1997).** Earthquake prediction: a critical review. *GJI*, 131(3), 425–450. "
+            "DOI: [10.1111/j.1365-246X.1997.tb06588.x](https://doi.org/10.1111/j.1365-246X.1997.tb06588.x)",
+        ],
+        disclaimer=(
+            "⚠️ **InSAR bir deprem öngörü aracı DEĞİLDİR.** InSAR yer yüzeyinin **geçmiş** deformasyonunu "
+            "(co-seismic veya yavaş interseismic birikim) ölçer; gelecek deprem zamanı/yeri/büyüklüğü vermez "
+            "(Geller 1997). Tek interferogram yalnızca **LOS (1B)** bileşeni ölçer — 3B yer değiştirme için "
+            "çoklu geometri gerekir. Atmosferik gecikme ve decorrelation cm ölçeğinde belirsizlik katar. Bu "
+            "panel **sentetik/kavramsal gösterimdir**; gerçek analiz için COMET LiCS portalı veya ESA "
+            "Sentinel-1 verisi kullanılmalıdır."
+        ),
+        expanded=False,
+    )
+
 
 if active_menu == "🛰️ InSAR Deformasyon":
     _render_insar()
@@ -10784,6 +11044,135 @@ def _render_insar_zaman_serisi():
         "⚠️ Zaman serisi sentetik; gerçek için COMET LiCS veya ESA G-POD."
     )
 
+    # v1.67 — Sprint 5: InSAR Zaman Serisi akademik standart
+    st.markdown(
+        f"""<div style="
+            background:linear-gradient(90deg,{BG2} 0%,rgba(76,175,80,0.10) 100%);
+            border-left:3px solid #4CAF50;
+            border-radius:6px;
+            padding:0.55rem 0.9rem;
+            margin:0.4rem 0 0.8rem 0;
+            font-size:0.88rem;
+            color:{TEXT};
+            line-height:1.45;">
+            📊 <b>Mini rehber:</b> PS-InSAR / SBAS yöntemleri onlarca uydu geçişini birleştirerek <b>yıllık mm
+            ölçeğinde yavaş (interseismic) yer hareketini</b> zaman serisi olarak çıkarır; tek interferogramın
+            atmosfer gürültüsünü zaman ortalamasıyla bastırır.
+            <b>Yavaş deformasyon trendi deprem tahmini DEĞİLDİR</b> — fay kilitlenme/sürünme oranını gösterir,
+            kırılma zamanını vermez.
+            <i>PS-InSAR (Ferretti 2001), SBAS (Berardino 2002), KAF sürünme oranları için aşağıdaki 📖 Akademik
+            Açıklama panelini açın.</i>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+    render_academic_explanation(
+        title="📖 Akademik Açıklama — InSAR Zaman Serisi (PS-InSAR / SBAS)",
+        what=(
+            "**InSAR zaman serisi** yöntemleri, **onlarca-yüzlerce** uydu geçişini birleştirerek tek "
+            "interferogramın gürültüsünü (atmosfer, decorrelation) bastırır ve **yıllık milimetre** ölçeğinde "
+            "**yavaş (interseismic) deformasyon hızını** çıkarır. İki ana yöntem: **PS-InSAR** (Persistent "
+            "Scatterers, Ferretti et al. 2001) — bina/kaya gibi kararlı yansıtıcılar üzerinde; **SBAS** (Small "
+            "Baseline Subset, Berardino et al. 2002) — geniş alan/vejetatif zeminde. Bu panel KAF/DAF boyunca "
+            "interseismic deformasyon hızını ve **fay sürünme (creep) oranlarını** kavramsal olarak gösterir. "
+            "Co-seismic (anlık) InSAR'dan farkı: bu yöntem **uzun-vadeli yavaş birikim** ölçer."
+        ),
+        how=(
+            "**Zaman serisi grafiği okuma:**\n\n"
+            "- **X ekseni:** Zaman (uydu geçiş tarihleri, tipik 6–24 gün aralık, Sentinel-1).\n"
+            "- **Y ekseni:** Kümülatif LOS yer değiştirme (**mm**); negatif = uyduya yaklaşma, pozitif = uzaklaşma.\n"
+            "- **Eğim (slope):** Yıllık deformasyon hızı (**mm/yr**). Lineer trend = sabit interseismic birikim.\n"
+            "- **Kırılmalar (jump):** Co-seismic atlamalar (deprem anı) veya yavaş kayma olayları (SSE).\n\n"
+            "**Yöntem tablosu** (yukarıda):\n"
+            "- **PS-InSAR:** tek piksel hassasiyeti ~1 mm/yr, kararlı yansıtıcı gerekir (kentsel).\n"
+            "- **SBAS:** geniş alan, ~3-5 mm/yr, vejetatif zeminde çalışır.\n"
+            "- **Stacking:** basit ortalama, ~5-10 mm hassasiyet.\n\n"
+            "**Yorum:** Fay üzerinde **sıfır hız** (kilitli) = stres birikiyor; **yüksek sürünme** (creep) = "
+            "enerji yavaşça boşalıyor (büyük deprem riski daha düşük)."
+        ),
+        science=(
+            "**PS-InSAR kararlı yansıtıcı seçimi (Ferretti et al. 2001):**\n\n"
+            r"$$D_A = \frac{\sigma_A}{\bar{A}} < 0.25$$"
+            "\n\nburada $D_A$ = genlik dağılım indeksi (amplitude dispersion, boyutsuz), $\\sigma_A$ genlik "
+            "standart sapması, $\\bar{A}$ ortalama genlik. $D_A < 0.25$ → kararlı yansıtıcı (PS noktası).\n\n"
+            "**Zaman serisi faz modeli:**\n\n"
+            r"$$\phi_{i} = \frac{4\pi}{\lambda} v \cdot t_i + \frac{4\pi}{\lambda} \frac{B_{\perp,i}}{r \sin\theta} \Delta h + \phi_{atm,i} + \phi_{noise}$$"
+            "\n\nburada $v$ = deformasyon hızı (**mm/yr** — aranan), $t_i$ = $i$. geçiş zamanı (**yıl**), "
+            "$B_{\\perp,i}$ = dik baz çizgisi (perpendicular baseline, **m**), $\\Delta h$ = DEM hata düzeltmesi "
+            "(**m**), $r$ = uydu-yer mesafesi (**m**), $\\theta$ = bakış açısı. Çoklu geçiş üzerinde **en küçük "
+            "kareler** ile $v$ ve $\\Delta h$ ayrıştırılır; atmosfer zaman-uzay filtrelemesiyle bastırılır.\n\n"
+            "**SBAS (Berardino 2002):** Kısa baz çizgili interferogram alt kümeleri seçilir (decorrelation "
+            "minimum), SVD (tekil değer ayrışımı) ile bağlanır → geniş alan zaman serisi.\n\n"
+            "**Hassasiyet:** PS-InSAR ~1 mm/yr (uzun zaman serisinde), SBAS ~3-5 mm/yr."
+        ),
+        interpretation=(
+            "**Türkiye/KAF InSAR zaman serisi örnekleri:**\n\n"
+            "- **KAF interseismic (Cetin et al. 2014, Cavalié & Jónsson 2014):** KAF boyunca ~20-25 mm/yr "
+            "sağ-yanal göreli hareket; fayın **kilitli** kesimleri (Erzincan-Tercan) stres biriktirir.\n"
+            "- **KAF İsmetpaşa sürünme (creep) segmenti:** 1944 depreminden bu yana yüzeyde ~8-10 mm/yr "
+            "**asismik sürünme** ölçüldü (Cetin 2014) — bu segment enerjiyi yavaş boşaltıyor, büyük deprem "
+            "riski daha düşük.\n"
+            "- **DAFZ 2023 öncesi:** Interseismic InSAR sınırlı sürünme gösterdi; segment **kilitliydi** → "
+            "2023 Maraş katastrofik kırılması bu kilitlenmiş gerilmeyi boşalttı.\n\n"
+            "**Kilitlenme vs sürünme yorumu:**\n"
+            "- **Sıfır yüzey hızı (kilitli):** Tüm tektonik kayma derinde birikir → büyük deprem potansiyeli "
+            "(Erzincan tipik).\n"
+            "- **Yüksek yüzey sürünmesi (creep):** Enerji aseismik boşalır → daha küçük/seyrek deprem "
+            "(İsmetpaşa tipik).\n"
+            "- Bu ayrım **Fay Kilitlenme** paneliyle birlikte yorumlanmalıdır."
+        ),
+        limitations=(
+            "1. **Yavaş deformasyon ≠ deprem tahmini:** Interseismic hız fay kilitlenme/sürünme durumunu "
+            "gösterir; **kırılma zamanını vermez** (Geller 1997). Kilitli fay 10 yıl da 200 yıl da bekleyebilir.\n"
+            "2. **Sadece LOS bileşeni:** Co-seismic InSAR ile aynı sınır — 3B hız için ascending+descending "
+            "birleştirme gerekir.\n"
+            "3. **PS yoğunluğu kırsalda düşük:** Kararlı yansıtıcılar kentsel alanda bol, kırsal/dağlık "
+            "Erzincan'da seyrek → ölçüm boşlukları. SBAS bunu kısmen çözer.\n"
+            "4. **Uzun zaman serisi gerekir:** Güvenilir mm/yr hız için **en az 2-3 yıl** (tercihen 5+) "
+            "düzenli geçiş gerekir. Kısa seri atmosfer gürültüsüyle karışır.\n"
+            "5. **Atmosfer tam temizlenmez:** Zaman-uzay filtreleme troposfer gecikmesini azaltır ama mevsimsel "
+            "sinyal (yaz/kış su buharı) residual bırakabilir.\n"
+            "6. **Bu panel sentetik zaman serisidir:** Gerçek analiz için COMET LiCS, ESA G-POD veya "
+            "StaMPS/MintPy yazılımı + Sentinel-1 SLC yığını gerekir.\n"
+            "7. **Yaygın hata — 'Hız arttı, deprem yakın':** Interseismic hız genelde **sabittir**; geçici "
+            "hızlanma (slow-slip) ilginçtir ama büyük deprem öncüsü olduğu kanıtlanmamıştır (Geller 1997)."
+        ),
+        references=[
+            "**Ferretti, A., Prati, C., & Rocca, F. (2001).** Permanent scatterers in SAR interferometry. "
+            "*IEEE Transactions on Geoscience and Remote Sensing*, 39(1), 8–20. DOI: "
+            "[10.1109/36.898661](https://doi.org/10.1109/36.898661) "
+            "— *PS-InSAR yönteminin orijinal makalesi.*",
+            "**Berardino, P., Fornaro, G., Lanari, R., & Sansosti, E. (2002).** A new algorithm for surface "
+            "deformation monitoring based on small baseline differential SAR interferograms. *IEEE TGRS*, "
+            "40(11), 2375–2383. DOI: "
+            "[10.1109/TGRS.2002.803792](https://doi.org/10.1109/TGRS.2002.803792) "
+            "— *SBAS yönteminin orijinal makalesi.*",
+            "**Bürgmann, R., Hilley, G., Ferretti, A., & Novali, F. (2006).** Resolving vertical tectonics in "
+            "the San Francisco Bay Area from permanent scatterer InSAR and GPS analysis. *Geology*, 34(3), "
+            "221–224. DOI: [10.1130/G22064.1](https://doi.org/10.1130/G22064.1) "
+            "— *PS-InSAR + GPS birleştirme metodolojisi.*",
+            "**Cetin, E., Cakir, Z., Meghraoui, M., Ergintav, S., & Akoglu, A. M. (2014).** Extent and "
+            "distribution of aseismic slip on the İsmetpaşa segment of the North Anatolian Fault from "
+            "Persistent Scatterer InSAR. *Geochemistry, Geophysics, Geosystems* / *JGR*, 119. DOI: "
+            "[10.1002/2013JB010734](https://doi.org/10.1002/2013JB010734) "
+            "— *KAF İsmetpaşa sürünme (creep) InSAR ölçümü.*",
+            "**Cavalié, O., & Jónsson, S. (2014).** Block-like plate movements in eastern Anatolia observed by "
+            "InSAR. *GRL*, 41(1), 26–31. DOI: "
+            "[10.1002/2013GL058170](https://doi.org/10.1002/2013GL058170) "
+            "— *Doğu Anadolu blok hareketi InSAR.*",
+            "**Geller, R. J. (1997).** Earthquake prediction: a critical review. *GJI*, 131(3), 425–450. "
+            "DOI: [10.1111/j.1365-246X.1997.tb06588.x](https://doi.org/10.1111/j.1365-246X.1997.tb06588.x)",
+        ],
+        disclaimer=(
+            "⚠️ **InSAR zaman serisi bir deprem tahmin aracı DEĞİLDİR.** Yavaş (interseismic) deformasyon hızı "
+            "fayın kilitlenme/sürünme durumunu gösterir; **kırılma zamanını vermez** (Geller 1997). Kilitli "
+            "bir fay onlarca yıl da yüz yıl da bekleyebilir. Yalnızca **LOS bileşeni** ölçülür; 3B hız çoklu "
+            "geometri gerektirir. Bu panel **sentetik/kavramsal zaman serisidir**; gerçek analiz için COMET "
+            "LiCS, MintPy/StaMPS + Sentinel-1 verisi kullanılmalıdır. Interseismic hız PSHA girdisidir, "
+            "deterministik tahmin değil."
+        ),
+        expanded=False,
+    )
+
 
 if active_menu == "📡 InSAR Zaman Serisi":
     _render_insar_zaman_serisi()
@@ -11020,6 +11409,138 @@ def _render_fay_kilitlenme():
         "tam 3D inversiyon için Okada 1992 + sismik fizik gerekir."
     )
 
+    # v1.67 — Sprint 5: Fay Kilitlenme akademik standart
+    st.markdown(
+        f"""<div style="
+            background:linear-gradient(90deg,{BG2} 0%,rgba(156,39,176,0.10) 100%);
+            border-left:3px solid #9C27B0;
+            border-radius:6px;
+            padding:0.55rem 0.9rem;
+            margin:0.4rem 0 0.8rem 0;
+            font-size:0.88rem;
+            color:{TEXT};
+            line-height:1.45;">
+            📊 <b>Mini rehber:</b> Kilitlenme katsayısı φ (0–1), bir fay segmentinin ne kadar "kilitli" olduğunu
+            gösterir; φ=1 tam kilitli (tüm tektonik kayma derinde stres olarak birikir), φ=0 tam sürünen (enerji
+            aseismik boşalır).
+            <b>Yüksek φ deprem tahmini DEĞİLDİR</b> — yalnızca stres birikim oranını gösterir; kırılma zamanı için
+            slip-deficit + tarihsel tekrar birlikte yorumlanmalıdır.
+            <i>Backslip modeli (Savage-Burford 1973), GPS inversiyonu, KAF Erzincan/Marmara φ değerleri için
+            aşağıdaki 📖 Akademik Açıklama panelini açın.</i>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+    render_academic_explanation(
+        title="📖 Akademik Açıklama — Fay Kilitlenme Katsayısı (φ / Coupling)",
+        what=(
+            "**Fay kilitlenme katsayısı** (coupling coefficient, φ), bir fay segmentinin yüzeyinin ne kadarının "
+            "**kilitli** (stres biriktiren) ve ne kadarının **sürünen** (creep, aseismic kayma) olduğunu ölçer. "
+            "Savage & Burford'un 1973 'backslip' modeli temeldir: φ = 1 (tam kilitli) → tüm tektonik kayma "
+            "derinlikte stres olarak birikir, büyük deprem potansiyeli; φ = 0 (tam sürünen) → enerji yavaş "
+            "kayma ile boşalır, büyük deprem riski düşük. φ, **GPS hız alanı inversiyonu** (Reilinger 2006) veya "
+            "InSAR ile çıkarılır. Bu panel KAF/DAF segmentlerinin φ değerlerini ve birikmiş kayma açığını "
+            "gösterir; Erzincan, Marmara gibi kilitli segmentleri öne çıkarır."
+        ),
+        how=(
+            "**Harita + tablo okuma:**\n\n"
+            "- **φ renk skalası:** Kırmızı (φ→1, tam kilitli, yüksek birikim), sarı (φ orta), mavi (φ→0, sürünen).\n"
+            "- **Birikmiş açık (m):** φ × kayma hızı × geçen süre = stres olarak biriken kayma.\n"
+            "- **Tablo sütunları:** segment, φ, kayma hızı (mm/yr), son deprem yılı, geçen süre, birikmiş açık.\n\n"
+            "**φ yorumu:**\n"
+            "- **φ > 0.8 (kilitli):** Segment stres biriktiriyor; tüm tektonik yük derine aktarılıyor. "
+            "Erzincan, Marmara-Adalar tipik.\n"
+            "- **0.3 < φ < 0.8 (kısmi):** Hem kilitlenme hem sürünme; karmaşık davranış.\n"
+            "- **φ < 0.3 (sürünen):** Yüzeyde aseismic kayma; enerji yavaş boşalıyor. KAF İsmetpaşa tipik.\n\n"
+            "**Kombine yorum:** φ tek başına yeterli değil — **birikmiş açık** (slip-deficit, Erzincan Arşivi "
+            "paneli) ve **tarihsel tekrar** (Erzincan Paleo) ile birlikte değerlendirilmelidir."
+        ),
+        science=(
+            "**Backslip modeli (Savage & Burford 1973):** İnterseismic deformasyon, derin sabit kayma ile "
+            "yüzeysel 'backslip' (ters kayma) süperpozisyonu olarak modellenir. Kilitlenme katsayısı:\n\n"
+            r"$$\phi = 1 - \frac{v_{creep}}{v_{plate}}$$"
+            "\n\nburada $v_{creep}$ = yüzeyde gözlenen sürünme hızı (**mm/yr**), $v_{plate}$ = uzun-vadeli "
+            "tektonik plaka hızı (**mm/yr**, KAF için ≈ 20-24). φ=1 → sürünme yok (tam kilitli), φ=0 → "
+            "yüzey hızı = plaka hızı (tam sürünen).\n\n"
+            "**İnterseismic yüzey hızı (yarı-sonsuz fay, Savage-Burford 1973):**\n\n"
+            r"$$v(x) = \frac{v_{plate}}{\pi} \arctan\!\left(\frac{x}{D}\right)$$"
+            "\n\nburada $x$ = faya dik mesafe (**km**), $D$ = kilitlenme derinliği (**km**, KAF için ≈ 15-20 km), "
+            "$v(x)$ = faya paralel yüzey hızı (**mm/yr**). Bu profil GPS ölçümlerine fit edilerek $D$ ve φ "
+            "çıkarılır.\n\n"
+            "**Birikmiş kayma açığı:**\n\n"
+            r"$$\Delta D_{deficit} = \phi \cdot v_{plate} \cdot (t - t_{son})$$"
+            "\n\nburada $t - t_{son}$ son büyük depremden bu yana geçen süre (**yıl**). KAF Erzincan: "
+            "φ≈0.9, v≈22 mm/yr, 87 yıl → ~1.7 m birikmiş açık.\n\n"
+            "**GPS inversiyonu:** φ(x,y) dağılımı, GPS hız alanından Okada 1992 dislokasyon Green fonksiyonları "
+            "ile ters çözülür (Reilinger 2006 metodolojisi)."
+        ),
+        interpretation=(
+            "**Türkiye/KAF kilitlenme örnekleri:**\n\n"
+            "- **Erzincan-Tercan (Aktuğ 2013):** φ ≈ 0.85-0.95 (yüksek kilitli); 1939'dan bu yana stres "
+            "biriktiriyor. GPS yüzey hızı düşük → derin kilitlenme.\n"
+            "- **Marmara-Adalar segmenti (Ergintav 2014):** φ ≈ 0.5-1.0 (kilitli, tartışmalı); İstanbul için "
+            "kritik. Bazı çalışmalar tam kilitli (yüksek risk), bazıları kısmi sürünme önerir.\n"
+            "- **İsmetpaşa (Cetin 2014, Hussain 2018):** φ ≈ 0.2-0.5 (sürünen); 1944 depreminden bu yana "
+            "yüzeyde 8-10 mm/yr aseismic creep — bu segment enerjiyi yavaş boşaltıyor.\n"
+            "- **DAFZ (2023 öncesi):** Kilitli segmentler 2023 Maraş'ta katastrofik kırıldı.\n\n"
+            "**Pratik yorum:**\n"
+            "- Yüksek φ + uzun süre geçmiş + büyük slip-deficit = **artırılmış izleme** (ama tahmin değil).\n"
+            "- Düşük φ (sürünen) = büyük deprem riski **görece** daha düşük (ama yine de mümkün).\n"
+            "- φ belirsizliği yüksek — GPS ağ yoğunluğuna çok duyarlı."
+        ),
+        limitations=(
+            "1. **Yüksek φ deprem tahmini DEĞİLDİR:** Kilitlenme stres birikim *oranını* gösterir; kırılma "
+            "*zamanını* vermez (Geller 1997). Kilitli fay onlarca-yüzlerce yıl bekleyebilir.\n"
+            "2. **φ GPS ağ yoğunluğuna çok duyarlı:** Seyrek GPS = belirsiz φ. Erzincan kırsalında GPS "
+            "istasyonu az → φ belirsizliği ±0.2-0.3.\n"
+            "3. **Backslip modeli basitleştirme:** Gerçek fay 3B, heterojen, segment süreksizlikli. 'Yarı-sonsuz "
+            "düz fay' varsayımı yaklaşıktır.\n"
+            "4. **Kilitlenme derinliği D belirsiz:** GPS yüzey verisi derin yapıyı tam çözemez; D ≈ 15-20 km "
+            "varsayımı ±5 km belirsiz.\n"
+            "5. **φ zaman bağımlı olabilir:** Postseismik dönemde (büyük deprem sonrası) sürünme geçici artar "
+            "(afterslip); φ sabit değildir.\n"
+            "6. **Bu panel basitleştirilmiş φ:** Tam 3B kilitlenme inversiyonu için Okada 1992 Green "
+            "fonksiyonları + yoğun GPS/InSAR + sismik fizik gerekir.\n"
+            "7. **Yaygın hata — 'φ=0.9, deprem kesin':** φ yüksek = stres birikiyor demektir, **olay garantisi "
+            "değil**. Resmi tehlike için AFAD/TBDY-2018 olasılıksal harita geçerlidir."
+        ),
+        references=[
+            "**Savage, J. C., & Burford, R. O. (1973).** Geodetic determination of relative plate motion in "
+            "central California. *JGR*, 78(5), 832–845. DOI: "
+            "[10.1029/JB078i005p00832](https://doi.org/10.1029/JB078i005p00832) "
+            "— *Backslip / kilitlenme modelinin orijinal makalesi.*",
+            "**Reilinger, R., et al. (2006).** GPS constraints on continental deformation in the Africa-Arabia-"
+            "Eurasia continental collision zone. *JGR*, 111, B05411. DOI: "
+            "[10.1029/2005JB004051](https://doi.org/10.1029/2005JB004051) "
+            "— *Türkiye GPS hız alanı + kilitlenme inversiyonu temeli.*",
+            "**Ergintav, S., Reilinger, R. E., Çakmak, R., et al. (2014).** Istanbul's earthquake hot spots: "
+            "Geodetic constraints on strain accumulation along faults in the Marmara seismic gap. *GRL*, 41(16), "
+            "5783–5788. DOI: [10.1002/2014GL060985](https://doi.org/10.1002/2014GL060985) "
+            "— *Marmara sismik boşluğu kilitlenme analizi.*",
+            "**Cetin, E., Cakir, Z., Meghraoui, M., Ergintav, S., & Akoglu, A. M. (2014).** Extent and "
+            "distribution of aseismic slip on the İsmetpaşa segment of the North Anatolian Fault. *JGR*, 119. "
+            "DOI: [10.1002/2013JB010734](https://doi.org/10.1002/2013JB010734) "
+            "— *KAF İsmetpaşa sürünme (düşük φ) örneği.*",
+            "**Hussain, E., Wright, T. J., Walters, R. J., Bekaert, D. P. S., et al. (2018).** Constant strain "
+            "accumulation rate between major earthquakes on the North Anatolian Fault. *Nature Communications*, "
+            "9, 1392. DOI: [10.1038/s41467-018-03739-2](https://doi.org/10.1038/s41467-018-03739-2) "
+            "— *KAF sabit interseismic birikim (kilitlenme).*",
+            "**Aktuğ, B., et al. (2013).** Deformation of Central Anatolia: GPS implications. *JGR* / *J. "
+            "Geodyn.* DOI: [10.1016/j.jog.2013.07.001](https://doi.org/10.1016/j.jog.2013.07.001) "
+            "— *Erzincan/Orta Anadolu GPS kilitlenme.*",
+            "**Geller, R. J. (1997).** Earthquake prediction: a critical review. *GJI*, 131(3), 425–450. "
+            "DOI: [10.1111/j.1365-246X.1997.tb06588.x](https://doi.org/10.1111/j.1365-246X.1997.tb06588.x)",
+        ],
+        disclaimer=(
+            "⚠️ **Fay kilitlenme katsayısı φ bir deprem tahmin aracı DEĞİLDİR.** Yüksek φ stres birikim "
+            "*oranını* gösterir; kırılma *zamanını* vermez (Geller 1997). Kilitli bir fay onlarca-yüzlerce yıl "
+            "bekleyebilir. φ değerleri GPS ağ yoğunluğuna çok duyarlıdır (±0.2-0.3 belirsizlik tipik). Bu panel "
+            "basitleştirilmiş backslip modelidir; tam kilitlenme inversiyonu Okada 1992 + yoğun GPS/InSAR "
+            "gerektirir. φ olasılıksal tehlike değerlendirmesinin (PSHA) girdisidir; resmi tehlike için "
+            "AFAD/TBDY-2018 kullanılmalıdır."
+        ),
+        expanded=False,
+    )
+
 
 if active_menu == "🔒 Fay Kilitlenme":
     _render_fay_kilitlenme()
@@ -11246,6 +11767,130 @@ def _render_moho_derinligi():
         "⚠️ Moho derinlikleri RF + sismik tomografi sentezidir; ±2-3 km belirsizlik tipiktir."
     )
 
+    # v1.67 — Sprint 5: Moho Derinliği akademik standart
+    st.markdown(
+        f"""<div style="
+            background:linear-gradient(90deg,{BG2} 0%,rgba(76,175,80,0.10) 100%);
+            border-left:3px solid #4CAF50;
+            border-radius:6px;
+            padding:0.55rem 0.9rem;
+            margin:0.4rem 0 0.8rem 0;
+            font-size:0.88rem;
+            color:{TEXT};
+            line-height:1.45;">
+            📊 <b>Mini rehber:</b> Moho, kabuk ile manto arasındaki sismik hız süreksizliğidir; haritada Türkiye'nin
+            kabuk kalınlığını gösterir (Doğu Anadolu ~45 km kalın, Ege ~25 km ince).
+            <b>Moho derinliği deprem tahmini ile ilgili DEĞİLDİR</b> — yapısal/tektonik bağlam verir;
+            sismojenik zon (kırılma derinliği) genelde 0–20 km, Moho'nun çok üstündedir.
+            <i>Receiver function yöntemi, kabuk kalınlığı-tektonik ilişkisi ve Doğu Anadolu kalın kabuk için
+            aşağıdaki 📖 Akademik Açıklama panelini açın.</i>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+    render_academic_explanation(
+        title="📖 Akademik Açıklama — Moho Süreksizliği & Kabuk Kalınlığı",
+        what=(
+            "**Moho** (Mohorovičić süreksizliği), Andrija Mohorovičić'in 1910'da keşfettiği, **kabuk** (crust) "
+            "ile **manto** (mantle) arasındaki keskin sismik hız sınırıdır. Bu sınırda P-dalga hızı ani olarak "
+            "~6.8 km/s'den ~8.0 km/s'ye sıçrar (kompozisyon değişimi: granitik/bazaltik kabuk → peridotit "
+            "manto). Moho derinliği = **kabuk kalınlığı**. Bu panel Türkiye'nin Moho derinlik haritasını gösterir: "
+            "Doğu Anadolu yüksek platosu kalın kabuk (~45 km, kıtasal çarpışma), Ege açılma bölgesi ince kabuk "
+            "(~25 km, gerilme). Moho **receiver function** (alıcı fonksiyon) ve sismik tomografi ile haritalanır. "
+            "Bu, deprem tahminiyle değil **tektonik yapı** anlamayla ilgilidir."
+        ),
+        how=(
+            "**Harita okuma:**\n\n"
+            "- **Renk skalası:** Moho derinliği (km). Koyu/kırmızı = kalın kabuk (40-50 km, Doğu Anadolu), "
+            "açık/mavi = ince kabuk (25-30 km, Ege/kıyı).\n"
+            "- **Kontur çizgileri:** Eşit Moho derinliği hatları (izobat).\n\n"
+            "**Türkiye kabuk kalınlığı profili:**\n"
+            "- **Doğu Anadolu platosu:** ~42-50 km (Arabistan-Avrasya çarpışma kalınlaşması).\n"
+            "- **Orta Anadolu:** ~35-40 km (tipik kıtasal kabuk).\n"
+            "- **Ege/Batı Anadolu:** ~25-30 km (gerilme/açılma incelmesi).\n"
+            "- **Karadeniz/Akdeniz:** ~30-35 km (geçiş).\n\n"
+            "**Önemli ayrım:** Moho (35-45 km) ≠ sismojenik zon (0-20 km). Depremler kabuğun **üst yarısında** "
+            "olur; Moho derinliği fay kırılma derinliğini doğrudan belirlemez ama kabuk reolojisini etkiler."
+        ),
+        science=(
+            "**Receiver Function yöntemi (Zhu & Kanamori 2000):** Uzak deprem P-dalgası Moho'da kısmen "
+            "S-dalgasına dönüşür (Ps converted phase). Bu dönüşmüş fazın varış gecikmesi Moho derinliğini verir:\n\n"
+            r"$$t_{Ps} = H \left( \sqrt{\frac{1}{V_s^2} - p^2} - \sqrt{\frac{1}{V_p^2} - p^2} \right)$$"
+            "\n\nburada $t_{Ps}$ = Ps fazı P'ye göre gecikme (**s**), $H$ = Moho derinliği (**km** — aranan), "
+            "$V_p, V_s$ = kabuk P/S hızları (**km/s**, ≈ 6.3/3.6), $p$ = ışın parametresi (slowness, **s/km**). "
+            "Çoklu istasyon + olay ile $H$ ve $V_p/V_s$ ayrıştırılır (H-κ stacking).\n\n"
+            "**İzostatik denge (Airy modeli):** Kalın kabuk = yüksek topografi (dağ kökleri):\n\n"
+            r"$$h_{root} = \frac{\rho_{crust}}{\rho_{mantle} - \rho_{crust}} \cdot h_{topo}$$"
+            "\n\nburada $\\rho_{crust} \\approx$ 2.8 g/cm³, $\\rho_{mantle} \\approx$ 3.3 g/cm³, $h_{topo}$ = "
+            "topografik yükseklik (**km**). Doğu Anadolu ~2 km plato → ~11 km ekstra kök → ~45 km Moho.\n\n"
+            "**P-dalga hız sıçraması (Moho tanımı):**\n\n"
+            r"$$V_p: 6.7\text{–}7.0 \to 7.9\text{–}8.1 \text{ km/s (Moho geçişi)}$$"
+        ),
+        interpretation=(
+            "**Türkiye tektonik yorum (Moho ↔ tektonik):**\n\n"
+            "- **Doğu Anadolu (Erzincan-Erzurum-Van):** Moho ~42-48 km. Arabistan-Avrasya çarpışması kabuğu "
+            "kalınlaştırdı (Zor et al. 2003). Yüksek plato (~2 km) izostatik kök ile dengeli.\n"
+            "- **Erzincan özelinde:** Moho ~40-44 km; KAF bu kalın kabuğu keser. Sismojenik derinlik 5-20 km "
+            "(Moho'nun çok üstünde).\n"
+            "- **Ege:** Moho ~25 km. Hellenik slab rollback + gerilme kabuğu inceltti (Tezel 2010).\n"
+            "- **Orta Anadolu (Kapadokya):** Moho ~38 km + volkanizma.\n\n"
+            "**Deprem-Moho ilişkisi (yanlış anlaşılmayı önle):**\n"
+            "- Depremler **sismojenik zonda** (üst kabuk, 0-20 km) olur; Moho (35-45 km) çok daha derin.\n"
+            "- Moho derinliği **doğrudan deprem riski belirlemez** ama:\n"
+            "  * Kalın soğuk kabuk → daha derin sismojenik zon (daha büyük olası fay alanı)\n"
+            "  * Kabuk reolojisi (sıcaklık, kompozisyon) deprem mekaniğini dolaylı etkiler\n"
+            "- Moho yapısı **GMPE / dalga yayılımı** modellemesinde girdi olur (uzun mesafe sönümleme)."
+        ),
+        limitations=(
+            "1. **Moho ≠ deprem derinliği:** Yaygın yanlış. Depremler üst kabukta (0-20 km), Moho 35-45 km'de. "
+            "Moho derinliği deprem riski tahmini DEĞİLDİR.\n"
+            "2. **±2-3 km belirsizlik:** Receiver function + tomografi sentezi; istasyon yoğunluğuna bağlı. "
+            "Erzincan kırsalında sismik istasyon az → belirsizlik artar.\n"
+            "3. **Vp/Vs eşleşme belirsizliği:** H-κ stacking'de Moho derinliği ($H$) ve hız oranı ($\\kappa$) "
+            "trade-off yapar; biri yanlışsa diğeri kayar.\n"
+            "4. **Lateral değişim yumuşatılır:** Harita interpolasyonu keskin Moho basamaklarını (fay zonu, "
+            "süture) yumuşatır; gerçek Moho lokal olarak daha karmaşık.\n"
+            "5. **CRUST1.0 global model çözünürlüğü kaba:** 1°×1° (~100 km) çözünürlük; Erzincan ölçeğinde "
+            "lokal varyasyonu yakalamaz. Bölgesel çalışmalar (Vanacore 2013) daha detaylı.\n"
+            "6. **Bu panel sentez haritasıdır:** Gerçek Moho araştırması için sismik istasyon ağı + receiver "
+            "function işleme (ObsPy/rf paketi) gerekir.\n"
+            "7. **Moho statik kabul edilir:** Jeolojik zaman ölçeğinde Moho değişir (kabuk kalınlaşma/incelme), "
+            "ama insan ölçeğinde sabittir — deprem döngüsüyle ilgisi yok."
+        ),
+        references=[
+            "**Mohorovičić, A. (1910).** Das Beben vom 8. X. 1909. *Godišnje izvješće Zagrebačkog "
+            "meteorološkog opservatorija za godinu 1909*, 9(4), 1–63. "
+            "— *Moho süreksizliğinin keşfi (orijinal makale).*",
+            "**Zhu, L., & Kanamori, H. (2000).** Moho depth variation in southern California from teleseismic "
+            "receiver functions. *JGR*, 105(B2), 2969–2980. DOI: "
+            "[10.1029/1999JB900322](https://doi.org/10.1029/1999JB900322) "
+            "— *Receiver function H-κ stacking yöntemi.*",
+            "**Zor, E., Sandvol, E., Gürbüz, C., Türkelli, N., Seber, D., & Barazangi, M. (2003).** The crustal "
+            "structure of the East Anatolian plateau from receiver functions. *GRL*, 30(24), 8044. DOI: "
+            "[10.1029/2003GL018192](https://doi.org/10.1029/2003GL018192) "
+            "— *Doğu Anadolu (Erzincan dahil) kabuk kalınlığı.*",
+            "**Vanacore, E. A., Taymaz, T., & Saygin, E. (2013).** Moho structure of the Anatolian Plate from "
+            "receiver function analysis. *GJI*, 193(1), 329–337. DOI: "
+            "[10.1093/gji/ggs107](https://doi.org/10.1093/gji/ggs107) "
+            "— *Anadolu geneli Moho haritası.*",
+            "**Tezel, T., Shibutani, T., & Kaypak, B. (2010).** Crustal structure variations in western Anatolia "
+            "revealed by receiver functions. *GJI* / *Tectonophysics*. DOI: "
+            "[10.1016/j.tecto.2012.07.022](https://doi.org/10.1016/j.tecto.2012.07.022) "
+            "— *Batı Anadolu/Ege ince kabuk.*",
+            "**Laske, G., Masters, G., Ma, Z., & Pasyanos, M. (2013).** Update on CRUST1.0 — A 1-degree global "
+            "model of Earth's crust. *EGU General Assembly*, Geophysical Research Abstracts 15, EGU2013-2658. "
+            "[igppweb.ucsd.edu/~gabi/crust1.html](https://igppweb.ucsd.edu/~gabi/crust1.html) "
+            "— *Global kabuk modeli (CRUST1.0).*",
+        ],
+        disclaimer=(
+            "⚠️ **Moho derinliği bir deprem tahmin/risk aracı DEĞİLDİR.** Moho kabuk-manto sınırıdır (35-45 km); "
+            "depremler ise sismojenik üst kabukta (0-20 km) olur — ikisi farklı derinliklerdir. Moho yapısı "
+            "**tektonik bağlam ve dalga yayılımı modellemesi** için önemlidir, deprem zamanı/yeri ile ilgisi "
+            "yoktur. Moho derinlikleri receiver function + tomografi sentezidir; ±2-3 km belirsizlik tipiktir. "
+            "Bu panel kavramsal sentez haritasıdır; araştırma için sismik istasyon ağı + RF işleme gerekir."
+        ),
+        expanded=False,
+    )
+
 
 if active_menu == "🌋 Moho Derinliği":
     _render_moho_derinligi()
@@ -11465,6 +12110,138 @@ def _render_sks_splitting():
         "**Endrun et al. (2011)** *GJI* (Hellenic) | "
         "**IRIS SplittingDB:** ds.iris.edu/ds/products/sksobs/. "
         "⚠️ Fast axis çift yönlü vektör (180° belirsizliği); ok her iki yönde çizilir."
+    )
+
+    # v1.67 — Sprint 5: SKS Splitting akademik standart
+    st.markdown(
+        f"""<div style="
+            background:linear-gradient(90deg,{BG2} 0%,rgba(76,175,80,0.10) 100%);
+            border-left:3px solid #4CAF50;
+            border-radius:6px;
+            padding:0.55rem 0.9rem;
+            margin:0.4rem 0 0.8rem 0;
+            font-size:0.88rem;
+            color:{TEXT};
+            line-height:1.45;">
+            📊 <b>Mini rehber:</b> SKS shear-wave splitting, mantonun <b>sismik anizotropisini</b> (yön bağımlı hız)
+            ölçer; "hızlı eksen" (fast axis) oku manto akış yönünü, gecikme süresi (δt) anizotropi şiddetini
+            gösterir.
+            <b>SKS manto dinamiğini ölçer — deprem tahmini ile ilgisi YOKTUR</b>; uzun-vadeli tektonik akış
+            bağlamı verir, fay kırılmasını öngörmez.
+            <i>Olivin kristal hizalanması, fast axis-GPS ilişkisi, Anadolu manto akışı için aşağıdaki 📖 Akademik
+            Açıklama panelini açın.</i>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+    render_academic_explanation(
+        title="📖 Akademik Açıklama — SKS Shear-Wave Splitting (Manto Anizotropisi)",
+        what=(
+            "**SKS splitting** (shear-wave splitting), Dünya'nın **üst manto anizotropisini** (yön-bağımlı sismik "
+            "hız) ölçen yöntemdir. **SKS** = çekirdek-manto sınırında P'den S'ye dönüşen ve manto boyunca yukarı "
+            "gelen bir sismik fazdır. Anizotropik mantoda S-dalgası **iki dik bileşene ayrılır** (splitting): "
+            "biri hızlı (fast), biri yavaş (slow). Silver & Chan 1991 yöntemiyle **fast axis yönü** (φ) ve "
+            "**gecikme süresi** (δt) ölçülür. Bu, üst mantodaki **olivin kristallerinin** akışla hizalanmasını "
+            "(Lattice Preferred Orientation, LPO) yansıtır → **manto akış yönü**. Türkiye için Anadolu'nun "
+            "batıya kaçışıyla ilişkili manto akışı haritalanır. Bu **deprem tahminiyle değil**, derin tektonik "
+            "dinamikle ilgilidir."
+        ),
+        how=(
+            "**Harita okuma:**\n\n"
+            "- **Ok (fast axis):** Her sismik istasyonda ölçülen hızlı eksen yönü. Ok **çift yönlü** "
+            "(180° belirsizlik) — her iki yönde çizilir.\n"
+            "- **Ok uzunluğu:** Gecikme süresi δt (s) ile orantılı; uzun ok = güçlü anizotropi (kalın "
+            "anizotropik katman veya güçlü hizalanma).\n"
+            "- **Tipik δt:** 0.5-1.5 s (kıtasal manto); Anadolu ~1.0-1.5 s (güçlü).\n\n"
+            "**Yorum:**\n"
+            "- Fast axis **GPS hareket yönüne paralel** → manto ile kabuk birlikte hareket ediyor (vertically "
+            "coherent deformation).\n"
+            "- Fast axis **fay/orojen'e paralel** → litosferik deformasyon hakim.\n"
+            "- Anadolu'da fast axis genelde **KD-GB / D-B** → batıya manto akışı + Hellenic slab etkisi."
+        ),
+        science=(
+            "**Shear-wave splitting parametreleri (Silver & Chan 1991):** Anizotropik ortamda S-dalgası iki "
+            "ortogonal bileşene ayrılır:\n\n"
+            r"$$\delta t = \frac{L \cdot \delta V_s}{\bar{V_s}} = L \cdot \frac{(V_{fast} - V_{slow})}{\bar{V_s}}$$"
+            "\n\nburada $\\delta t$ = gecikme süresi (**s**), $L$ = anizotropik katman kalınlığı (**km**), "
+            "$\\delta V_s$ = hızlı-yavaş S-dalga hız farkı (**km/s**), $\\bar{V_s}$ = ortalama S hızı "
+            "(**km/s**, ≈ 4.5). İki ölçülen parametre: **φ** (fast axis azimutu, **derece**) ve **δt** "
+            "(**s**).\n\n"
+            "**Anizotropi yüzdesi:**\n\n"
+            r"$$A(\%) = \frac{V_{fast} - V_{slow}}{\bar{V_s}} \times 100 \approx 4\text{–}5\% \text{ (üst manto olivin)}$$"
+            "\n\n**Katman kalınlığı tahmini:** Tipik δt = 1 s, A = 4% →\n\n"
+            r"$$L = \frac{\delta t \cdot \bar{V_s}}{\delta V_s} \approx \frac{1 \times 4.5}{0.18} \approx 115 \text{ km}$$"
+            "\n\nyani anizotropik manto katmanı ~100-150 km kalın (litosfer + astenosfer üstü).\n\n"
+            "**Olivin LPO (Lattice Preferred Orientation):** Manto akışında olivin kristallerinin a-ekseni "
+            "(en hızlı, [100]) akış yönüne hizalanır → makroskopik anizotropi. Fast axis ≈ akış yönü "
+            "(basit kesme rejimi için)."
+        ),
+        interpretation=(
+            "**Türkiye/Anadolu SKS örnekleri:**\n\n"
+            "- **Anadolu geneli (Sandvol et al. 2003):** Fast axis büyük ölçüde **D-B / KD-GB** yönlü, δt ≈ "
+            "1.0-1.5 s. Anadolu'nun batıya kaçışı + altta manto akışı tutarlı (vertically coherent).\n"
+            "- **Doğu Anadolu (Biryol et al. 2010):** Daha karmaşık; slab parçalanması (slab tear) altında "
+            "manto akışı yön değiştirir.\n"
+            "- **Ege/Hellenic (Endrun et al. 2011):** Hellenic subduction slab rollback ile ilişkili "
+            "yay-paralel ve yay-dik fast axis paternleri.\n"
+            "- **Erzincan civarı:** Fast axis KAF'a yaklaşık paralel; kabuk-manto birlikte deformasyon işareti.\n\n"
+            "**Tektonik yorum:**\n"
+            "- SKS, **uzun-vadeli (milyon yıl) manto akışını** gösterir; GPS (yıllık) ile uyumu kabuk-manto "
+            "bağlantısını ele verir.\n"
+            "- Anadolu'da SKS fast axis ≈ GPS hareket yönü → 'mantle drag' veya birlikte akış hipotezi.\n"
+            "- Bu derin dinamik, Anadolu'nun **neden batıya kaçtığını** (manto itişi mi, slab çekişi mi) "
+            "anlamaya katkı sağlar."
+        ),
+        limitations=(
+            "1. **SKS deprem tahminiyle İLGİSİ YOKTUR:** Manto anizotropisi milyon-yıl ölçekli akışı gösterir; "
+            "fay kırılması (yıl ölçekli) ile doğrudan bağlantısı yoktur. Tahmin aracı değildir.\n"
+            "2. **Derinlik çözünürlüğü zayıf:** SKS dikey gelir; anizotropinin **hangi derinlikte** olduğunu "
+            "(litosfer mi astenosfer mi) tek başına ayırt edemez. Katman kalınlığı tahmini kaba.\n"
+            "3. **180° fast axis belirsizliği:** Fast axis çift yönlü vektördür; akış yönünün 'hangi taraf' "
+            "olduğu SKS'ten tek başına bilinmez.\n"
+            "4. **Tek katman varsayımı:** Birden fazla anizotropik katman (farklı yönlerde) varsa basit φ/δt "
+            "yorumu yanıltıcı; frekans-bağımlı analiz gerekir.\n"
+            "5. **İstasyon yoğunluğu sınırlı:** Türkiye'de SKS istasyonları seyrek; harita interpolasyonu "
+            "lokal varyasyonu kaçırır.\n"
+            "6. **Bu panel sentez/kavramsal:** Gerçek SKS analizi için sismik istasyon + SplitLab/MFAST "
+            "yazılımı + teleseismic olay seçimi gerekir. IRIS SplittingDB referans veri kaynağıdır.\n"
+            "7. **Yaygın hata — 'Anizotropi yönü deprem yönü':** SKS fast axis manto akış yönüdür; fay "
+            "doğrultusu (strike) ile karıştırılmamalıdır — bazen paralel, bazen değil."
+        ),
+        references=[
+            "**Silver, P. G., & Chan, W. W. (1991).** Shear wave splitting and subcontinental mantle "
+            "deformation. *JGR*, 96(B10), 16429–16454. DOI: "
+            "[10.1029/91JB00899](https://doi.org/10.1029/91JB00899) "
+            "— *SKS splitting yönteminin orijinal makalesi.*",
+            "**Savage, M. K. (1999).** Seismic anisotropy and mantle deformation: what have we learned from "
+            "shear wave splitting? *Reviews of Geophysics*, 37(1), 65–106. DOI: "
+            "[10.1029/98RG02075](https://doi.org/10.1029/98RG02075) "
+            "— *Sismik anizotropi ve manto deformasyonu derlemesi.*",
+            "**Sandvol, E., Türkelli, N., Zor, E., Gök, R., et al. (2003).** Shear wave splitting in a young "
+            "continent-continent collision: An example from Eastern Turkey. *GRL* / *JGR*, 108(B5). DOI: "
+            "[10.1029/2002JB002023](https://doi.org/10.1029/2002JB002023) "
+            "— *Doğu Türkiye (Erzincan dahil) SKS anizotropisi.*",
+            "**Biryol, C. B., Beck, S. L., Zandt, G., & Özacar, A. A. (2010).** Segmented African lithosphere "
+            "beneath the Anatolian region inferred from teleseismic P-wave tomography. *JGR*, 115, B07316. DOI: "
+            "[10.1029/2009JB006923](https://doi.org/10.1029/2009JB006923) "
+            "— *Anadolu altı manto yapısı + slab parçalanması.*",
+            "**Endrun, B., Lebedev, S., Meier, T., Tirel, C., & Friederich, W. (2011).** Complex layered "
+            "deformation within the Aegean crust and mantle revealed by seismic anisotropy. *Nature Geoscience*, "
+            "4, 203–207. DOI: [10.1038/ngeo1065](https://doi.org/10.1038/ngeo1065) "
+            "— *Ege kabuk+manto anizotropisi (Hellenic).*",
+            "**Long, M. D., & Silver, P. G. (2009).** Shear wave splitting and mantle anisotropy: measurements, "
+            "interpretations, and new directions. *Surveys in Geophysics*, 30(4), 407–461. DOI: "
+            "[10.1007/s10712-009-9075-1](https://doi.org/10.1007/s10712-009-9075-1) "
+            "— *SKS ölçüm/yorum metodolojisi güncel derleme.*",
+        ],
+        disclaimer=(
+            "⚠️ **SKS shear-wave splitting bir deprem tahmin aracı DEĞİLDİR.** SKS, üst mantonun milyon-yıl "
+            "ölçekli akış yönünü (anizotropi) ölçer; fay kırılması (yıl ölçekli) ile doğrudan ilgisi yoktur. "
+            "Manto dinamiği ve uzun-vadeli tektonik bağlam sağlar, deprem zamanı/yeri/büyüklüğü vermez. Fast "
+            "axis 180° belirsiz çift-yönlü vektördür; derinlik çözünürlüğü zayıftır. Bu panel kavramsal "
+            "sentezdir; gerçek analiz için sismik istasyon + SplitLab + teleseismic veri gerekir (IRIS "
+            "SplittingDB referans)."
+        ),
+        expanded=False,
     )
 
 
