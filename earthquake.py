@@ -78,7 +78,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.71"
+APP_VERSION = "1.72"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -2822,7 +2822,7 @@ if active_menu == "📝 Raporlar":
             "**Rapor kullanımı:**\n\n"
             "- **TXT indir:** Seçili dönem özetini metin dosyası olarak kaydet.\n"
             "- **İçerik:** Tarih aralığı, toplam olay, magnitüd/derinlik istatistikleri, en büyük olaylar.\n\n"
-            "**Atıf önerisi:** Akademik/resmi kullanımda 'Erzincan Deprem Radarı v{sürüm}, [tarih] — birincil "
+            "**Atıf önerisi:** Akademik/resmi kullanımda 'Erzincan Deprem Radarı [sürüm], [tarih] — birincil "
             "kaynak: AFAD/KOERI' biçiminde atıf yapın; ham veriyi AFAD/KOERI'den doğrulayın."
         ),
         science=(
@@ -6432,7 +6432,7 @@ def _render_plaka_simulasyon():
             "pininin görseli ötelenmiş hali. Yıldız = bugünkü konum; arkadaş izi (trail) = geçmiş.\n"
             "- **Metrik kartları:**\n"
             "  * **Yıl:** stops zaman damgası (1 yıldan 100 milyon yıla)\n"
-            "  * **{city} kayması:** Seçili şehrin **NNR mutlak** çerçevedeki konum değişimi (km)\n"
+            "  * **Şehir kayması:** Seçili şehrin **NNR mutlak** çerçevedeki konum değişimi (km)\n"
             "  * **Plaka kodu + hız:** Seçili plakanın referans çerçevedeki yıllık hızı (mm/yr)\n"
             "- **Görsel ölçek faktörü (mode'a göre):** Bilimsel mod (≤10K yıl) gerçek-ölçek; soyutlama "
             "(10K–1M yıl) 11×; spekülatif (>1M yıl) 222× büyütülmüş — fizik hesabı doğru, sadece görselleştirme "
