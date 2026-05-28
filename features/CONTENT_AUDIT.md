@@ -72,21 +72,21 @@ Her panelin mevcut `st.caption`, `st.markdown`, `st.info`, `st.warning`, `st.suc
 
 | Panel | Mevcut Seviye | Grafik Sayısı | Pilot? |
 |---|---|---:|---|
-| 📚 Akademik Kütüphane | 🟡 Orta (81 kaynak) | 0 (liste) | — |
+| 📚 Akademik Kütüphane | 🟢 Akademik ✅ (v1.71) | 0 (liste) | ✅ **Sprint 7 — kaynak disiplini meta** |
 | 🎓 Bilgi Havuzu — 3D Fay Mekaniği | 🟢 Akademik ✅ (v1.57) | 1 (animasyon) | ✅ **PİLOT C tamamlandı** — Reid 1910 + 12 referans |
-| 🎓 Bilgi Havuzu — P/S/Rayleigh Dalgalar | 🟡 Orta (v1.52 güncel) | 1 (animasyon) | — |
-| 🎓 Bilgi Havuzu — Erzincan Sahnesi | 🟠 Temel | 1 (3D) | — |
+| 🎓 Bilgi Havuzu — P/S/Rayleigh Dalgalar | 🟢 Akademik ✅ (v1.71) | 1 (animasyon) | ✅ **Sprint 7 — Rayleigh 1885 + Aki-Richards** |
+| 🎓 Bilgi Havuzu — Erzincan Sahnesi | 🟢 Akademik ✅ (v1.71) | 1 (3D) | ✅ **Sprint 7 — senaryo + Hubert-Ferrari** |
 | 📜 Tarihsel Sismisite | 🟢 Akademik ✅ (v1.66) | 2 | ✅ **Sprint 6 — Ambraseys 2009 + Ambraseys-Jackson 2000** |
 | 🏛️ Erzincan Arşivi | 🟢 Akademik ✅ (v1.66) | 3 | ✅ **Sprint 6 — Barka 1996 + Grosser 1998** |
-| 🎬 Ambraseys Animasyon | 🟠 Temel | 1 | — |
+| 🎬 Ambraseys Animasyon | 🟢 Akademik ✅ (v1.71) | 1 | ✅ **Sprint 7 — Stein-Barka-Dieterich 1997 göç** |
 | 🔭 Astronomik Analiz | 🟢 Akademik ✅ (v1.70) | 5 (5 bileşen) | ✅ **Sprint 7 — Cochran 2004 + Hough 2018 (gelgit eleştiri)** |
-| 📝 Raporlar | 🔴 Eksik | 0 (TXT indir) | — |
+| 📝 Raporlar | 🟢 Akademik ✅ (v1.71) | 0 (TXT indir) | ✅ **Sprint 7 — rapor/atıf disiplini meta** |
 
 ### ⚙️ Sistem
 
 | Panel | Mevcut Seviye | Grafik Sayısı |
 |---|---|---:|
-| ⚙️ Sistem & Veri | 🟠 Temel | 2 |
+| ⚙️ Sistem & Veri | 🟢 Akademik ✅ (v1.71) | 2 |
 
 ---
 
