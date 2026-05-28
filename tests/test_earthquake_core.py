@@ -1,21 +1,23 @@
-import sys, os
+import os
+import sys
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from datetime import datetime, timezone
 import unittest
+from datetime import datetime, timezone
 
 from earthquake_core import (
     activity_level,
     duration_from_quick_window,
     estimate_energy_joules,
     event_signature,
-    nearest_fault_vertex_distance,
+    filter_historical_events,
     has_active_sources,
+    nearest_fault_vertex_distance,
+    normalize_historical_event,
     parse_usgs_feed_features,
     safe_html,
     source_agreement_summary,
-    normalize_historical_event,
-    filter_historical_events,
     to_utc_naive,
     usgs_feed_url_for_window,
 )

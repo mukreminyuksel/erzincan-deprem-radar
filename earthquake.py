@@ -1,14 +1,13 @@
 from __future__ import annotations  # Python 3.9 uyumu — PEP 604 'X | None' syntax fix
 
 import concurrent.futures
-import importlib
 import json
 import math
 import os
 from datetime import datetime, timedelta
 
-import numpy as np
 import ephem
+import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -25,6 +24,7 @@ from earthquake_core import (
     duration_from_quick_window,
     estimate_energy_joules,
     event_signature,
+    filter_historical_events,
     has_active_sources,
     nearest_fault_vertex_distance,
     normalize_historical_event,
@@ -33,7 +33,6 @@ from earthquake_core import (
     reasenberg_jones_probability,
     safe_html,
     source_agreement_summary,
-    filter_historical_events,
     to_utc_naive,
     usgs_feed_url_for_window,
     utc_now_naive,
@@ -44,9 +43,13 @@ from earthquake_core import (
 # Eski sürümlerde bu modül olmayabilir → graceful degrade.
 try:
     from earthquake_core import (
-        fetch_gem_faults_turkey as _fetch_gem_faults_turkey,
-        gem_fault_traces_for_plotly as _gem_fault_traces_for_plotly,
         KAF_SEGMENTLER_AFAD as _KAF_SEGMENTLER_AFAD,
+    )
+    from earthquake_core import (
+        fetch_gem_faults_turkey as _fetch_gem_faults_turkey,
+    )
+    from earthquake_core import (
+        gem_fault_traces_for_plotly as _gem_fault_traces_for_plotly,
     )
 except ImportError:
     _fetch_gem_faults_turkey = None
@@ -64,9 +67,15 @@ except ImportError:
 # v1.44 — Akademik bilgi havuzu (Ajan 7+8+9 standardı)
 try:
     from knowledge_base import (
-        SCIENCE_NOTES as _SCIENCE_NOTES,
-        FUN_FACTS as _FUN_FACTS,
         ANIMATION_CONFIG as _ANIMATION_CONFIG,
+    )
+    from knowledge_base import (
+        FUN_FACTS as _FUN_FACTS,
+    )
+    from knowledge_base import (
+        SCIENCE_NOTES as _SCIENCE_NOTES,
+    )
+    from knowledge_base import (
         render_bilim_notu as _render_bilim_notu,
     )
 except ImportError:
@@ -78,7 +87,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.72"
+APP_VERSION = "1.73"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -1784,7 +1793,7 @@ def calc_b_grid_cache(df_mc_dict, bg_n, bg_sr, bg_min, radius_km, ERZ_LAT, ERZ_L
 
     b_grid  = np.full((bg_n, bg_n), np.nan)
     n_grid  = np.zeros((bg_n, bg_n), dtype=int)
-    
+
     lats = df_mc["lat"].values
     lons = df_mc["lon"].values
 
@@ -1797,7 +1806,7 @@ def calc_b_grid_cache(df_mc_dict, bg_n, bg_sr, bg_min, radius_km, ERZ_LAT, ERZ_L
             dlon = lon2_rad - lon1_rad
             a = np.sin(dlat/2)**2 + np.cos(lat1_rad) * np.cos(lat2_rad) * np.sin(dlon/2)**2
             dists = 6371 * 2 * np.arcsin(np.sqrt(a))
-            
+
             sub_g = df_mc[dists <= bg_sr]
             if len(sub_g) < bg_min:
                 continue
@@ -3862,7 +3871,7 @@ def _render_istatistik_bottom():
 
     if "run_analysis" not in st.session_state:
         st.session_state.run_analysis = False
-        
+
     col_btn1, col_btn2 = st.columns([3, 1])
     with col_btn1:
         if st.button("🚀 Bilimsel Analizleri Çalıştır (Korelasyon, b-Değeri vb.)", use_container_width=True, type="primary"):
@@ -3989,7 +3998,7 @@ def _render_istatistik_bottom():
                 precursors = time_filtered[time_filtered["uzaklik_ana"] <= korr_radius].copy()
             else:
                 precursors = pd.DataFrame()
-            
+
             # PERFORMANS OPTİMİZASYONU: Çok fazla öncü varsa sistemi kitlememek için rastgele 600 örneklem al
             if len(precursors) > 600:
                 precursors = precursors.sample(600, random_state=42)
@@ -4022,7 +4031,7 @@ def _render_istatistik_bottom():
             if len(precursors) >= 4:
                 # Özellik matrisi oluştur
                 precursors["gun_once"] = (main_eq["zaman"] - precursors["zaman"]).dt.total_seconds() / 86400
-            
+
                 # Yeni çevresel özellikleri hesapla ve ekle
                 env_features = precursors.apply(lambda r: compute_environmental_features(r, df), axis=1)
                 for col in env_features.columns:
@@ -4143,12 +4152,12 @@ def _render_istatistik_bottom():
                 with st.expander("🤔 Korelasyon (r) değerleri ne anlama geliyor?"):
                     st.markdown("""
                     **Korelasyon (r değeri)**, iki olayın birbiriyle ne kadar bağlantılı hareket ettiğini gösterir ve -1 ile +1 arasında bir puan alır.
-                
+
                     *   **Güçlü Pozitif (r > +0.65) ↑**: İki özellik *aynı anda* artar veya azalır. Birlikte hareket ederler.
                     *   **Orta Pozitif (r: +0.40 ile +0.65)**: Aynı yönde bir eğilim var ancak kusursuz bir kural değil.
                     *   **Güçlü Negatif (r < -0.65) ↓**: Biri artarken diğeri *kesinlikle* azalır. Ters orantı vardır.
                     *   **Orta Negatif (r: -0.40 ile -0.65)**: Ters yönde bir eğilim seziliyor.
-                
+
                     *(Sıfıra yakın puanlar ise o iki değişken arasında hiçbir mantıksal veya fiziksel bağ olmadığını kanıtlar.)*
                     """)
 
@@ -4160,13 +4169,13 @@ def _render_istatistik_bottom():
                     *   **İklim ve Hava Durumu:** API yoğunluğunu engellemek için, bulunduğunuz enlemin tarihsel sıcaklık modellerine dayalı olarak (Ocak'ta en düşük, Temmuz'da en yüksek olacak şekilde) matematiksel bir iklim simülasyonu uygulanır. Bu sayede hava sıcaklığı ile deprem sıklığı (sismik yoğunluk) arasındaki ilişki test edilebilir.
 
                     **Astronomik Verilerin Anlamı ve Değişim Döngüleri:**
-                
+
                     *   **Ay Çekim Gücü (Tidal Stres):** Ay'ın Dünya etrafındaki yörüngesi tam yuvarlak değil, eliptiktir. Bir ay (yaklaşık 29.5 gün) içerisinde Dünya'ya en yakın olduğu **Yerberi (Perigee)** konumunda kütleçekim kuvveti maksimuma ulaşır. Ay uzaklaştıkça (**Yeröte - Apogee**) bu güç azalır. Çekim gücündeki bu artış, yerkabuğunda okyanuslardaki gelgitlere benzer bir esneme yaratarak faylardaki sürtünmeyi (çok minimal seviyede) değiştirebilir.
-                
+
                     *   **Güneşe Uzaklık (AU):** Dünya'nın da Güneş etrafındaki yörüngesi eliptiktir. Sanılanın aksine Dünya, Güneş'e **Ocak ayının ilk haftasında** (Günberi - Perihelion) en yakın konumdadır. **Temmuz ayı başlarında** ise en uzak (Günöte - Aphelion) konumdadır. Dünya Güneş'e yaklaştığında yörüngedeki hızı artar. Bu hız değişimi, Dünya'nın sıvı çekirdeği ile sert yerkabuğu arasındaki açısal momentumu mikroskobik olarak etkileyebilir.
-                
+
                     *   **Gezegen Çekimi (Jüpiter ve Venüs):** Dünya'ya en çok kütleçekim etkisi uygulayan gezegenler Jüpiter (devasa kütlesinden dolayı) ve Venüs'tür (bize çok yakın olmasından dolayı). Bu gezegenlerin çekim kuvveti, Dünya ile Güneş etrafında aynı hizaya geldikleri (kavuşum) aylarda zirve yapar. Venüs etkisi birkaç ayda bir, Jüpiter etkisi ise Dünya'nın onu yakalayıp geçtiği her ~13 ayda bir tavan yapar.
-                
+
                     *   **Dünyanın Geoid Şekli:** Dünya kusursuz bir küre değildir; kutuplardan basık, ekvatordan şişkindir. Ay ve Güneş'in yörüngesel hizalanmaları ekvatoral şişkinliğe denk geldiğinde, gezegenimizin dönüş eksenine ekstra bir tork (burulma) kuvveti biner. Levha tektoniğinin (kıtaların kaymasının) altındaki devasa konveksiyon akımlarına minik ama sismolojide tartışılan bir "tetikleyici" faktör olarak dahil olabilir. Korelasyon matrisi tam olarak bu uçuk varsayımları kendi gözlerinizle test etmeniz için tasarlanmıştır!
                     """)
             else:
@@ -4526,7 +4535,7 @@ def _render_istatistik_bottom():
 
                     with col_es:
                         clustered = eta_arr < eta_thresh
-                        colors_eta = np.where(clustered,
+                        np.where(clustered,
                             "#E53935" if DARK else "#c62828",
                             "#64b5f6" if DARK else "#1565c0")
                         fig_eta_s = go.Figure()
@@ -7606,7 +7615,7 @@ def _render_erzincan_arsivi():
             lon=s01["lons"], lat=s01["lats"],
             mode="lines",
             line=dict(width=5, color="#ff3333"),
-            name=f"1939 kırığı (~360 km, MTA polyline)",
+            name="1939 kırığı (~360 km, MTA polyline)",
             hovertemplate=f"<b>1939 Mw 7.8</b><br>~360 km KAF segmenti<br>"
                           f"({s01['vertex_sayisi']} vertex MTA Diri Fay 2013 / AFAD)<extra></extra>",
         ))
@@ -9164,13 +9173,11 @@ def _render_sismik_tehlike():
     rp_label = rp_meta["label"]
 
     # API denemesi (opsiyonel) — Erzincan için test
-    api_pga = None
     if try_api:
         with st.spinner("EFEHR API sorgulanıyor..."):
             api_resp = _psha_try_efehr_api(ERZ_LAT, ERZ_LON)
         if api_resp:
             st.success("✅ EFEHR API yanıtladı (Erzincan ref)")
-            api_pga = api_resp
         else:
             st.warning("⚠️ EFEHR API erişilemedi — TBDY-2018 statik verisi kullanılıyor")
 
@@ -10380,7 +10387,7 @@ def _render_coulomb_stress():
     target_dist = np.sqrt(target_dlat ** 2 + target_dlon ** 2)
     nearest_idx = np.unravel_index(np.argmin(target_dist), target_dist.shape)
     target_cfs = float(cfs[nearest_idx])
-    target_km = float(target_dist[nearest_idx])
+    float(target_dist[nearest_idx])
 
     # Lob sayımı
     pos_area_pct = 100.0 * np.sum(cfs > 0.1) / cfs.size
@@ -11483,7 +11490,8 @@ def _bpt_probability(t_elapsed_yr: float, mu: float, alpha: float, dt_yr: float)
             # numerical fallback (Owen 1965 approx)
             arg1 = math.sqrt(lam / t) * (t / mu - 1)
             arg2 = -math.sqrt(lam / t) * (t / mu + 1)
-            phi = lambda z: 0.5 * (1 + math.erf(z / math.sqrt(2)))
+            def phi(z):
+                return 0.5 * (1 + math.erf(z / math.sqrt(2)))
             return phi(arg1) + math.exp(2 * lam / mu) * phi(arg2)
 
     f_now = ig_cdf(t_elapsed_yr)
@@ -11868,7 +11876,7 @@ def _render_dinamik_tetikleme():
     ))
 
     # Gözlem noktaları
-    for g in o["gozlem_yerleri"]:
+    for _g in o["gozlem_yerleri"]:
         # Yön bilinmediği için sabit koymak yerine: hesaplanmış mesafeden doğuya proje (görselleştirme)
         # Gerçek koordinat verisi olmadığı için sembolik konum
         pass
@@ -15860,7 +15868,7 @@ def _render_erzincan_paleo():
 
     # ── Yaşam çizgisi (olay timeline) ──────────────────────────────────────
     fig_tl = go.Figure()
-    for i, ev in df_p.iterrows():
+    for _i, ev in df_p.iterrows():
         renk = _confidence_color(ev["confidence"])
         fig_tl.add_trace(go.Scatter(
             x=[ev["yil"]],
@@ -16507,19 +16515,32 @@ def _render_akademik_kutuphane():
     # (yarış kondisyonu, hot-reload cache, vb.). ImportError → kullanıcıya açıklayıcı uyarı.
     try:
         from knowledge_base import (
-            TOPICS, REFERENCES, ACIKLAMALAR, PLOTLY_CONFIG, COLORS,
+            ACIKLAMALAR,
+            PLOTLY_CONFIG,
+            REFERENCES,
+            TOPICS,
+            anim_coulomb_stress,
+            anim_elastik_geri_tepme,
+            anim_erzincan_tarihi,
+            anim_gutenberg_richter,
+            anim_insar,
+            anim_kaf_tektonigi,
+            anim_moment_tensor,
+            anim_psha,
             # Animasyon fonksiyonları — v3.1
-            anim_sismik_dalgalar, anim_elastik_geri_tepme,
-            anim_coulomb_stress, anim_tsunami_yayilim,
-            anim_gutenberg_richter, anim_moment_tensor,
-            anim_psha, anim_insar,
-            anim_kaf_tektonigi, anim_erzincan_tarihi,
+            anim_sismik_dalgalar,
+            anim_tsunami_yayilim,
+            interaktif_coulomb_stres,
+            interaktif_elastik_geri_tepme,
+            interaktif_erzincan_tarihi,
             # İnteraktif widget fonksiyonları — v3.1
-            interaktif_gr_kanunu, interaktif_psha,
-            interaktif_sismik_dalgalar, interaktif_elastik_geri_tepme,
-            interaktif_coulomb_stres, interaktif_moment_tensor,
-            interaktif_insar, interaktif_tsunami_fizigi,
-            interaktif_kaf_tektonigi, interaktif_erzincan_tarihi,
+            interaktif_gr_kanunu,
+            interaktif_insar,
+            interaktif_kaf_tektonigi,
+            interaktif_moment_tensor,
+            interaktif_psha,
+            interaktif_sismik_dalgalar,
+            interaktif_tsunami_fizigi,
         )
     except ImportError as e:
         st.error(
@@ -16543,7 +16564,7 @@ def _render_akademik_kutuphane():
     )
 
     # ── Kategori filtresi
-    kategoriler_set = sorted(set(t["kategori"] for t in TOPICS.values()))
+    kategoriler_set = sorted({t["kategori"] for t in TOPICS.values()})
     kategoriler = ["Tümü"] + kategoriler_set
     secili_kategori = st.selectbox(
         "🔍 Kategori filtrele",

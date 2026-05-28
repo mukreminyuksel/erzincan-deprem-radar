@@ -14,7 +14,9 @@ v3.0 Değişiklikleri (2026-05-26):
     KEY_SCHOLARS, RECENT_PUBLICATIONS_EQ listeleri (v3.0 ile eklenmişti) korundu
 """
 from __future__ import annotations
+
 import math
+
 import numpy as np
 import plotly.graph_objects as go
 
@@ -1942,7 +1944,7 @@ def interaktif_psha() -> None:
             name="Secilen: T={:.0f} yil, PGA={:.2f}g".format(T_return, pga_approx),
         ))
 
-        for t_ref, pga_ref, lbl, col in [
+        for t_ref, _pga_ref, lbl, col in [
             (2475, 0.85, "DD-1 (2475 yil)", "#e74c3c"),
             (475,  0.45, "DD-2 (475 yil)",  "#f39c12"),
             (72,   0.22, "DD-3 (72 yil)",   "#27ae60"),
@@ -2088,14 +2090,14 @@ def anim_moment_tensor() -> go.Figure:
         """Ters fay: alt yarı baskı (siyah)."""
         return np.where(np.sin(th) < 0, 1.0, -1.0)
 
-    colors_ss = ["#1a6faf" if strike_slip_polarity(np.array([t]))[0] > 0 else "#e8f0fe"
+    ["#1a6faf" if strike_slip_polarity(np.array([t]))[0] > 0 else "#e8f0fe"
                  for t in theta]
-    colors_nf = ["#1a6faf" if normal_polarity(np.array([t]))[0] > 0 else "#e8f0fe"
+    ["#1a6faf" if normal_polarity(np.array([t]))[0] > 0 else "#e8f0fe"
                  for t in theta]
-    colors_rf = ["#1a6faf" if reverse_polarity(np.array([t]))[0] > 0 else "#e8f0fe"
+    ["#1a6faf" if reverse_polarity(np.array([t]))[0] > 0 else "#e8f0fe"
                  for t in theta]
 
-    r_fill = np.ones_like(theta) * 1.0
+    np.ones_like(theta) * 1.0
 
     fig = go.Figure()
 
@@ -2123,8 +2125,8 @@ def anim_moment_tensor() -> go.Figure:
 
     n = len(theta) - 1
     # Doğrultu atımlı görünür, diğerleri gizli
-    visibility_ss = [True] * n + [False] * n
-    visibility_nf = [False] * n + [True] * n
+    [True] * n + [False] * n
+    [False] * n + [True] * n
 
     # Basit statik üç panel (subplot yerine tek figür + annotation)
     # Polar yerine scatter tabanlı daha sade görselleştirme
@@ -2409,12 +2411,6 @@ def anim_kaf_tektonigi() -> go.Figure:
     ]
 
     # GPS hız vektörleri (Reilinger 2006 bazlı)
-    gps_stations = [
-        ("ERZ", 39.90, 39.73, 0.0, 20.0),   # (ad, lat, lon, dVe mm/yr, dVn mm/yr)
-        ("SIV", 39.75, 37.02, 0.0, 18.0),
-        ("ANK", 39.91, 32.86, 0.0, 16.0),
-        ("IST", 41.01, 28.97, 0.0, 22.0),
-    ]
 
     fig = go.Figure()
 
@@ -2422,7 +2418,6 @@ def anim_kaf_tektonigi() -> go.Figure:
     for seg in kaf_segments:
         ad, lats, lons, yil, renk = seg
         is_locked = yil is None
-        dash = "dot" if is_locked else "solid"
         width = 4 if is_locked else 2.5
         fig.add_trace(go.Scattermapbox(
             lat=lats, lon=lons,
@@ -2525,7 +2520,7 @@ def anim_erzincan_tarihi() -> go.Figure:
     pdf_vals = bpt_pdf(t_future, mu_bpt, alpha)
     # Gelecek 30 yıl kırılma olasılığı ≈ ∫ pdf dt
     dt = t_future[1] - t_future[0]
-    cum_vals = np.cumsum(pdf_vals) * dt
+    np.cumsum(pdf_vals) * dt
 
     fig = go.Figure()
 
@@ -2829,7 +2824,7 @@ def interaktif_coulomb_stres() -> None:
 
         st.markdown("---")
         st.metric("📊 ΔCFS", f"{delta_cfs:.3f} bar",
-                  delta=f"Eşik: 0.1 bar",
+                  delta="Eşik: 0.1 bar",
                   delta_color="off")
         st.markdown(f"**{icon}**")
         st.markdown(
@@ -2964,22 +2959,22 @@ def interaktif_moment_tensor() -> None:
         ray_z = -np.cos(inc)
 
         polarity = fn[0] * ray_x * fd[0] + fn[1] * ray_y * fd[1] + fn[2] * ray_z * fd[2]
-        comp = polarity + (fn[0] * fd[0] + fn[1] * fd[1] + fn[2] * fd[2]) * (
+        polarity + (fn[0] * fd[0] + fn[1] * fd[1] + fn[2] * fd[2]) * (
             ray_x**2 + ray_y**2 + ray_z**2
         )
 
         colors_bb = ["#1a6faf" if p > 0 else "#ecf0f1" for p in polarity]
 
         # Scatter polar plot approximation
-        proj_x = np.cos(theta_bb)
-        proj_y = np.sin(theta_bb)
+        np.cos(theta_bb)
+        np.sin(theta_bb)
 
         fig = go.Figure()
 
         # Dolgulu arka plan — kutupluluk alanları
         for i in range(len(theta_bb) - 1):
             c = colors_bb[i]
-            mid = (theta_bb[i] + theta_bb[i + 1]) / 2
+            (theta_bb[i] + theta_bb[i + 1]) / 2
             fig.add_trace(go.Scatter(
                 x=[0, np.cos(theta_bb[i]), np.cos(theta_bb[i+1])],
                 y=[0, np.sin(theta_bb[i]), np.sin(theta_bb[i+1])],
@@ -3207,7 +3202,7 @@ def interaktif_tsunami_fizigi() -> None:
 
         # Seçili derinlik işaretçisi
         c_sel = math.sqrt(g * depth_m) * 3.6
-        t_sel = dist_km / (c_sel / 60.0)
+        dist_km / (c_sel / 60.0)
         fig.add_trace(go.Scatter(
             x=[depth_m], y=[c_sel],
             mode="markers", marker=dict(size=14, color="#ffcc00", symbol="star"),
@@ -3384,11 +3379,11 @@ def interaktif_erzincan_tarihi() -> None:
 
         try:
             t_arr = np.linspace(0.1, elapsed + 100, 1000)
-            cdf_all = bpt_cdf(t_arr, mu_recurrence, alpha_aperiod)
+            bpt_cdf(t_arr, mu_recurrence, alpha_aperiod)
             # Koşullu olasılık: P(kırılma t → t+dt | t'ye kadar kırılmadı)
             # Hazard: h(t) = f(t) / (1 - F(t))
             t_future = np.linspace(elapsed, elapsed + 100, 500)
-            cdf_future = bpt_cdf(t_future, mu_recurrence, alpha_aperiod)
+            bpt_cdf(t_future, mu_recurrence, alpha_aperiod)
             cdf_elapsed = float(bpt_cdf(np.array([elapsed]), mu_recurrence, alpha_aperiod)[0])
 
             # Koşullu olasılık 30 yıl
@@ -3406,7 +3401,7 @@ def interaktif_erzincan_tarihi() -> None:
             use_scipy = False
 
         st.markdown("---")
-        st.metric(f"Son depremden beri", f"{elapsed} yıl")
+        st.metric("Son depremden beri", f"{elapsed} yıl")
         st.metric("🎲 30-yıl kırılma olasılığı", f"~{prob_30:.1f}%",
                   delta="BPT koşullu")
         st.metric("🎲 50-yıl kırılma olasılığı", f"~{prob_50:.1f}%",
@@ -3448,7 +3443,7 @@ def interaktif_erzincan_tarihi() -> None:
                       annotation_font_color="#e74c3c",
                       annotation_position="top right")
         # 30-yıl pencere
-        pdf_max = pdf_norm.max()
+        pdf_norm.max()
         fig.add_vrect(x0=elapsed, x1=elapsed + 30,
                       fillcolor="rgba(231,76,60,0.15)", line_width=0,
                       annotation_text=f"30-yıl\n~{prob_30:.0f}%",
