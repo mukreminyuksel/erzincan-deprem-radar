@@ -87,7 +87,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.79"
+APP_VERSION = "1.80"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -16884,30 +16884,59 @@ def _kutuphane_arastirma(pubs, scholars, journals, dbs, institutions):
 
 
 def _kutuphane_ogrenme(learning_path, glossary):
-    """🧭 Öğrenme Yolu + 📔 Sözlük sekmesi (Batch 4'te doldurulacak)."""
+    """🧭 Öğrenme Yolu + 📔 Sözlük sekmesi."""
+    _sv_emoji = {"Başlangıç": "🟢", "Orta": "🟡", "İleri": "🔴", "Araştırma": "🔬"}
     st.markdown("### 🧭 Öğrenme Yolu")
     if learning_path:
+        st.caption(
+            "Başlangıç → Orta → İleri → Araştırma sıralı rota. Her adımda ilgili konu, "
+            "önerilen kitap bölümü, uygulamadaki panel ve beklenen kazanım."
+        )
         for step in learning_path:
-            st.markdown(
-                f"**{step.get('adim','?')}. {step.get('baslik','?')}** "
-                f"· {step.get('seviye','')}"
-            )
-            if step.get("aciklama"):
-                st.markdown(f"> {step['aciklama']}")
+            sv = step.get("seviye", "")
+            with st.expander(
+                f"{_sv_emoji.get(sv,'•')} **Adım {step.get('adim','?')}: {step.get('baslik','?')}**  ·  {sv}"
+            ):
+                if step.get("aciklama"):
+                    st.markdown(step["aciklama"])
+                if step.get("konular"):
+                    st.markdown("**📖 İlgili konular:** " + ", ".join(step["konular"]))
+                if step.get("kitap"):
+                    st.markdown(f"**📚 Önerilen okuma:** {step['kitap']}")
+                if step.get("paneller"):
+                    st.markdown("**🖥️ Uygulamada keşfet:** " + ", ".join(step["paneller"]))
+                if step.get("kazanim"):
+                    st.markdown(f"**🎯 Beklenen kazanım:** {step['kazanim']}")
+                if step.get("sonraki"):
+                    st.markdown(f"**➡️ Sonraki adım:** {step['sonraki']}")
     else:
         st.info(
-            "🚧 Sıralı öğrenme yolu (başlangıç → ileri) hazırlanıyor. "
-            "Şimdilik **📖 Konular** sekmesinden seviye filtresiyle (🟢 Başlangıç → 🔴 İleri) ilerleyebilirsiniz."
+            "🚧 Sıralı öğrenme yolu hazırlanıyor. Şimdilik **📖 Konular** sekmesinden "
+            "seviye filtresiyle (🟢 Başlangıç → 🔴 İleri) ilerleyebilirsiniz."
         )
     st.divider()
     st.markdown("### 📔 Terim Sözlüğü")
     if glossary:
-        for _, g in sorted(glossary.items(), key=lambda kv: kv[1].get("terim", "")):
-            st.markdown(
-                f"- **{g.get('terim','?')}** ({g.get('en','')}): {g.get('tanim','')}"
-            )
+        st.caption(f"{len(glossary)} terim. Türkçe + İngilizce karşılık, tanım, varsa sembol ve yanlış-anlama notu.")
+        ara = st.text_input("🔍 Terim ara", key="sozluk_ara", placeholder="örn. magnitüd, PGA, fay...")
+        ara_l = (ara or "").strip().lower()
+        items = sorted(glossary.values(), key=lambda g: g.get("terim", ""))
+        gosterilen = 0
+        for g in items:
+            terim = g.get("terim", "?")
+            en = g.get("en", "")
+            if ara_l and ara_l not in terim.lower() and ara_l not in en.lower() and ara_l not in g.get("tanim", "").lower():
+                continue
+            gosterilen += 1
+            sembol = f"  `{g['sembol']}`" if g.get("sembol") else ""
+            satir = f"**{terim}** *({en})*{sembol}: {g.get('tanim','')}"
+            if g.get("yanlis"):
+                satir += f"  \n  ⚠️ *{g['yanlis']}*"
+            st.markdown(f"- {satir}")
+        if ara_l and gosterilen == 0:
+            st.info(f"'{ara}' için terim bulunamadı.")
     else:
-        st.info("🚧 Deprem bilimi terim sözlüğü hazırlanıyor (Batch 4).")
+        st.info("🚧 Deprem bilimi terim sözlüğü hazırlanıyor.")
 
 
 if active_menu == "📚 Akademik Kütüphane":
