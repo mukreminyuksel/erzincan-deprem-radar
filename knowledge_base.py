@@ -4354,6 +4354,23 @@ TURKISH_INSTITUTIONS: list[dict] = [
             },
         ],
     },
+    {
+        "id": "EBYU_DTE",
+        "tam_ad_tr": "Erzincan Binali Yıldırım Üniversitesi Deprem Teknolojileri Enstitüsü",
+        "tam_ad_en": "Erzincan Binali Yildirim University Earthquake Technologies Institute",
+        "kisa_ad": "EBYÜ-DTE",
+        "url": "https://deprem.ebyu.edu.tr/",
+        "bolum_url": "https://deprem.ebyu.edu.tr/anabilim-dallari/",
+        "konum": "Erzincan, Türkiye",
+        "faaliyetler": [
+            "Türkiye'nin ikinci deprem araştırma enstitüsü (ilki Kandilli/KRDAE)",
+            "1939 ve 2011 Erzincan depremleri sonrası kuruldu — Erzincan odaklı araştırma",
+            "Deprem mühendisliği, yer bilimleri, afet/acil durum yönetimi anabilim dalları",
+            "Saha ölçüm sistemleri kurulumu ve izleme; laboratuvar deneysel testleri",
+            "Bina ve zemin hasar değerlendirme modelleri; depreme dayanıklı altyapı tasarımı",
+        ],
+        "arastirmacilar": [],
+    },
 ]
 
 # ── BÖLÜM B: ULUSLARARASI KURUMLAR ───────────────────────────────────────────
@@ -5073,6 +5090,97 @@ GLOSSARY: dict[str, dict] = {
     "ambient_noise_t": {"terim": "Ortam Gürültüsü", "en": "Ambient Seismic Noise", "ilgili_konu": "ambient_noise",
         "tanim": "Sürekli arka plan titreşimi; çapraz-korelasyonla deprem-bağımsız yapı görüntüleme."},
 }
+
+# ── BÖLÜM C5: GÜNCEL TEKNOLOJİ CEPHELERİ (v1.81) ────────────────────────────
+# Her teknoloji: ne sağlar / ne sağlamaz / klasik temel kaynak / modern kaynaklar
+# (doğrulanmış DOI) / Türkiye uygulanabilirliği / yanlış anlaşılma. "Modern+klasik
+# birlikte" kuralı (kullanıcı). Uydurma DOI yok.
+TECH_FRONTIERS: list[dict] = [
+    {
+        "id": "ml_ai", "emoji": "🤖", "ad": "Makine Öğrenmesi / Yapay Zeka",
+        "ozet": "Derin öğrenme ile sismik faz seçimi, deprem tespiti ve artçı örüntü analizi.",
+        "saglar": "Gürültülü veride mikro-deprem tespiti, otomatik P/S faz seçimi (insan-üstü hız), "
+                  "büyük katalog tamamlama, artçı dağılım örüntü analizi.",
+        "saglamaz": "Deprem TAHMİNİ (zaman/yer/büyüklük). ML örüntü bulur ama fiziksel öngörü yapamaz; "
+                    "eğitim verisindeki önyargıyı taşır.",
+        "klasik": {"kaynak": "Geller (1997) — tahmin sınırı", "doi": "10.1111/j.1365-246X.1997.tb06588.x"},
+        "modern": [
+            {"kaynak": "Mousavi et al. (2020) — EQTransformer", "dergi": "Nature Communications",
+             "doi": "10.1038/s41467-020-17591-w"},
+            {"kaynak": "Zhu & Beroza (2019) — PhaseNet", "dergi": "Geophysical Journal International",
+             "doi": "10.1093/gji/ggy423"},
+            {"kaynak": "DeVries et al. (2018) — derin öğrenme ile artçı örüntüsü", "dergi": "Nature",
+             "doi": "10.1038/s41586-018-0438-y"},
+        ],
+        "turkiye": "AFAD/KOERI kataloglarına otomatik faz-seçim; 2023 Kahramanmaraş artçı dizisi analizi. "
+                   "STEAD gibi açık veri setleri Türkiye verisiyle zenginleştirilebilir.",
+        "yanlis": "'AI depremi tahmin ediyor' — hayır; AI tespit/sınıflama yapar, tahmin değil (Geller 1997).",
+    },
+    {
+        "id": "das", "emoji": "🔌", "ad": "DAS — Fiber-Optik Sismoloji",
+        "ozet": "Mevcut fiber-optik kabloları binlerce sismik sensöre dönüştürme (Distributed Acoustic Sensing).",
+        "saglar": "Metre çözünürlükte, on km'lerce uzunlukta yoğun dizilim; şehir/altyapı (köprü, baraj, bina) "
+                  "izleme; deniz altı kablolarla okyanus tabanı sismolojisi; ucuz yoğun ağ.",
+        "saglamaz": "Sadece kablo eksenindeki gerinim (tek bileşen); mutlak kalibrasyon zorluğu; "
+                    "geleneksel sismometre kadar geniş-bant değil.",
+        "klasik": {"kaynak": "Massonnet & Feigl (1998) — uzaktan algılama jeodezisi temeli",
+                   "doi": "10.1029/97RG03139"},
+        "modern": [
+            {"kaynak": "Zhan (2020) — DAS fiber-optik kabloları sismik antene çevirir", "dergi": "Seismological Research Letters",
+             "doi": "10.1785/0220190112"},
+        ],
+        "turkiye": "Mevcut telekom fiber altyapısı (şehirler arası) potansiyel DAS ağı; Erzincan/Marmara "
+                   "kentsel izleme + KAF boyunca dizilim araştırma fırsatı.",
+        "yanlis": "'DAS sismometrenin yerini alır' — tamamlayıcıdır; tek-bileşen + kalibrasyon sınırları var.",
+    },
+    {
+        "id": "gnss", "emoji": "📡", "ad": "GNSS / Yüksek-Oranlı GPS Jeodezisi",
+        "ozet": "GPS/GNSS ile yer deformasyonu + büyük depremlerde hızlı moment büyüklüğü kestirimi.",
+        "saglar": "İnterseismik kayma hızı + kilitlenme (mm/yr); büyük (M8+) depremde sismik doygunluktan "
+                  "etkilenmeden hızlı Mw; gerçek-zamanlı GNSS ile erken karakterizasyon (GNSS-EEW).",
+        "saglamaz": "Deprem öncesi öngörü; küçük olaylarda düşük sinyal/gürültü; uydu geometrisi + atmosfer hatası.",
+        "klasik": {"kaynak": "Reilinger et al. (2006) — Türkiye GPS hız alanı", "doi": "10.1029/2005JB004051"},
+        "modern": [
+            {"kaynak": "Allen & Melgar (2019) — EEW: ilerlemeler ve zorluklar (GNSS-EEW dahil)",
+             "dergi": "Annual Review of Earth and Planetary Sciences", "doi": "10.1146/annurev-earth-053018-060457"},
+        ],
+        "turkiye": "AFAD/KOERI GNSS ağları (TUSAGA/CORS); KAF kilitlenme + 2023 Maraş hızlı moment çalışmaları. "
+                   "Erzincan segmenti GPS izleme.",
+        "yanlis": "'GPS depremi önceden gösterir' — interseismik birikim ölçer (kilitlenme), kırılma zamanı vermez.",
+    },
+    {
+        "id": "eew_modern", "emoji": "🚨", "ad": "Erken Uyarı (EEW) — Modern Gelişmeler",
+        "ozet": "P-dalgası tabanlı uyarının operasyonel sistemlere (telefon, altyapı) evrimi.",
+        "saglar": "Saniyeler-onlarca saniye uyarı (mesafeye bağlı); tren/asansör/gaz otomasyonu; smartphone "
+                  "kitlesel uyarı (Android EEW); hastane/fabrika tepki tetikleme.",
+        "saglamaz": "Merkez üssünde kör bölge (uyarı yok); deprem TAHMİNİ değil; ağ tespit + telekom gecikmesi "
+                    "kullanılabilir pencereyi kısaltır.",
+        "klasik": {"kaynak": "Allen & Kanamori (2003) — EEW potansiyeli", "doi": "10.1126/science.1080912"},
+        "modern": [
+            {"kaynak": "Allen & Melgar (2019) — EEW: ilerlemeler, zorluklar, toplumsal ihtiyaçlar",
+             "dergi": "Annual Review of Earth and Planetary Sciences", "doi": "10.1146/annurev-earth-053018-060457"},
+        ],
+        "turkiye": "AFAD-EWS (Marmara pilot); İstanbul IEDAS (KOERI). Android kitlesel EEW Türkiye'de yaygınlaşıyor. "
+                   "Erzincan için kapsama hedefi.",
+        "yanlis": "'EEW deprem tahminidir' — hayır; olay başladıktan sonra hızlı dalga avantajını kullanan tepki sistemi.",
+    },
+    {
+        "id": "insar_otomasyon", "emoji": "🛰️", "ad": "InSAR Otomasyonu / Uydu Jeodezisi",
+        "ozet": "Sentinel-1 gibi ücretsiz uydularla otomatik, sürekli yer deformasyonu izleme.",
+        "saglar": "Geniş alan cm-altı co-seismic + interseismic deformasyon; ücretsiz Sentinel-1 (6-12 gün); "
+                  "otomatik zaman serisi (COMET LiCS); deprem sonrası günler içinde kırık haritalama.",
+        "saglamaz": "Sadece LOS (1B) bileşeni — 3B için çoklu geometri; atmosfer gecikmesi + decorrelation; "
+                    "deprem öngörüsü değil.",
+        "klasik": {"kaynak": "Massonnet & Feigl (1998) — radar interferometri derlemesi", "doi": "10.1029/97RG03139"},
+        "modern": [
+            {"kaynak": "Xu et al. (2023) — 2023 Maraş Sentinel-1 InSAR deformasyon", "dergi": "Science/GRL",
+             "doi": "10.1029/2023GL104604"},
+        ],
+        "turkiye": "Sentinel-1 ile 2023 Maraş co-seismic haritalama günler içinde; KAF interseismic izleme; "
+                   "Erzincan/Marmara kentsel oturma takibi (COMET LiCS açık portal).",
+        "yanlis": "'InSAR tek görüntüden 3B hareket verir' — hayır, yalnızca uydu-bakış (LOS) bileşeni.",
+    },
+]
 
 # ── BÖLÜM D: ANAHTAR AKADEMİSYENLER ─────────────────────────────────────────
 

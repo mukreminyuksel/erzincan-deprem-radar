@@ -87,7 +87,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.80"
+APP_VERSION = "1.81"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -16560,6 +16560,10 @@ def _render_akademik_kutuphane():
         from knowledge_base import REGULATIONS_STANDARDS
     except ImportError:
         REGULATIONS_STANDARDS = []
+    try:
+        from knowledge_base import TECH_FRONTIERS
+    except ImportError:
+        TECH_FRONTIERS = []
 
     st.markdown("## 📚 Akademik Bilgi Merkezi")
     st.markdown(
@@ -16581,7 +16585,7 @@ def _render_akademik_kutuphane():
     with tab_arastirma:
         _kutuphane_arastirma(
             RECENT_PUBLICATIONS_EQ, KEY_SCHOLARS, KEY_JOURNALS_EQ,
-            DATABASES_AND_SOFTWARE, TURKISH_INSTITUTIONS,
+            DATABASES_AND_SOFTWARE, TURKISH_INSTITUTIONS, TECH_FRONTIERS,
         )
     with tab_ogrenme:
         _kutuphane_ogrenme(LEARNING_PATH, GLOSSARY)
@@ -16812,13 +16816,43 @@ def _kutuphane_kitap_rehberi(textbooks, standards=None):
                     st.markdown(f"[🔗 Resmi kaynak]({s['url']})")
 
 
-def _kutuphane_arastirma(pubs, scholars, journals, dbs, institutions):
-    """🔬 Güncel Araştırma & Teknoloji sekmesi — peer-reviewed yayınlar + bilim insanları + dergiler + araçlar + kurumlar."""
+def _kutuphane_arastirma(pubs, scholars, journals, dbs, institutions, tech_frontiers=None):
+    """🔬 Güncel Araştırma & Teknoloji — teknoloji cepheleri + yayınlar + bilim insanları + dergiler + araçlar + kurumlar."""
     st.markdown("### 🔬 Güncel Araştırma & Teknoloji")
     st.caption(
         "Peer-reviewed güncel yayınlar (DOI'li) + temel/klasik kaynaklar. "
         "Modern teknoloji için son yıllar, temel yöntem için öncü makaleler birlikte."
     )
+
+    # ── Teknoloji Cepheleri (modern + klasik birlikte) ───────────────────────
+    if tech_frontiers:
+        st.markdown("#### 🚀 Teknoloji Cepheleri")
+        st.caption("Her teknoloji: ne sağlar / ne sağlamaz / klasik temel + modern kaynak / Türkiye / yanlış anlaşılma.")
+        for t in tech_frontiers:
+            with st.expander(f"{t.get('emoji','')} {t.get('ad','?')}"):
+                if t.get("ozet"):
+                    st.markdown(f"*{t['ozet']}*")
+                if t.get("saglar"):
+                    st.markdown(f"**✅ Ne sağlar:** {t['saglar']}")
+                if t.get("saglamaz"):
+                    st.markdown(f"**🚫 Ne sağlamaz:** {t['saglamaz']}")
+                k = t.get("klasik")
+                if k:
+                    durl = f"https://doi.org/{k['doi']}" if k.get("doi") else None
+                    kline = f"**📜 Klasik temel:** {k.get('kaynak','?')}"
+                    st.markdown(kline + (f" · [DOI]({durl})" if durl else ""))
+                if t.get("modern"):
+                    st.markdown("**🆕 Modern kaynaklar:**")
+                    for m in t["modern"]:
+                        durl = f"https://doi.org/{m['doi']}" if m.get("doi") else None
+                        line = f"- {m.get('kaynak','?')}" + (f" — *{m['dergi']}*" if m.get("dergi") else "")
+                        st.markdown(line + (f" · [DOI]({durl})" if durl else ""))
+                if t.get("turkiye"):
+                    st.markdown(f"**🇹🇷 Türkiye/Erzincan:** {t['turkiye']}")
+                if t.get("yanlis"):
+                    st.markdown(f"⚠️ *{t['yanlis']}*")
+        st.divider()
+
     if pubs:
         kategoriler = sorted({p.get("kategori", "Diğer") for p in pubs})
         secili = st.selectbox("🔍 Kategori", ["Tümü"] + kategoriler, key="arastirma_kat_filtre")
