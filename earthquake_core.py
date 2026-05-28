@@ -189,6 +189,60 @@ def event_signature(zaman, lat, lon, magnitude):
     return hashlib.sha1(key.encode("utf-8")).hexdigest()[:12]
 
 
+_CONFIDENCE_META = {
+    "A": ("instrumental", 0, 0.1, "A / aletsel katalog"),
+    "B": ("historical_strong", 30, 0.3, "B / güçlü tarihsel kayıt"),
+    "C": ("historical_weak", 80, 0.5, "C / zayıf tarihsel kayıt"),
+    "P": ("paleoseismic", 100, 0.5, "P / paleosismik zaman aralığı"),
+    "S": ("speculative", 150, 0.7, "S / tartışmalı-spekülatif"),
+}
+
+
+def _default_confidence_for_event(event):
+    if str(event.get("tip", "")).lower().startswith("paleo") or int(event.get("yil", 0)) < 0:
+        return "P"
+    year = int(event.get("yil", 0))
+    if year >= 1900:
+        return "A"
+    if year >= 1000:
+        return "B"
+    return "C"
+
+
+def normalize_historical_event(event):
+    """Return a historical/paleoseismic event with explicit uncertainty metadata."""
+    normalized = dict(event)
+    confidence = str(normalized.get("confidence") or _default_confidence_for_event(normalized)).upper()
+    if confidence not in _CONFIDENCE_META:
+        confidence = "C"
+    evidence, year_unc, mw_unc, label = _CONFIDENCE_META[confidence]
+    normalized["confidence"] = confidence
+    normalized["evidence"] = normalized.get("evidence") or evidence
+    normalized["confidence_label"] = normalized.get("confidence_label") or label
+    normalized["year_uncertainty"] = normalized.get(
+        "year_uncertainty", normalized.get("belirsizlik", year_unc)
+    )
+    normalized["mw_uncertainty"] = normalized.get("mw_uncertainty", mw_unc)
+    normalized["note"] = normalized.get(
+        "note",
+        "Yaklaşık tarihsel/paleosismik kayıt; episantr, Mw ve kırık izi kesin kabul edilmemelidir.",
+    )
+    return normalized
+
+
+def filter_historical_events(events, mode):
+    """Filter catalog events for the three UI modes: reliable, extended, paleo+historical."""
+    normalized = [normalize_historical_event(event) for event in events]
+    mode_text = str(mode).lower()
+    if "paleo" in mode_text:
+        allowed = {"A", "B", "C", "P", "S"}
+    elif "geniş" in mode_text or "genis" in mode_text:
+        allowed = {"A", "B", "C"}
+    else:
+        allowed = {"A"}
+    return sorted([event for event in normalized if event["confidence"] in allowed], key=lambda e: e["yil"])
+
+
 # ---------------------------------------------------------------------------
 # Tektonik Plaka Hareketi — Euler Kutbu Rotasyonu
 # Kaynak: NNR-MORVEL56 (Argus, Gordon & DeMets 2011, G-cubed)

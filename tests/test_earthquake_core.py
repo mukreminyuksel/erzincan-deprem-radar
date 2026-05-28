@@ -14,6 +14,8 @@ from earthquake_core import (
     parse_usgs_feed_features,
     safe_html,
     source_agreement_summary,
+    normalize_historical_event,
+    filter_historical_events,
     to_utc_naive,
     usgs_feed_url_for_window,
 )
@@ -126,6 +128,31 @@ class EarthquakeCoreTests(unittest.TestCase):
         self.assertEqual(rows[0]["buyukluk"], 3.2)
         self.assertEqual(rows[0]["derinlik"], 7.4)
         self.assertIn("Erzincan", rows[0]["konum"])
+
+    def test_normalize_historical_event_adds_confidence_metadata(self):
+        event = normalize_historical_event(
+            {"yil": 1268, "yer": "Erzincan", "mw": 7.5, "lat": 39.75, "lon": 39.50}
+        )
+
+        self.assertEqual(event["confidence"], "B")
+        self.assertEqual(event["evidence"], "historical_strong")
+        self.assertEqual(event["year_uncertainty"], 30)
+        self.assertIn("Yaklaşık", event["note"])
+
+    def test_filter_historical_events_respects_catalog_modes(self):
+        events = [
+            {"yil": 1939, "yer": "Erzincan", "mw": 7.8, "lat": 39.8, "lon": 39.5},
+            {"yil": 1268, "yer": "Erzincan", "mw": 7.5, "lat": 39.75, "lon": 39.5},
+            {"yil": -100, "yer": "Paleo", "mw": 7.0, "lat": 39.7, "lon": 39.4, "tip": "paleo"},
+        ]
+
+        reliable = filter_historical_events(events, "Güvenilir")
+        extended = filter_historical_events(events, "Genişletilmiş")
+        paleo = filter_historical_events(events, "Paleo + tarihsel")
+
+        self.assertEqual([e["yil"] for e in reliable], [1939])
+        self.assertEqual([e["yil"] for e in extended], [1268, 1939])
+        self.assertEqual([e["yil"] for e in paleo], [-100, 1268, 1939])
 
 
 if __name__ == "__main__":
