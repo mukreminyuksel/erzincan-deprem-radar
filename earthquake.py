@@ -78,7 +78,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.69"
+APP_VERSION = "1.70"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -2616,6 +2616,111 @@ if active_menu == "🧭 Fay Sistemleri":
         st.plotly_chart(fig_top_faults, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
     st.dataframe(fault_df.head(100), use_container_width=True, hide_index=True)
 
+    # v1.70 — Sprint 7 Batch 2: Fay Sistemleri akademik standart
+    st.markdown(
+        f"""<div style="
+            background:linear-gradient(90deg,{BG2} 0%,rgba(156,39,176,0.10) 100%);
+            border-left:3px solid #9C27B0;
+            border-radius:6px;
+            padding:0.55rem 0.9rem;
+            margin:0.4rem 0 0.8rem 0;
+            font-size:0.88rem;
+            color:{TEXT};
+            line-height:1.45;">
+            📊 <b>Mini rehber:</b> Bu panel her depremin en yakın MTA Diri Fay segmentine olan mesafesini hesaplar
+            (haversine en-yakın vertex) ve hangi fayların en çok olay ürettiğini sıralar.
+            <b>Fay yakınlığı nedensellik kanıtı değildir</b> — bir olayın belirli bir faya atfı, episentr ve fay
+            geometri belirsizliği nedeniyle yorumdur; kesin fay-olay eşleşmesi odak mekanizması gerektirir.
+            <i>En-yakın mesafe yöntemi, MTA Diri Fay 2013, episentr belirsizliği için aşağıdaki 📖 Akademik Açıklama panelini açın.</i>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+    render_academic_explanation(
+        title="📖 Akademik Açıklama — Fay-Deprem Yakınlık Analizi",
+        what=(
+            "Bu panel, seçili dönemdeki her depremin **en yakın aktif fay segmentine** olan mesafesini hesaplar "
+            "(MTA Diri Fay Haritası 2013, ~14.500 segment) ve hangi fayların en çok olayla ilişkili göründüğünü "
+            "sıralar. Amaç: sismik aktivitenin **bilinen fay sistemleriyle uzamsal ilişkisini** görmek. "
+            "Mesafe hesabı **haversine en-yakın vertex** yöntemiyle yapılır (her deprem için tüm fay "
+            "vertekslerine mesafe, minimum alınır). **ÖNEMLİ:** Bir olayın bir faya 'yakın' olması o fayda "
+            "olduğunu **kanıtlamaz** — episentr belirsizliği (±2-10 km) ve fay geometrisi yorumu gerektirir."
+        ),
+        how=(
+            "**Panel okuma:**\n\n"
+            "- **Histogram (sol):** Olayların fay mesafesi dağılımı. Çoğu olay faya yakınsa (< 10 km) → "
+            "sismisite fay-kontrollü.\n"
+            "- **Bar grafiği (sağ):** En çok olayla ilişkili 10 fay (olay sayısına göre).\n"
+            "- **Tablo:** Her olay + en yakın fay + mesafe.\n\n"
+            "**Yorum:**\n"
+            "- Faya çok yakın olaylar (< 5 km) → muhtemelen o segment aktivitesi.\n"
+            "- Uzak olaylar (> 20 km) → ya bilinmeyen fay ya episentr hatası ya derin olay.\n"
+            "- KAF/DAF gibi ana faylar en çok olayı toplar (beklenen)."
+        ),
+        science=(
+            "**Haversine en-yakın vertex mesafesi:** Her deprem $(φ_e, λ_e)$ için tüm fay vertekslerine "
+            "küresel mesafe (Sinnott 1984):\n\n"
+            r"$$d = 2R \arcsin\sqrt{\sin^2\!\frac{\Delta\varphi}{2} + \cos\varphi_1 \cos\varphi_2 \sin^2\!\frac{\Delta\lambda}{2}}$$"
+            "\n\nburada $R$ = Dünya yarıçapı (**6371 km**), $\\varphi$ = enlem (**radyan**), $\\lambda$ = boylam. "
+            "En yakın fay = $\\min_v d(olay, vertex_v)$ tüm fay verteksleri $v$ üzerinden.\n\n"
+            "**Episentr belirsizliği:** Olay konumu ±2-10 km belirsiz (ağ geometrisi, hız modeli). Bu, "
+            "fay atfını **olasılıksal** kılar — 3 km mesafedeki bir olay belirsizlik içinde fayda olabilir "
+            "de olmayabilir de.\n\n"
+            "**Kesin fay-olay atfı için:** Odak mekanizması (beach ball, fay düzlemi yönü) + artçı dağılımı + "
+            "InSAR yüzey kırığı gerekir; tek başına mesafe yetersizdir."
+        ),
+        interpretation=(
+            "**Türkiye yorumu:**\n\n"
+            "- **KAF/DAF baskınlığı:** Türkiye sismisitesi büyük ölçüde KAF + DAF kontrollü; bu paneller bu "
+            "fayların en çok olay topladığını gösterir (beklenen).\n"
+            "- **Erzincan civarı:** KAF doğu segmenti + Ovacık fayı + Kuzey Doğu Anadolu fayları olayları.\n"
+            "- **Diffüz sismisite:** Bazı olaylar bilinen büyük faylardan uzak → ikincil/bilinmeyen fay veya "
+            "episentr hatası.\n\n"
+            "**Pratik yorum:**\n"
+            "- 'X fayı en aktif' demek dikkat ister — katalog dönemi kısa (haftalar/aylar), uzun-vadeli "
+            "aktiviteyi yansıtmaz.\n"
+            "- Fay yakınlığı sismik tehlike için bir girdidir ama tek başına yeterli değil."
+        ),
+        limitations=(
+            "1. **Yakınlık nedensellik kanıtı DEĞİLDİR:** Bir olayın faya yakın olması o fayda olduğunu "
+            "kanıtlamaz; episentr ±2-10 km belirsiz.\n"
+            "2. **Kesin fay atfı odak mekanizması gerektirir:** Sadece mesafe yetersiz; fay düzlemi yönü "
+            "(beach ball) + artçı + yüzey kırığı gerekir.\n"
+            "3. **Katalog dönemi kısa:** Seçili pencere (gün/hafta) uzun-vadeli fay aktivitesini yansıtmaz; "
+            "'en aktif fay' yanıltıcı olabilir.\n"
+            "4. **MTA haritası 2D yüzey izi:** Fay derinlik geometrisi (dalım) hesaba katılmaz; derin olay "
+            "yüzey izinden uzak görünebilir ama aynı fayda olabilir.\n"
+            "5. **Bilinmeyen faylar:** MTA haritasında olmayan gizli/kör faylar (2020 İzmir gibi) atfı bozar.\n"
+            "6. **Yaygın hata — 'Bu fay aktifleşti':** Kısa dönem olay kümesi 'fay uyanıyor' anlamına gelmez; "
+            "deprem tahmini DEĞİLDİR (Geller 1997)."
+        ),
+        references=[
+            "**Emre, Ö., Duman, T. Y., Özalp, S., et al. (2013).** Active Fault Map of Turkey (1:1.250.000). "
+            "*MTA Special Publication*. "
+            "[yerbilimleri.mta.gov.tr](https://www.mta.gov.tr/v3.0/hizmetler/yenilenmis-diri-fay-haritalari) "
+            "— *MTA Diri Fay Haritası 2013 (bu panelin veri kaynağı).*",
+            "**Sinnott, R. W. (1984).** Virtues of the Haversine. *Sky and Telescope*, 68(2), 159. "
+            "— *Haversine küresel mesafe formülü.*",
+            "**Şengör, A. M. C., et al. (2005).** The North Anatolian Fault: A new look. *Annual Review of "
+            "Earth and Planetary Sciences*, 33, 37–112. DOI: "
+            "[10.1146/annurev.earth.32.101802.120415](https://doi.org/10.1146/annurev.earth.32.101802.120415) "
+            "— *KAF fay sistemi tektoniği.*",
+            "**Bird, P. (2003).** An updated digital model of plate boundaries. *Geochemistry, Geophysics, "
+            "Geosystems*, 4(3), 1027. DOI: "
+            "[10.1029/2001GC000252](https://doi.org/10.1029/2001GC000252) "
+            "— *PB2002 plaka sınırı modeli (fay bağlamı).*",
+            "**Geller, R. J. (1997).** Earthquake prediction: a critical review. *GJI*, 131(3), 425–450. "
+            "DOI: [10.1111/j.1365-246X.1997.tb06588.x](https://doi.org/10.1111/j.1365-246X.1997.tb06588.x)",
+        ],
+        disclaimer=(
+            "⚠️ **Fay-deprem yakınlığı nedensellik kanıtı DEĞİLDİR ve deprem tahmini değildir.** Bir olayın "
+            "bir faya yakın olması o fayda olduğunu kanıtlamaz — episentr belirsizliği (±2-10 km) ve fay "
+            "derinlik geometrisi nedeniyle atıf **yorumdur**. Kesin fay-olay eşleşmesi odak mekanizması + "
+            "artçı dağılımı + yüzey kırığı gerektirir. Kısa katalog dönemi uzun-vadeli fay aktivitesini "
+            "yansıtmaz; 'fay aktifleşti' yorumu yapılamaz. Veri: MTA Diri Fay Haritası 2013 (Emre et al. 2013)."
+        ),
+        expanded=False,
+    )
+
 @st.fragment
 def _render_istatistik_top():
     st.markdown('<div class="chart-title">🤖 Sistem Yorumu (Uzman İçgörüsü)</div>', unsafe_allow_html=True)
@@ -5148,6 +5253,120 @@ def _render_astronomik():
 
 if active_menu == "🔭 Astronomik Analiz":
     _render_astronomik()
+
+    # v1.70 — Sprint 7 Batch 2: Astronomik Analiz akademik standart
+    st.markdown(
+        f"""<div style="
+            background:linear-gradient(90deg,{BG2} 0%,rgba(255,179,0,0.08) 100%);
+            border-left:3px solid #FFB300;
+            border-radius:6px;
+            padding:0.55rem 0.9rem;
+            margin:0.4rem 0 0.8rem 0;
+            font-size:0.88rem;
+            color:{TEXT};
+            line-height:1.45;">
+            📊 <b>Mini rehber:</b> Bu panel deprem zamanlaması ile astronomik değişkenler (Ay-Güneş gelgit kuvveti,
+            mevsim) arasındaki <b>istatistiksel korelasyonu</b> keşif amaçlı inceler.
+            <b>Korelasyon nedensellik DEĞİLDİR ve bu bir deprem tahmini DEĞİLDİR</b> — bilimsel uzlaşı: gelgit
+            tetiklemesi varsa bile etki çok küçük; "Ay'a göre deprem tahmini" bilim dışıdır (Hough 2018).
+            <i>Gelgit gerilmesi büyüklüğü, peer-reviewed bulgular ve neden bu panelin "hipotez üretici" olduğu için
+            aşağıdaki 📖 Akademik Açıklama panelini açın.</i>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+    render_academic_explanation(
+        title="📖 Akademik Açıklama — Astronomik Korelasyon (Gelgit Tetikleme Hipotezi)",
+        what=(
+            "Bu panel, deprem zamanlaması ile **astronomik değişkenler** (Ay-Güneş gelgit kuvveti, ay evresi, "
+            "mevsim, gezegen konumları) arasındaki **istatistiksel örüntüleri** keşif amaçlı inceler. "
+            "**Gelgit tetikleme** (tidal triggering) hipotezi bilimsel olarak araştırılmış gerçek bir konudur — "
+            "ancak sonuç nettir: **gelgit gerilmesi çok küçüktür** (~0.001-0.01 bar, tektonik gerilmenin "
+            "binde biri) ve etkisi (varsa) yalnızca **bazı özel rejimlerde** (sığ deniz altı, volkanik) "
+            "istatistiksel olarak saptanabilir (Cochran et al. 2004, *Science*). 'Ay'a/gezegenlere göre deprem "
+            "tahmini' **bilim dışıdır** (Hough 2018). Bu panel **hipotez üretici keşif aracıdır**, kanıt değil."
+        ),
+        how=(
+            "**Panel okuma:**\n\n"
+            "- **Korelasyon bileşenleri:** Ay çekim kuvveti, Güneş uzaklığı, gezegen çekimi, mevsim, sıcaklık.\n"
+            "- **Korelasyon katsayısı (r):** −1 ile +1 arası; 0'a yakın = ilişki yok. Deprem-astronomik "
+            "korelasyonlar genelde |r| < 0.1 (çok zayıf).\n\n"
+            "**Yorum (KRİTİK):**\n"
+            "- Zayıf korelasyon (|r| < 0.1) **rastlantı ile uyumludur** — anlamlı değildir.\n"
+            "- 1000+ olay + bağımsız doğrulama olmadan hiçbir korelasyon kausal kabul edilemez.\n"
+            "- Bu panel 'bak, bir örüntü var' demez; 'örüntü test edilebilir mi' diye sorar."
+        ),
+        science=(
+            "**Gelgit gerilmesi büyüklüğü:** Ay-Güneş gelgit kuvvetinin kabukta ürettiği gerilme:\n\n"
+            r"$$\Delta\sigma_{tidal} \approx 10^{-3} \text{ – } 10^{-2} \text{ bar} \quad (10^2 \text{ – } 10^3 \text{ Pa})$$"
+            "\n\nKarşılaştırma: tektonik gerilme birikimi ~bar/yıl mertebesinde; bir depremin stres düşüşü "
+            "~10-100 bar. **Gelgit gerilmesi tektoniğin ~binde biri** — tek başına deprem tetikleyemez, ancak "
+            "zaten kırılmaya çok yakın bir fayda 'son damla' olabilir (istatistiksel, çok küçük etki).\n\n"
+            "**Schuster testi (gelgit korelasyon istatistiği):** Deprem zamanlarının gelgit fazına göre "
+            "dağılımının düzgünlükten sapması:\n\n"
+            r"$$p = e^{-D^2/N}$$"
+            "\n\nburada $D$ = faz vektör toplamı uzunluğu, $N$ = olay sayısı, $p$ = rastlantı olasılığı. "
+            "$p < 0.05$ anlamlı kabul edilir; ama çoklu test düzeltmesi (çok değişken denenirse) gerekir.\n\n"
+            "**Cochran et al. 2004 bulgusu:** Sığ açılı bindirme faylarında (subduction, deniz gelgiti güçlü) "
+            "zayıf ama anlamlı gelgit korelasyonu; **kıtasal doğrultu-atımlı faylarda (KAF) etki saptanamaz.**"
+        ),
+        interpretation=(
+            "**Bilimsel durum (peer-reviewed):**\n\n"
+            "- **Cochran et al. 2004 (*Science*):** Subduction zonlarında zayıf gelgit korelasyonu var; ama "
+            "etki küçük, tahmin için kullanılamaz.\n"
+            "- **Hough 2018 (*Seismol. Res. Lett.*):** 'Deprem tahmini için ay evresi/gezegen' iddialarını "
+            "sistematik çürüttü — istatistiksel olarak temelsiz.\n"
+            "- **Türkiye/KAF:** Doğrultu-atımlı kıtasal fay; gelgit deniz etkisi zayıf → korelasyon beklenmez. "
+            "Bu paneldeki örüntüler büyük olasılıkla **rastlantı**.\n\n"
+            "**Neden bu panel var?** Bilimsel namus + eğitim: kullanıcılar 'ay depremi tetikler mi' diye merak "
+            "eder. Panel bunu **test edilebilir hipotez** olarak sunar ve **neden kanıt olmadığını** gösterir — "
+            "komplo teorisi yerine bilimsel yöntem öğretir."
+        ),
+        limitations=(
+            "1. **Korelasyon ≠ nedensellik:** Zayıf istatistiksel örüntü kausal ilişki kanıtı DEĞİLDİR.\n"
+            "2. **Bu bir deprem tahmini DEĞİLDİR:** 'Ay'a/gezegene göre deprem tahmini' bilim dışıdır "
+            "(Hough 2018, Geller 1997).\n"
+            "3. **Gelgit gerilmesi çok küçük:** Tektoniğin ~binde biri; tek başına tetikleyemez.\n"
+            "4. **Çoklu test yanılgısı (p-hacking):** Çok sayıda astronomik değişken denenirse, biri "
+            "'rastlantısal olarak' anlamlı çıkar; düzeltme gerekir.\n"
+            "5. **Az olay = güvenilmez korelasyon:** Anlamlı sonuç için 1000+ olay + bağımsız doğrulama "
+            "seti gerekir.\n"
+            "6. **KAF için etki beklenmez:** Kıtasal doğrultu-atımlı fayda gelgit korelasyonu literatürde "
+            "saptanmadı; bu paneldeki örüntüler rastlantı kabul edilmeli.\n"
+            "7. **Yaygın hata — 'Ay dolunay, deprem olacak':** Bilimsel temeli yoktur; dolunay-deprem "
+            "korelasyonu defalarca test edilip reddedilmiştir (Hough 2018)."
+        ),
+        references=[
+            "**Cochran, E. S., Vidale, J. E., & Tanaka, S. (2004).** Earth tides can trigger shallow thrust "
+            "fault earthquakes. *Science*, 306(5699), 1164–1166. DOI: "
+            "[10.1126/science.1103961](https://doi.org/10.1126/science.1103961) "
+            "— *Gelgit tetiklemesinin sığ bindirme faylarda zayıf kanıtı.*",
+            "**Hough, S. E. (2018).** Do large (magnitude ≥ 8) global earthquakes occur on preferred days of "
+            "the calendar year or lunar cycle? *Seismological Research Letters*, 89(2A), 577–581. DOI: "
+            "[10.1785/0220170154](https://doi.org/10.1785/0220170154) "
+            "— *Ay evresi/takvim deprem iddialarının çürütülmesi.*",
+            "**Vidale, J. E., Agnew, D. C., Johnston, M. J. S., & Oppenheimer, D. H. (1998).** Absence of "
+            "earthquake correlation with Earth tides: An indication of high preseismic fault stress rate. "
+            "*JGR*, 103(B10), 24567–24572. DOI: "
+            "[10.1029/98JB00594](https://doi.org/10.1029/98JB00594) "
+            "— *Çoğu fayda gelgit korelasyonu YOKLUĞU.*",
+            "**Métivier, L., et al. (2009).** Evidence of earthquake triggering by the solid earth tides. "
+            "*EPSL*, 278(3–4), 370–375. DOI: "
+            "[10.1016/j.epsl.2008.12.024](https://doi.org/10.1016/j.epsl.2008.12.024) "
+            "— *Global zayıf gelgit korelasyonu (dikkatli yorum).*",
+            "**Geller, R. J. (1997).** Earthquake prediction: a critical review. *GJI*, 131(3), 425–450. "
+            "DOI: [10.1111/j.1365-246X.1997.tb06588.x](https://doi.org/10.1111/j.1365-246X.1997.tb06588.x) "
+            "— *Astronomik dahil tüm tahmin iddialarının eleştirisi.*",
+        ],
+        disclaimer=(
+            "⚠️ **Bu panel bir deprem tahmini DEĞİLDİR; korelasyon nedensellik değildir.** Astronomik "
+            "değişkenlerle deprem zamanlaması arasındaki istatistiksel örüntüler **hipotez üretici keşif** "
+            "amaçlıdır, kausal kanıt değildir. Gelgit gerilmesi tektoniğin ~binde biridir; KAF gibi kıtasal "
+            "doğrultu-atımlı faylarda etki literatürde saptanmamıştır. 'Ay evresi/gezegene göre deprem tahmini' "
+            "bilim dışıdır (Hough 2018, Geller 1997). Bu paneldeki örüntüler büyük olasılıkla rastlantıdır — "
+            "anlamlılık için 1000+ olay + bağımsız doğrulama gerekir."
+        ),
+        expanded=False,
+    )
 
 # ════════════════════════════════════════════════════════════════════════════
 # 🌍 TEKTONİK PLAKA HAREKETİ SİMÜLASYONU — v1.17 (Ajan 5 / F-43)
@@ -11372,6 +11591,118 @@ def _render_dinamik_tetikleme():
         "⚠️ Halka yarıçapları homojen yer kürede Rayleigh dalga hızı (~3.5 km/s) varsayımına göredir."
     )
 
+    # v1.70 — Sprint 7 Batch 2: Dinamik Tetikleme akademik standart
+    st.markdown(
+        f"""<div style="
+            background:linear-gradient(90deg,{BG2} 0%,rgba(156,39,176,0.10) 100%);
+            border-left:3px solid #9C27B0;
+            border-radius:6px;
+            padding:0.55rem 0.9rem;
+            margin:0.4rem 0 0.8rem 0;
+            font-size:0.88rem;
+            color:{TEXT};
+            line-height:1.45;">
+            📊 <b>Mini rehber:</b> Dinamik tetikleme, büyük bir depremin <b>geçici sismik dalgalarının</b> (statik
+            stres değil) uzak mesafede (1000+ km) sismisiteyi anlık tetiklemesidir; Coulomb statik transferinden
+            farklıdır.
+            <b>Dinamik tetikleme deprem tahmini DEĞİLDİR</b> — geçmiş olayların uzak etkisini açıklar; gelecek
+            tetiklemeyi öngörmez.
+            <i>Statik vs dinamik fark, 1992 Landers→Mammoth örneği, rate-state friction için aşağıdaki 📖 Akademik Açıklama panelini açın.</i>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+    render_academic_explanation(
+        title="📖 Akademik Açıklama — Dinamik Tetikleme (Sismik Dalga ile Uzak Tetikleme)",
+        what=(
+            "**Dinamik tetikleme** (dynamic triggering), büyük bir depremin yaydığı **geçici sismik dalgaların** "
+            "(özellikle yüzey/Rayleigh dalgaları) uzak mesafelerde (yüzlerce-binlerce km) sismik aktiviteyi "
+            "**anlık veya gecikmeli** tetiklemesidir. Hill et al. 1993 *Science* makalesi (1992 Landers M7.3 → "
+            "Yellowstone/Mammoth Lakes uzak tetikleme) bu mekanizmayı kanıtladı. **Coulomb statik stres "
+            "transferinden farkı:** statik transfer kalıcı gerilme değişimi (yakın alan, ~1-2 fay uzunluğu); "
+            "dinamik tetikleme geçici dalga gerilmesi (uzak alan, 1000+ km). Bu panel sismik dalga yayılımı + "
+            "uzak tetikleme potansiyelini gösterir."
+        ),
+        how=(
+            "**Harita okuma:**\n\n"
+            "- **Halka yarıçapları:** Rayleigh dalga cephesi (zaman izokronları, ~3.5 km/s).\n"
+            "- **Tetikleme potansiyeli:** Geçici gerinim genliği uzaklaşırken azalır ama büyük olaylarda uzakta "
+            "bile eşik aşılabilir.\n\n"
+            "**Statik vs dinamik (kritik ayrım):**\n"
+            "- **Statik (Coulomb):** Kalıcı, yakın (1999 İzmit→Düzce 85 km).\n"
+            "- **Dinamik:** Geçici, uzak (1992 Landers→Mammoth 400+ km).\n"
+            "- İkisi de **tetikleme**dir ama mekanizma + mesafe farklı."
+        ),
+        science=(
+            "**Dinamik gerilme (geçici, sismik dalgadan):**\n\n"
+            r"$$\Delta\sigma_{dyn} = \mu \cdot \frac{v_{PGV}}{v_{phase}}$$"
+            "\n\nburada $\\mu$ = kayma modülü (**Pa**, ~30 GPa), $v_{PGV}$ = peak ground velocity (**m/s**), "
+            "$v_{phase}$ = dalga faz hızı (**m/s**, Rayleigh ~3500). Dinamik gerilme PGV ile orantılı; statik "
+            "transferden farkı **geçici** olması (dalga geçince sıfırlanır).\n\n"
+            "**Rate-state friction tetikleme (Dieterich 1994, van der Elst-Brodsky 2010):** Geçici gerilme "
+            "fay sürtünme durumunu değiştirir; sismisite oranı:\n\n"
+            r"$$R = \frac{r}{1 + \left( \frac{r}{R_0} - 1 \right) e^{-t/t_a}}$$"
+            "\n\nburada $R$ = tetiklenmiş sismisite oranı, $r$ = arka plan oranı, $t_a$ = karakteristik gevşeme "
+            "süresi. Bu, **gecikmeli** dinamik tetiklemeyi açıklar.\n\n"
+            "**Rayleigh dalga varış:** $t = L / v_R$, $v_R$ ≈ 3.5 km/s; 1000 km → ~5 dk."
+        ),
+        interpretation=(
+            "**Dinamik tetikleme örnekleri:**\n\n"
+            "- **1992 Landers M7.3 (klasik):** Kaliforniya'dan Yellowstone (1250 km), Mammoth Lakes'e kadar "
+            "uzak tetikleme (Hill et al. 1993).\n"
+            "- **2002 Denali M7.9:** Alaska'dan Yellowstone'a 3000+ km uzak tetikleme.\n"
+            "- **2023 Kahramanmaraş:** M7.8 sismik dalgaları geniş bölgede mikro-sismisite tetikledi (henüz "
+            "tam araştırılıyor).\n\n"
+            "**Türkiye yorumu:**\n"
+            "- KAF/DAF büyük olayları geçici dalgalarla uzak fay segmentlerini tetikleyebilir (statik Coulomb'a "
+            "ek).\n"
+            "- 2023 M7.8 → 9 saat sonra M7.5: hem statik (Coulomb) hem dinamik bileşen tartışılıyor."
+        ),
+        limitations=(
+            "1. **Dinamik tetikleme deprem tahmini DEĞİLDİR:** Geçmiş olayların uzak etkisini açıklar; gelecek "
+            "tetiklemeyi öngörmez (Geller 1997).\n"
+            "2. **Mekanizma tam anlaşılmadı:** Neden bazı bölgeler tetiklenir bazıları tetiklenmez belirsiz "
+            "(akışkan/jeotermal sistemler daha duyarlı).\n"
+            "3. **Halka yarıçapları homojen küre varsayımı:** Gerçek dalga hızı heterojen; bu panel ~3.5 km/s "
+            "sabit Rayleigh varsayar.\n"
+            "4. **Statik-dinamik ayrımı her zaman net değil:** Yakın alanda ikisi karışır (2023 M7.5 örneği).\n"
+            "5. **Gecikmeli tetikleme tartışmalı:** Saatler-günler sonra tetikleme (rate-state) hipotezi "
+            "kanıtlanması zor (Parsons 2005).\n"
+            "6. **Yaygın hata — 'Uzak deprem bizi tetikler':** Dinamik tetikleme genelde **mikro-sismisite** "
+            "(küçük olaylar) üretir; büyük olay tetiklemesi nadir ve fay zaten olgunsa olur."
+        ),
+        references=[
+            "**Hill, D. P., et al. (1993).** Seismicity remotely triggered by the magnitude 7.3 Landers, "
+            "California, earthquake. *Science*, 260(5114), 1617–1623. DOI: "
+            "[10.1126/science.260.5114.1617](https://doi.org/10.1126/science.260.5114.1617) "
+            "— *Dinamik (uzak) tetiklemenin kanıt makalesi.*",
+            "**Brodsky, E. E., & Prejean, S. G. (2005).** New constraints on mechanisms of remotely triggered "
+            "seismicity at Long Valley Caldera. *JGR*, 110, B04302. DOI: "
+            "[10.1029/2004JB003211](https://doi.org/10.1029/2004JB003211) "
+            "— *Uzak tetikleme mekanizması.*",
+            "**van der Elst, N. J., & Brodsky, E. E. (2010).** Connecting near-field and far-field earthquake "
+            "triggering to dynamic strain. *JGR*, 115, B07311. DOI: "
+            "[10.1029/2009JB006681](https://doi.org/10.1029/2009JB006681) "
+            "— *Dinamik gerinim → tetikleme (rate-state).*",
+            "**Dieterich, J. (1994).** A constitutive law for rate of earthquake production and its application "
+            "to earthquake clustering. *JGR*, 99(B2), 2601–2618. DOI: "
+            "[10.1029/93JB02581](https://doi.org/10.1029/93JB02581) "
+            "— *Rate-state friction tetikleme teorisi.*",
+            "**Parsons, T. (2005).** A hypothesis for delayed dynamic earthquake triggering. *GRL*, 32, L04302. "
+            "DOI: [10.1029/2004GL021811](https://doi.org/10.1029/2004GL021811) "
+            "— *Gecikmeli dinamik tetikleme hipotezi.*",
+            "**Geller, R. J. (1997).** Earthquake prediction: a critical review. *GJI*, 131(3), 425–450. "
+            "DOI: [10.1111/j.1365-246X.1997.tb06588.x](https://doi.org/10.1111/j.1365-246X.1997.tb06588.x)",
+        ],
+        disclaimer=(
+            "⚠️ **Dinamik tetikleme bir deprem tahmin aracı DEĞİLDİR.** Büyük bir depremin geçici sismik "
+            "dalgalarının uzak sismisiteyi tetiklemesini **geriye dönük** açıklar; gelecek tetiklemeyi "
+            "öngörmez (Geller 1997). Mekanizma tam anlaşılmamıştır (akışkan sistemler daha duyarlı). Genelde "
+            "mikro-sismisite üretir; büyük olay tetiklemesi nadirdir ve hedef fay zaten olgunsa olur. Halka "
+            "yarıçapları homojen küre varsayımıdır. Resmi tehlike için AFAD/TBDY-2018 geçerlidir."
+        ),
+        expanded=False,
+    )
+
 
 if active_menu == "🌐 Dinamik Tetikleme":
     _render_dinamik_tetikleme()
@@ -12938,6 +13269,109 @@ def _render_tsunami_katalog():
         "⚠️ 1900 öncesi runup değerleri tarihsel kayıt belirsizliği taşır (±2-3 m)."
     )
 
+    # v1.70 — Sprint 7 Batch 2: Tsunami Kataloğu akademik standart
+    st.markdown(
+        f"""<div style="
+            background:linear-gradient(90deg,{BG2} 0%,rgba(76,175,80,0.10) 100%);
+            border-left:3px solid #4CAF50;
+            border-radius:6px;
+            padding:0.55rem 0.9rem;
+            margin:0.4rem 0 0.8rem 0;
+            font-size:0.88rem;
+            color:{TEXT};
+            line-height:1.45;">
+            📊 <b>Mini rehber:</b> Akdeniz/Karadeniz tarihsel tsunami kataloğu — MS 365'ten günümüze runup
+            yükseklikleri ve kaynak olayları; Akdeniz'in tsunami gerçeğini belgeler.
+            <b>Tarihsel runup değerleri belirsizdir</b> — 1900 öncesi kayıtlar ±2-3 m hata taşır; tarih ve konum
+            tahmini, kesin ölçüm değil.
+            <i>Tsunami kaynak tipleri, runup tanımı, 365/1303 Akdeniz olayları için aşağıdaki 📖 Akademik Açıklama panelini açın.</i>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+    render_academic_explanation(
+        title="📖 Akademik Açıklama — Akdeniz Tsunami Kataloğu",
+        what=(
+            "Bu panel, **Akdeniz ve Karadeniz'in tarihsel tsunami olaylarını** (MS 365'ten günümüze) runup "
+            "(kıyıda ulaşılan maksimum yükseklik) ve kaynak bilgisiyle listeler. Veri NOAA NGDC Tsunami "
+            "Database + Ambraseys 2009 + Soloviev 2000 katalogundan derlenir. **Akdeniz, Pasifik kadar büyük "
+            "tsunami üretmese de tarihsel olarak yıkıcı olaylar** yaşamıştır (365 MS Girit, 1303 Girit-Mısır, "
+            "1908 Messina). Türkiye kıyıları için bu katalog tsunami riskinin **gerçek** olduğunu belgeler — "
+            "'Akdeniz'de tsunami olmaz' yanılgısını düzeltir."
+        ),
+        how=(
+            "**Katalog/harita okuma:**\n\n"
+            "- **Olay noktaları:** Kaynak konumu + runup yüksekliği (m).\n"
+            "- **Tablo:** Yıl, yer, kaynak tipi (deprem/heyelan/volkanik), maksimum runup, güven.\n\n"
+            "**Tsunami kaynak tipleri:**\n"
+            "- **Tektonik (deprem):** Denizaltı fay düşey yer değiştirmesi (en yaygın).\n"
+            "- **Denizaltı heyelan:** Deprem-tetikli veya bağımsız (Marmara riski).\n"
+            "- **Volkanik:** Santorini (MÖ 1600 Minoan) tipi (nadir, çok büyük)."
+        ),
+        science=(
+            "**Tsunami üretme potansiyeli — denizaltı deprem:** Düşey deniz tabanı yer değiştirmesi suyu "
+            "kaldırır. Üretilen tsunami genliği yaklaşık deniz tabanı düşey atımına eşittir:\n\n"
+            r"$$\eta_0 \approx \Delta u_z = \bar{D} \sin(\delta) \cos(\lambda)$$"
+            "\n\nburada $\\eta_0$ = başlangıç su yüksekliği (**m**), $\\bar{D}$ = fay atımı (**m**), $\\delta$ = "
+            "dalım açısı (dip), $\\lambda$ = rake. **Doğrultu-atımlı faylar (KAF) düşey bileşen az → tsunami "
+            "zayıf**; normal/ters faylar (Hellenik, Ege) güçlü tsunami üretir.\n\n"
+            "**Runup (Green yasası):**\n\n"
+            r"$$R = H_{deep} \left( \frac{d_{deep}}{d_{shore}} \right)^{1/4}$$"
+            "\n\nderin deniz dalga yüksekliği $H_{deep}$ kıyıda $R$ runup'a yükselir. Tsunami magnitüdü "
+            "(Abe 1979): $M_t = \\log_{10}(R_{max}) + \\text{sabit}$."
+        ),
+        interpretation=(
+            "**Akdeniz/Türkiye tarihsel tsunamileri:**\n\n"
+            "- **365 MS Girit (Mw ≈ 8.5):** En büyük Akdeniz tsunamisi; İskenderiye'de runup ~9 m, binlerce ölü "
+            "(Stiros 2001).\n"
+            "- **1303 Girit-Doğu Akdeniz:** Büyük tsunami, Mısır/Levant kıyıları.\n"
+            "- **1481 Rodos, 1609, 1741:** Doğu Akdeniz olayları.\n"
+            "- **1908 Messina:** ~2000 tsunami ölümü (İtalya).\n"
+            "- **2017 Bodrum-Kos:** ~1.9 m runup (modern, az hasar).\n"
+            "- **2020 İzmir-Samos:** Sığacık'ta taşkın, ~1.5 m.\n\n"
+            "**Pratik yorum:**\n"
+            "- KAF doğrultu-atımlı → Marmara'da tsunami daha çok **denizaltı heyelan** kaynaklı.\n"
+            "- Ege/Akdeniz normal+ters faylar → daha güçlü tektonik tsunami potansiyeli."
+        ),
+        limitations=(
+            "1. **Tarihsel runup ±2-3 m belirsiz:** 1900 öncesi kayıtlar tarihsel anlatıya dayanır; kesin "
+            "ölçüm yok.\n"
+            "2. **Katalog eksikliği:** Az nüfuslu kıyı olayları kaydedilmemiş olabilir; eski olaylar için "
+            "katalog tam değil.\n"
+            "3. **Kaynak atfı belirsiz:** Tarihsel tsunaminin deprem mi heyelan mı kaynaklı olduğu çoğu için "
+            "kesin değil.\n"
+            "4. **Runup tek nokta:** Maksimum runup bir kıyı noktasını gösterir; kıyı boyunca çok değişir "
+            "(geometri).\n"
+            "5. **Tsunami magnitüdü kaba:** Abe 1979 Mt tarihsel runup'tan türetilir, ±0.5 belirsiz.\n"
+            "6. **Yaygın hata — 'Akdeniz güvenli':** Tarihsel katalog aksini gösterir; düşük frekans ≠ sıfır "
+            "risk. Kıyı tahliye farkındalığı gerekli."
+        ),
+        references=[
+            "**Ambraseys, N. (2009).** *Earthquakes in the Mediterranean and Middle East.* Cambridge Univ. "
+            "Press. ISBN: 978-0-521-87292-8 — *Tarihsel deprem+tsunami arşivi.*",
+            "**Soloviev, S. L., et al. (2000).** *Tsunamis in the Mediterranean Sea 2000 B.C.–2000 A.D.* "
+            "Kluwer Academic. ISBN: 978-0-7923-6548-8 — *Akdeniz tsunami kataloğu (standart).*",
+            "**Stiros, S. C. (2001).** The AD 365 Crete earthquake and seismic clustering. *J. Structural "
+            "Geology*, 23(2–3), 545–562. DOI: "
+            "[10.1016/S0191-8141(00)00118-8](https://doi.org/10.1016/S0191-8141(00)00118-8) "
+            "— *365 MS Girit megatsunami.*",
+            "**Abe, K. (1979).** Size of great earthquakes of 1837–1974 inferred from tsunami data. *JGR*, "
+            "84(B4), 1561–1568. DOI: "
+            "[10.1029/JB084iB04p01561](https://doi.org/10.1029/JB084iB04p01561) "
+            "— *Tsunami magnitüdü Mt tanımı.*",
+            "**NOAA/NGDC.** *Global Historical Tsunami Database.* National Centers for Environmental "
+            "Information. [ngdc.noaa.gov/hazard/tsu.shtml](https://www.ngdc.noaa.gov/hazard/tsu.shtml) "
+            "— *Global tsunami olay veritabanı.*",
+        ],
+        disclaimer=(
+            "⚠️ **Tarihsel tsunami runup değerleri belirsizdir (±2-3 m, 1900 öncesi).** Tarih, konum ve kaynak "
+            "atfı tahminîdir, kesin ölçüm değildir. Katalog eksiklik (az nüfuslu kıyı olayları kaydedilmemiş) "
+            "içerir. Bu panel **tarihsel farkındalık/eğitim amaçlıdır**; kıyı tehlike değerlendirmesi için "
+            "TSUMAPS-NEAM ([tsumaps-neam.eu](https://tsumaps-neam.eu)) + AFAD tsunami planları kullanılmalıdır. "
+            "'Akdeniz'de tsunami olmaz' yanlıştır — tarihsel gerçek aksini gösterir."
+        ),
+        expanded=False,
+    )
+
 
 if active_menu == "🌊 Tsunami Kataloğu":
     _render_tsunami_katalog()
@@ -13155,6 +13589,112 @@ def _render_tsunami_varis():
         "**Yalçıner et al. (2017)** *PAGEOPH* 174(8) (Bodrum-Kos) | "
         "**GEBCO 2023:** gebco.net. "
         "⚠️ Ortalama derinlik varsayımı; gerçek için NAMI-DANCE / MOST tam batimetri."
+    )
+
+    # v1.70 — Sprint 7 Batch 2: Tsunami Varış akademik standart
+    st.markdown(
+        f"""<div style="
+            background:linear-gradient(90deg,{BG2} 0%,rgba(76,175,80,0.10) 100%);
+            border-left:3px solid #4CAF50;
+            border-radius:6px;
+            padding:0.55rem 0.9rem;
+            margin:0.4rem 0 0.8rem 0;
+            font-size:0.88rem;
+            color:{TEXT};
+            line-height:1.45;">
+            📊 <b>Mini rehber:</b> Tsunami varış süresi, sığ-su dalga hızı (v=√gd) ile kaynaktan kıyıya geçen
+            süreyi hesaplar; derin denizde ~700 km/h, kıyıya yaklaşırken yavaşlar.
+            <b>Bu basitleştirilmiş varış kestirimi gerçek uyarı sistemi DEĞİLDİR</b> — ortalama derinlik varsayımı
+            kullanır; gerçek için tam batimetri (NAMI-DANCE/MOST) gerekir.
+            <i>Sığ-su denklemi, varış süresi hesabı, Akdeniz kısa pencere için aşağıdaki 📖 Akademik Açıklama panelini açın.</i>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+    render_academic_explanation(
+        title="📖 Akademik Açıklama — Tsunami Varış Süresi (Sığ-Su Dalga Fiziği)",
+        what=(
+            "Bu panel, bir denizaltı deprem kaynağından **tsunami dalgasının kıyıya ne kadar sürede ulaşacağını** "
+            "sığ-su (shallow water) dalga fiziğiyle kestirir. Tsunami dalga boyu (~100-200 km) su derinliğinden "
+            "(~4 km) çok büyük olduğu için **sığ-su dalgası** gibi davranır: hızı sadece su derinliğine bağlıdır "
+            "($v = \\sqrt{gd}$). Açık okyanusta jet hızında (~700 km/h), kıyıya yaklaşırken yavaşlar ve yükselir. "
+            "Akdeniz'de kaynak-kıyı mesafesi kısa olduğundan **varış süresi dakikalarla ölçülür** — bu, uyarı "
+            "için kritik az zaman bırakır."
+        ),
+        how=(
+            "**Panel okuma:**\n\n"
+            "- **Kaynak → kıyı varış süreleri:** Seçili deprem kaynağından farklı kıyı noktalarına dakika "
+            "cinsinden varış.\n"
+            "- **İzokron çizgileri:** Eşit varış süresi hatları (tsunami dalga cephesi).\n\n"
+            "**Yorum:**\n"
+            "- Yakın kaynak (örn. Hellenik yay → Girit) dakikalar; uzak (→ Türkiye kıyısı) onlarca dakika.\n"
+            "- 2017 Bodrum-Kos: kaynak çok yakın, dalga dakikalar içinde geldi → uyarı imkânsıza yakındı."
+        ),
+        science=(
+            "**Sığ-su dalga hızı (Lagrange):**\n\n"
+            r"$$v = \sqrt{g \cdot d}$$"
+            "\n\nburada $g$ = 9.81 m/s² (yerçekimi), $d$ = su derinliği (**m**). Bu formül dalga boyu ≫ derinlik "
+            "olduğunda geçerlidir (tsunami: λ~150 km ≫ d~4 km). Örnek: d=4000 m → v=198 m/s ≈ **713 km/h**; "
+            "d=100 m → v=31 m/s ≈ 113 km/h; d=10 m → v=9.9 m/s ≈ 36 km/h.\n\n"
+            "**Varış süresi (değişken derinlik integrali):**\n\n"
+            r"$$T_{varış} = \int_{kaynak}^{kıyı} \frac{ds}{\sqrt{g \cdot d(s)}}$$"
+            "\n\nburada $ds$ = yol elemanı, $d(s)$ = o noktadaki batimetri derinliği. Bu panel **ortalama "
+            "derinlik** varsayımıyla basitleştirir:\n\n"
+            r"$$T_{varış} \approx \frac{L}{\sqrt{g \cdot \bar{d}}}$$"
+            "\n\n$L$ = kaynak-kıyı mesafesi (**m**, haversine), $\\bar{d}$ = ortalama derinlik. Gerçek hesap "
+            "tam batimetri ister (GEBCO 2023 + NAMI-DANCE)."
+        ),
+        interpretation=(
+            "**Akdeniz/Türkiye varış örnekleri:**\n\n"
+            "- **Hellenik yay (Girit) → Türkiye GB kıyısı (~300 km):** ortalama d~2000 m → ~40-50 dk.\n"
+            "- **2017 Bodrum-Kos → Bodrum (~15 km):** dakikalar içinde — uyarı penceresi neredeyse yok.\n"
+            "- **Doğu Akdeniz (Kıbrıs) → İskenderun (~150 km):** ~25-35 dk.\n"
+            "- **Marmara denizaltı → İstanbul kıyısı (~10-30 km):** 5-15 dk (çok kısa).\n\n"
+            "**Pratik yorum:**\n"
+            "- Yakın-kaynak Akdeniz tsunamileri için **otomatik uyarı + kıyı tahliye planı** şart; insan "
+            "karar süresi yetersiz.\n"
+            "- 'Deprem hissedildi → yüksek yere git' kuralı kıyıda hayat kurtarır (resmi uyarıyı bekleme)."
+        ),
+        limitations=(
+            "1. **Ortalama derinlik basitleştirmesi:** Gerçek varış değişken batimetriye bağlı; bu panel kaba "
+            "kestirim. Tam hesap GEBCO 2023 + NAMI-DANCE/MOST simülasyonu gerektirir.\n"
+            "2. **Bu gerçek uyarı sistemi DEĞİLDİR:** Kavramsal eğitim hesabı; operasyonel uyarı için Kandilli/"
+            "AFAD tsunami merkezi + sismik+deniz seviyesi sensör ağı gerekir.\n"
+            "3. **Runup yüksekliği hesaplanmaz:** Bu panel sadece varış zamanı; dalga yüksekliği için ayrı "
+            "model (Tsunami Tehlike paneli).\n"
+            "4. **Kıyı geometrisi etkisi yok:** Körfez/liman rezonansı, refraksiyon varış ve yüksekliği "
+            "değiştirir.\n"
+            "5. **Denizaltı heyelan ayrı:** Heyelan-kaynaklı tsunami farklı kaynak zamanı/yeri.\n"
+            "6. **Yaygın hata — 'Uyarı gelene kadar beklerim':** Yakın-kaynak Akdeniz tsunamisinde varış "
+            "dakikalar; deprem hissedilince kıyıdan uzaklaşmak (resmi uyarıyı beklemeden) hayati."
+        ),
+        references=[
+            "**Titov, V. V., & Synolakis, C. E. (1998).** Numerical modeling of tidal wave runup. *Journal of "
+            "Waterway, Port, Coastal, and Ocean Engineering*, 124(4), 157–171. DOI: "
+            "[10.1061/(ASCE)0733-950X(1998)124:4(157)](https://doi.org/10.1061/(ASCE)0733-950X(1998)124:4(157)) "
+            "— *Tsunami runup sayısal modelleme (MOST).*",
+            "**Yalçıner, A. C., et al. (2017).** The 20th July 2017 Bodrum-Kos earthquake and tsunami. "
+            "*Pure and Applied Geophysics*, 174(8). DOI: "
+            "[10.1007/s00024-017-1718-4](https://doi.org/10.1007/s00024-017-1718-4) "
+            "— *Türkiye yakın-kaynak tsunami (NAMI-DANCE).*",
+            "**Synolakis, C. E. (1987).** The runup of solitary waves. *Journal of Fluid Mechanics*, 185, "
+            "523–545. DOI: [10.1017/S002211208700329X](https://doi.org/10.1017/S002211208700329X) "
+            "— *Tsunami runup fiziği temel makalesi.*",
+            "**GEBCO Compilation Group (2023).** *GEBCO 2023 Grid* (global batimetri). "
+            "[gebco.net](https://www.gebco.net/) "
+            "— *Tsunami varış hesabı için batimetri verisi.*",
+            "**Okal, E. A., & Synolakis, C. E. (2004).** Source discriminants for near-field tsunamis. "
+            "*GJI*, 158(3), 899–912. DOI: "
+            "[10.1111/j.1365-246X.2004.02347.x](https://doi.org/10.1111/j.1365-246X.2004.02347.x) "
+            "— *Yakın-alan tsunami kaynak ayrımı.*",
+        ],
+        disclaimer=(
+            "⚠️ **Bu panel gerçek bir tsunami uyarı sistemi DEĞİLDİR.** Sığ-su varış hesabı ortalama derinlik "
+            "varsayımıyla kavramsal kestirimdir; gerçek varış değişken batimetriye bağlıdır (GEBCO 2023 + "
+            "NAMI-DANCE/MOST tam simülasyon gerekir). Operasyonel tsunami uyarısı için **Kandilli Rasathanesi "
+            "Tsunami Uyarı Merkezi (KOERI-NTWC) + AFAD** sorumludur. Akdeniz yakın-kaynak tsunamilerinde varış "
+            "dakikalarla ölçülür — deprem hissedilince kıyıdan uzaklaşmak (resmi uyarı beklemeden) hayat kurtarır."
+        ),
+        expanded=False,
     )
 
 
@@ -14017,6 +14557,118 @@ def _render_tsunami_tehlike():
         "TSUMAPS-NEAM tam grid (tsumaps-neam.eu) ile yapılmalıdır."
     )
 
+    # v1.70 — Sprint 7 Batch 2: Tsunami Tehlike akademik standart
+    st.markdown(
+        f"""<div style="
+            background:linear-gradient(90deg,{BG2} 0%,rgba(76,175,80,0.10) 100%);
+            border-left:3px solid #4CAF50;
+            border-radius:6px;
+            padding:0.55rem 0.9rem;
+            margin:0.4rem 0 0.8rem 0;
+            font-size:0.88rem;
+            color:{TEXT};
+            line-height:1.45;">
+            📊 <b>Mini rehber:</b> Olasılıksal tsunami tehlike analizi (PTHA), bir kıyı için belirli dönüş
+            periyodunda beklenen tsunami yükseklik (runup) seviyesini gösterir; Doğu Akdeniz için NEAMTHM18 modeli
+            referanstır.
+            <b>Bu olasılıksal tehlike haritasıdır, tsunami tahmini DEĞİLDİR</b> — kesin olay zamanı vermez;
+            kıyı interpolasyonu site-spesifik analizin yerini tutmaz.
+            <i>PTHA yöntemi, runup, 365 MS / 1303 Akdeniz tsunamileri için aşağıdaki 📖 Akademik Açıklama panelini açın.</i>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+    render_academic_explanation(
+        title="📖 Akademik Açıklama — Olasılıksal Tsunami Tehlikesi (PTHA)",
+        what=(
+            "**PTHA** (Probabilistic Tsunami Hazard Analysis), PSHA'nın tsunami karşılığıdır: bir kıyı noktası "
+            "için belirli zaman penceresinde **belirli tsunami yükseklik (runup) seviyesinin aşılma "
+            "olasılığını** hesaplar. Doğu Akdeniz/Karadeniz için **NEAMTHM18** (Basili et al. 2021) standart "
+            "modeldir. Türkiye kıyıları üç kaynaktan tsunami riski taşır: Hellenik yay (Girit), Doğu Akdeniz "
+            "(Kıbrıs-Hatay), Marmara (denizaltı KAF). Bu panel kıyı tehlike seviyelerini gösterir. **Akdeniz "
+            "tsunamileri tarihsel gerçektir** (365 MS Girit, 1303 Girit-Mısır, 1908 Messina) — Pasifik kadar "
+            "büyük değil ama yıkıcı."
+        ),
+        how=(
+            "**Harita okuma:**\n\n"
+            "- **Kıyı renk skalası:** Beklenen runup (m) belirli dönüş periyodunda (örn. 2500 yıl). Kırmızı = "
+            "yüksek (Hellenik yay kıyıları), mavi = düşük.\n"
+            "- **Dönüş periyodu:** PSHA gibi — 2500 yıl, 475 yıl vb.\n\n"
+            "**Yorum:**\n"
+            "- Ege/Akdeniz kıyıları (Fethiye, Bodrum, İskenderun) > Karadeniz.\n"
+            "- Marmara kıyıları denizaltı heyelan + KAF normal bileşen riski (2 m+ runup mümkün).\n"
+            "- İskenderun körfezi (Hatay) Doğu Akdeniz kaynağına yakın."
+        ),
+        science=(
+            "**PTHA aşılma oranı (PSHA analojisi):**\n\n"
+            r"$$\lambda(R > r) = \sum_{i} N_i \int_m P(R > r \mid m, \text{loc}_i) \cdot f_i(m) \, dm$$"
+            "\n\nburada $\\lambda(R>r)$ = runup $r$'nin yıllık aşılma oranı (**1/yıl**), $N_i$ = kaynak $i$ "
+            "deprem oranı, $P(R>r \\mid m)$ = tsunami yayılım modelinden (sığ-su denklemleri) runup olasılığı.\n\n"
+            "**Sığ-su tsunami hızı:**\n\n"
+            r"$$v = \sqrt{g \cdot d}$$"
+            "\n\nburada $g$ = 9.81 m/s², $d$ = su derinliği (**m**). Açık denizde (d=4000 m) v ≈ 700 km/h; "
+            "kıyıda (d=10 m) v ≈ 36 km/h → dalga yavaşlar, **yükselir** (shoaling).\n\n"
+            "**Green yasası (runup amplifikasyonu):**\n\n"
+            r"$$\frac{H_2}{H_1} = \left( \frac{d_1}{d_2} \right)^{1/4}$$"
+            "\n\nderinlik azaldıkça dalga yüksekliği artar (4000 m → 10 m geçişinde ~4.5× büyüme)."
+        ),
+        interpretation=(
+            "**Akdeniz/Türkiye tsunami tarihi:**\n\n"
+            "- **365 MS Girit (Mw ≈ 8.5):** Doğu Akdeniz boyunca yıkıcı tsunami; İskenderiye'de binlerce ölü "
+            "(Stiros 2001).\n"
+            "- **1303 Girit-Mısır:** Büyük Akdeniz tsunamisi, tarihsel kayıt.\n"
+            "- **1908 Messina (İtalya, Mw 7.1):** ~2000 tsunami ölümü.\n"
+            "- **2017 Bodrum-Kos (Mw 6.6):** ~1.9 m runup (Yalçıner 2017) — modern Türkiye tsunamisi.\n"
+            "- **2020 İzmir-Samos (Mw 6.9):** Sığacık körfezinde ~1.5 m tsunami, taşkın.\n\n"
+            "**Pratik yorum:**\n"
+            "- Akdeniz tsunamileri **dakikalar içinde** kıyıya ulaşır (yakın kaynak) — uyarı penceresi çok kısa.\n"
+            "- Marmara denizaltı heyelan tsunamisi İstanbul kıyıları için spesifik risk."
+        ),
+        limitations=(
+            "1. **PTHA tsunami tahmini DEĞİLDİR:** Olasılıksal aşılma oranı verir; kesin olay zamanı vermez "
+            "(Geller 1997 analojisi).\n"
+            "2. **Kıyı interpolasyonu kaba:** Bu panel kıyı noktalarında interpolasyon; gerçek runup yerel "
+            "batimetri + kıyı geometrisine çok duyarlı (NAMI-DANCE/MOST tam simülasyon gerekir).\n"
+            "3. **Kaynak belirsizliği:** Denizaltı fay geometrisi, heyelan potansiyeli belirsiz; PTHA epistemic "
+            "belirsizlik taşır.\n"
+            "4. **Tarihsel runup ±2-3 m:** 1900 öncesi kayıtlar belirsiz; kalibrasyonu zorlaştırır.\n"
+            "5. **Denizaltı heyelan tsunamisi ayrı:** Deprem-tetikli heyelan (Marmara) standart sismik PTHA'da "
+            "tam modellenmez.\n"
+            "6. **Yaygın hata — 'Akdeniz'de tsunami olmaz':** Tarihsel gerçek aksini gösterir (365 MS, 1303); "
+            "kısa uyarı penceresi nedeniyle kıyı tahliye planı kritiktir."
+        ),
+        references=[
+            "**Basili, R., et al. (2021).** The making of the NEAM Tsunami Hazard Model 2018 (NEAMTHM18). "
+            "*Frontiers in Earth Science*, 8, 616594. DOI: "
+            "[10.3389/feart.2020.616594](https://doi.org/10.3389/feart.2020.616594) "
+            "— *Doğu Akdeniz/Karadeniz olasılıksal tsunami tehlike modeli.*",
+            "**Yalçıner, A. C., et al. (2017).** The 20th July 2017 Bodrum-Kos earthquake and tsunami. "
+            "*Pure and Applied Geophysics*, 174(8). DOI: "
+            "[10.1007/s00024-017-1718-4](https://doi.org/10.1007/s00024-017-1718-4) "
+            "— *2017 Bodrum-Kos tsunami saha gözlemi.*",
+            "**Yolsal-Çevikbilen, S., & Taymaz, T. (2012).** Earthquake source parameters and tsunami "
+            "simulations in the Eastern Mediterranean. *Tectonophysics*, 536–537, 61–100. DOI: "
+            "[10.1016/j.tecto.2012.02.019](https://doi.org/10.1016/j.tecto.2012.02.019) "
+            "— *Türkiye/Doğu Akdeniz tsunami kaynak modelleme.*",
+            "**Stiros, S. C. (2001).** The AD 365 Crete earthquake and possible seismic clustering. "
+            "*J. Structural Geology*, 23(2–3), 545–562. DOI: "
+            "[10.1016/S0191-8141(00)00118-8](https://doi.org/10.1016/S0191-8141(00)00118-8) "
+            "— *365 MS Girit megatsunami.*",
+            "**Synolakis, C. E., et al. (2008).** Validation and verification of tsunami numerical models. "
+            "*Pure and Applied Geophysics*, 165(11–12), 2197–2228. DOI: "
+            "[10.1007/s00024-004-0427-y](https://doi.org/10.1007/s00024-004-0427-y) "
+            "— *Tsunami sayısal model doğrulama (NAMI-DANCE/MOST).*",
+        ],
+        disclaimer=(
+            "⚠️ **Bu panel olasılıksal tsunami tehlike haritasıdır, tsunami tahmini DEĞİLDİR.** PTHA "
+            "uzun-vadeli aşılma oranı verir; kesin olay zamanı/yüksekliği vermez. Kıyı değerleri "
+            "interpolasyondur — gerçek site-spesifik runup için NAMI-DANCE/MOST tam batimetri simülasyonu "
+            "ve TSUMAPS-NEAM tam grid ([tsumaps-neam.eu](https://tsumaps-neam.eu)) gerekir. Akdeniz "
+            "tsunamileri kısa uyarı penceresi (dakikalar) taşır; kıyı tahliye planı için **AFAD + Kandilli "
+            "tsunami uyarı merkezi** referanstır."
+        ),
+        expanded=False,
+    )
+
 
 if active_menu == "🗺️ Tsunami Tehlike":
     _render_tsunami_tehlike()
@@ -14233,6 +14885,118 @@ def _render_vs30_zemin():
         "**USGS Global Vs30:** earthquake.usgs.gov/data/vs30/. "
         "⚠️ Vs30 değerleri proxy/lokal kalibrasyon türevi; tam değerlendirme MASW/REMI "
         "saha ölçümü ile yapılmalıdır."
+    )
+
+    # v1.70 — Sprint 7 Batch 2: Vs30 Zemin akademik standart
+    st.markdown(
+        f"""<div style="
+            background:linear-gradient(90deg,{BG2} 0%,rgba(76,175,80,0.10) 100%);
+            border-left:3px solid #4CAF50;
+            border-radius:6px;
+            padding:0.55rem 0.9rem;
+            margin:0.4rem 0 0.8rem 0;
+            font-size:0.88rem;
+            color:{TEXT};
+            line-height:1.45;">
+            📊 <b>Mini rehber:</b> Vs30 (üst 30 m ortalama kayma dalga hızı), zemin sertliğinin ölçüsüdür ve NEHRP/
+            TBDY zemin sınıfını belirler; düşük Vs30 (yumuşak zemin) sarsıntıyı büyütür.
+            <b>Vs30 deprem tahmini değildir</b> — yer hareketi amplifikasyonu (zemin etkisi) göstergesidir;
+            proxy/uydu türevi değerler ±%30 belirsiz, kesin tasarım için saha ölçümü şart.
+            <i>Vs30 tanımı, NEHRP/TBDY sınıfları, amplifikasyon ve Erzincan ovası için aşağıdaki 📖 Akademik
+            Açıklama panelini açın.</i>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+    render_academic_explanation(
+        title="📖 Akademik Açıklama — Vs30 & Zemin Amplifikasyonu",
+        what=(
+            "**Vs30**, yer yüzeyinden itibaren **üst 30 metrenin zaman-ağırlıklı ortalama kayma (S) dalga "
+            "hızıdır** (m/s) ve bir zeminin sismik sertliğinin standart ölçüsüdür. Düşük Vs30 = yumuşak zemin "
+            "(alüvyon, dolgu) → sismik dalgaları **büyütür** (amplifikasyon); yüksek Vs30 = sert kaya → "
+            "büyütmez. **NEHRP** (ABD, BSSC 2003) ve **TBDY-2018** (Türkiye) zemin sınıflarını Vs30 üzerinden "
+            "tanımlar; bina tasarım spektrumu bu sınıfa göre 1.5–3× değişir. Bu panel Erzincan/Türkiye Vs30 "
+            "dağılımını ve zemin sınıflarını gösterir. Erzincan ovası alüvyon zemini çift risk taşır "
+            "(KAF yakını + düşük Vs30)."
+        ),
+        how=(
+            "**Harita/tablo okuma:**\n\n"
+            "- **Vs30 renk:** Kırmızı/sarı = düşük Vs30 (yumuşak, riskli amplifikasyon), yeşil/mavi = yüksek "
+            "(sert kaya).\n"
+            "- **NEHRP/TBDY sınıfı:** ZA (kaya, Vs30 > 1500) → ZE (çok yumuşak, Vs30 < 180).\n\n"
+            "**Zemin sınıfı eşikleri (TBDY-2018):**\n"
+            "- **ZA:** Vs30 > 1500 m/s (sağlam kaya)\n"
+            "- **ZB:** 760–1500 (az ayrışmış kaya)\n"
+            "- **ZC:** 360–760 (sıkı zemin/yumuşak kaya)\n"
+            "- **ZD:** 180–360 (orta-sıkı zemin)\n"
+            "- **ZE:** < 180 (yumuşak kil/alüvyon — en yüksek amplifikasyon)\n\n"
+            "Erzincan ovası tipik ZD/ZE → yüksek amplifikasyon riski."
+        ),
+        science=(
+            "**Vs30 tanımı (zaman-ağırlıklı ortalama):**\n\n"
+            r"$$V_{s30} = \frac{30}{\sum_{i} \frac{h_i}{V_{s,i}}}$$"
+            "\n\nburada $h_i$ = $i$. tabakanın kalınlığı (**m**, $\\sum h_i = 30$), $V_{s,i}$ = o tabakanın "
+            "kayma dalga hızı (**m/s**). Harmonik ortalama (yavaş tabaka baskın).\n\n"
+            "**Zemin doğal periyodu:**\n\n"
+            r"$$T_0 = \frac{4 H}{V_s}$$"
+            "\n\nburada $H$ = sediman kalınlığı (**m**), $V_s$ = ortalama hız. Erzincan: H≈200-500 m, "
+            "$V_s$≈250 → $T_0$ ≈ 1-3 s.\n\n"
+            "**Amplifikasyon faktörü (basitleştirilmiş, Borcherdt 1994):**\n\n"
+            r"$$A \approx \left( \frac{V_{ref}}{V_{s30}} \right)^{n}$$"
+            "\n\nburada $V_{ref}$ ≈ 760 m/s (referans kaya), $n$ ≈ 0.3–0.6 (şiddet bağımlı; güçlü sarsıntıda "
+            "zemin doğrusal-olmayan davranışla $n$ düşer). ZE zemin (Vs30=150) → A ≈ 1.8–2.5× kaya'ya göre."
+        ),
+        interpretation=(
+            "**Türkiye Vs30 dersleri:**\n\n"
+            "- **1999 İzmit — Avcılar trajedisi:** Episentr 70 km uzakta ama Avcılar yumuşak zemin (ZE) "
+            "amplifikasyonu + bina rezonansı → uzakta ağır hasar. Vs30'un önemini kanıtladı.\n"
+            "- **2023 Hatay (Antakya):** Asi nehri alüvyon ovası (düşük Vs30) + KKAF kaynağı → %30+ bina "
+            "yıkımı. Zemin amplifikasyonu kaybı katladı.\n"
+            "- **Erzincan ovası:** Alüvyon ZD/ZE; 1939'da merkez ovada yıkım kenar kaya zonlardan çok daha "
+            "yüksekti.\n\n"
+            "**Pratik yorum:**\n"
+            "- Düşük Vs30 + uzun T₀ → 5-10 katlı bina rezonans riski (Mikrozon paneli ile birlikte).\n"
+            "- Yeni inşaat öncesi saha Vs30 ölçümü TBDY-2018 zorunluluğudur."
+        ),
+        limitations=(
+            "1. **Proxy Vs30 ±%30 belirsiz:** Uydu/topografik eğim türevi Vs30 (Wald-Allen 2007) kaba; "
+            "kesin değer için saha MASW/REMI/sondaj gerekir.\n"
+            "2. **Vs30 tek başına yetersiz:** Derin sediman (>30 m) etkisi (basin amplification) Vs30'a "
+            "yansımaz; Erzincan gibi derin havzada ek amplifikasyon olur.\n"
+            "3. **Doğrusal-olmayan zemin davranışı:** Güçlü sarsıntıda yumuşak zemin doğrusal-olmaz "
+            "(sertleşme/yumuşama); basit amplifikasyon faktörü sapar.\n"
+            "4. **30 m derinlik konvansiyonu:** Tarihsel/pratik seçim; bazı zeminler için fiziksel olarak "
+            "ideal derinlik değil.\n"
+            "5. **Bu panel proxy/sentez:** Gerçek mikrobölgeleme için saha ölçümü + 2D/3D zemin response "
+            "analizi gerekir.\n"
+            "6. **Yaygın hata — 'Vs30 yüksek = güvenli':** Sert zemin kısa-periyot dalga amplifiye eder "
+            "(1-2 katlı bina riski). Hangi bina için risk, Vs30 + T₀ birlikte değerlendirilir."
+        ),
+        references=[
+            "**Borcherdt, R. D. (1994).** Estimates of site-dependent response spectra for design "
+            "(methodology and justification). *Earthquake Spectra*, 10(4), 617–653. DOI: "
+            "[10.1193/1.1585791](https://doi.org/10.1193/1.1585791) "
+            "— *Vs30 amplifikasyon faktörü metodolojisi.*",
+            "**Wald, D. J., & Allen, T. I. (2007).** Topographic slope as a proxy for seismic site conditions "
+            "and amplification. *BSSA*, 97(5), 1379–1395. DOI: "
+            "[10.1785/0120060267](https://doi.org/10.1785/0120060267) "
+            "— *Topografik eğim → Vs30 proxy yöntemi.*",
+            "**BSSC (2003).** *NEHRP Recommended Provisions for Seismic Regulations (FEMA 450).* Building "
+            "Seismic Safety Council, Washington D.C. "
+            "— *NEHRP zemin sınıfı tanımları (Vs30 eşikleri).*",
+            "**TBDY-2018.** *Türkiye Bina Deprem Yönetmeliği 2018.* AFAD. "
+            "[tdth.afad.gov.tr](https://tdth.afad.gov.tr/) "
+            "— *Türkiye zemin sınıfları ZA-ZE + tasarım spektrumu.*",
+            "**Sucuoğlu, H., & Akkar, S. (2014).** *Basic Earthquake Engineering.* Springer. "
+            "ISBN: 978-3-319-01026-7 — *Türkiye zemin-yapı etkileşimi.*",
+        ],
+        disclaimer=(
+            "⚠️ **Vs30 bir deprem tahmin aracı DEĞİLDİR; bu panel resmi mikrobölgeleme değildir.** Vs30 zemin "
+            "amplifikasyon potansiyelini gösterir, deprem zamanı/yeri vermez. Proxy/uydu türevi Vs30 ±%30 "
+            "belirsizdir; kesin tasarım için saha ölçümü (MASW/REMI/sondaj) zorunludur (TBDY-2018). Derin havza "
+            "etkisi ve doğrusal-olmayan zemin davranışı basit Vs30'a yansımaz. Resmi değerlendirme için "
+            "**AFAD mikrobölgeleme + TBDY-2018 + saha jeoteknik** gerekir."
+        ),
+        expanded=False,
     )
 
 

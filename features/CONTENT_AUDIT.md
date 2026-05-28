@@ -36,7 +36,7 @@ Her panelin mevcut `st.caption`, `st.markdown`, `st.info`, `st.warning`, `st.suc
 
 | Panel | Mevcut Seviye | Grafik Sayısı | Pilot? |
 |---|---|---:|---|
-| 🧭 Fay Sistemleri | 🟠 Temel | 2 | — |
+| 🧭 Fay Sistemleri | 🟢 Akademik ✅ (v1.70) | 2 | ✅ **Sprint 7 — Emre 2013 MTA + Sinnott 1984** |
 | 🌍 Plaka Simülasyonu | 🟢 Akademik ✅ (v1.64) | 1 (animasyon) | ✅ **Sprint 4a — V_rel formülü + NNR-MORVEL56** |
 | 🔒 Fay Kilitlenme | 🟢 Akademik ✅ (v1.67) | 2 | ✅ **Sprint 5 — Savage-Burford 1973 + Reilinger 2006** |
 | 💥 Coulomb Stres | 🟢 Akademik ✅ (v1.65) | 2 | ✅ **Sprint 4b — King-Stein-Lin 1994 + Okada 1992** |
@@ -50,11 +50,11 @@ Her panelin mevcut `st.caption`, `st.markdown`, `st.info`, `st.warning`, `st.suc
 |---|---|---:|---|
 | 📊 İstatistik & Analiz | 🟡 Orta (η/RTL/AMR akademik v1.62) | 8+ (b-grid, η, RTL, AMR, korelasyon, scatter) | ✅ **Sprint 2 — η/RTL/AMR akademik** |
 | 📉 b-Değeri Zaman Serisi | 🟢 Akademik ✅ (v1.56) | 3 (b-değeri zaman + dağılım) | ✅ **PİLOT B — Aki 1965 MLE + Bayrak 2002** |
-| 🌐 Dinamik Tetikleme | 🟠 Temel | 2 | — |
+| 🌐 Dinamik Tetikleme | 🟢 Akademik ✅ (v1.70) | 2 | ✅ **Sprint 7 — Hill 1993 + van der Elst 2010** |
 | 🗺️ Sismik Tehlike (PSHA) | 🟢 Akademik ✅ (v1.69) | 2 | ✅ **Sprint 7 — Cornell 1968 + SHARE 2013 + TBDY-2018** |
-| 🗺️ Tsunami Tehlike | 🟠 Temel | 2 | — |
-| ⏱️ Tsunami Varış | 🟠 Temel | 1 | — |
-| 🌊 Tsunami Kataloğu | 🟠 Temel | 2 | — |
+| 🗺️ Tsunami Tehlike | 🟢 Akademik ✅ (v1.70) | 2 | ✅ **Sprint 7 — Basili 2021 NEAMTHM18** |
+| ⏱️ Tsunami Varış | 🟢 Akademik ✅ (v1.70) | 1 | ✅ **Sprint 7 — sığ-su fiziği + Titov-Synolakis 1998** |
+| 🌊 Tsunami Kataloğu | 🟢 Akademik ✅ (v1.70) | 2 | ✅ **Sprint 7 — Soloviev 2000 + Stiros 2001** |
 | 🏚️ HAZUS Kayıp | 🟢 Akademik ✅ (v1.69) | 3 | ✅ **Sprint 7 — FEMA 2003 + Erdik 2003 + Lagomarsino 2006** |
 
 ### 🛰️ Uydu & Jeofizik
@@ -65,7 +65,7 @@ Her panelin mevcut `st.caption`, `st.markdown`, `st.info`, `st.warning`, `st.suc
 | 📡 InSAR Zaman Serisi | 🟢 Akademik ✅ (v1.67) | 2 | ✅ **Sprint 5 — Ferretti 2001 PS + Berardino 2002 SBAS** |
 | 🌋 Moho Derinliği | 🟢 Akademik ✅ (v1.67) | 1 | ✅ **Sprint 5 — Mohorovičić 1910 + Zhu-Kanamori 2000** |
 | 🌀 SKS Splitting | 🟢 Akademik ✅ (v1.67) | 2 | ✅ **Sprint 5 — Silver-Chan 1991 + Sandvol 2003** |
-| 🏔️ Vs30 Zemin | 🟠 Temel | 2 | — |
+| 🏔️ Vs30 Zemin | 🟢 Akademik ✅ (v1.70) | 2 | ✅ **Sprint 7 — Borcherdt 1994 + Wald-Allen 2007** |
 | 🗾 Erzincan Mikrozon | 🟢 Akademik ✅ (v1.66) | 2 | ✅ **Sprint 6 — Nakamura 1989 + AFAD 2010** |
 
 ### 🎓 Eğitim & Bilgi
@@ -79,7 +79,7 @@ Her panelin mevcut `st.caption`, `st.markdown`, `st.info`, `st.warning`, `st.suc
 | 📜 Tarihsel Sismisite | 🟢 Akademik ✅ (v1.66) | 2 | ✅ **Sprint 6 — Ambraseys 2009 + Ambraseys-Jackson 2000** |
 | 🏛️ Erzincan Arşivi | 🟢 Akademik ✅ (v1.66) | 3 | ✅ **Sprint 6 — Barka 1996 + Grosser 1998** |
 | 🎬 Ambraseys Animasyon | 🟠 Temel | 1 | — |
-| 🔭 Astronomik Analiz | 🟠 Temel | 5 (5 bileşen) | — |
+| 🔭 Astronomik Analiz | 🟢 Akademik ✅ (v1.70) | 5 (5 bileşen) | ✅ **Sprint 7 — Cochran 2004 + Hough 2018 (gelgit eleştiri)** |
 | 📝 Raporlar | 🔴 Eksik | 0 (TXT indir) | — |
 
 ### ⚙️ Sistem
