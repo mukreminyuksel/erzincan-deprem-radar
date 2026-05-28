@@ -231,6 +231,61 @@ TOPICS: dict = {
         "refs": ["Wald1999_ShakeMap", "AFAD_TBDY2018", "SucuogluAkkar2014"],
         "aciklama": "Hızlı P (~6 km/s) ile yıkıcı S (~3.5 km/s) arası saniyeler uyarı penceresidir (Δt≈0.12·R). Merkez üssünde 'kör bölge' uyarı veremez. AFAD-EWS Marmara pilotu; tahmin DEĞİL, tepki sistemidir.",
     },
+    # ── Batch 2 (2/2, v1.79) — 6 ileri konu ──
+    "sismik_moment_enerji": {
+        "baslik": "Sismik Moment, Enerji & Stress Drop",
+        "emoji": "⚡",
+        "kategori": "Kaynak Sismolojisi",
+        "ozet": "M₀, açığa çıkan enerji ve gerilme düşüşü; magnitüd ile fiziksel büyüklük ilişkisi.",
+        "seviye": "İleri",
+        "refs": ["Hanks1979", "Kanamori2004_Physics", "AkiRichards2002", "Kanamori2015"],
+        "aciklama": "M₀=μ·A·D̄ (sismik moment); enerji E≈M₀/(2×10⁴); stress drop Δσ≈M₀/A^1.5 (tipik 1–10 MPa). Bir magnitüd artışı ~32× enerji demektir.",
+    },
+    "stick_slip": {
+        "baslik": "Stick-Slip & Sürtünme (Deprem Fiziği)",
+        "emoji": "🧲",
+        "kategori": "Fay Mekaniği",
+        "ozet": "Faylar neden sürekli kaymaz da aniden kırılır? Rate-state sürtünme ve nükleasyon.",
+        "seviye": "İleri",
+        "refs": ["Dieterich1994", "Reid1910", "Kanamori2004_Physics", "AkiRichards2002"],
+        "aciklama": "Fay sürtünme ile 'yapışır' (stick), gerilme eşiği aşılınca aniden 'kayar' (slip). Rate-state yasası (Dieterich 1994) hız ve durum bağımlı sürtünmeyi tanımlar; nükleasyon zonu kırılmayı başlatır.",
+    },
+    "deprem_tahmini": {
+        "baslik": "Deprem Tahmini: Neden Bu Kadar Zor?",
+        "emoji": "🔮",
+        "kategori": "İstatistiksel Sismoloji",
+        "ozet": "Deterministik tahmin neden mümkün değil; öngörü (forecast) ile tahmin (prediction) farkı.",
+        "seviye": "Orta",
+        "refs": ["Geller1997", "WiemerWyss2000", "Matthews2002", "Field2017_ETAS"],
+        "aciklama": "Bilimsel uzlaşı (Geller 1997): kesin zaman/yer/büyüklük tahmini mümkün değildir. Olasılıksal ÖNGÖRÜ (forecast: '50 yılda %X') mümkün; deterministik TAHMİN ('yarın M7 olacak') değil. Öncü işaretler güvenilir değil.",
+    },
+    "ambient_noise": {
+        "baslik": "Sismik Gürültü & Ambient Noise Tomografi",
+        "emoji": "🌊",
+        "kategori": "Temel Sismoloji",
+        "ozet": "Deprem olmadan, sürekli arka plan titreşiminden yer yapısı çıkarma.",
+        "seviye": "İleri",
+        "refs": ["Shapiro2005_Noise", "Shearer2019", "AkiRichards2002"],
+        "aciklama": "İki istasyon arası ambient gürültü çapraz-korelasyonu, aralarındaki yüzey dalgası Green fonksiyonunu verir (Shapiro 2005). Deprem beklemeden sürekli yapı görüntüleme; mikrobölgeleme + monitoring için güçlü.",
+    },
+    "b_degeri_uzamsal": {
+        "baslik": "b-Değeri Uzamsal Değişimi (Stres Göstergesi)",
+        "emoji": "🌡️",
+        "kategori": "İstatistiksel Sismoloji",
+        "ozet": "Gutenberg-Richter b-değerinin haritada değişimi; düşük b = yüksek stres mi?",
+        "seviye": "İleri",
+        "refs": ["WiemerWyss2000", "GutenbergRichter1944", "Aki1965", "Ozturk2011"],
+        "aciklama": "Düşük b (~0.7) yüksek diferansiyel stres / kilitli asperity ile ilişkilendirilir; yüksek b (~1.3) heterojen/düşük stres. Mc (tamamlanma) altında geçersiz. KAF segment-bazlı b haritaları stres yorumu için kullanılır — ama tahmin değildir.",
+    },
+    "yavas_depremler": {
+        "baslik": "Yavaş Kayma & Sessiz Depremler (SSE)",
+        "emoji": "🐌",
+        "kategori": "Fay Mekaniği",
+        "ozet": "Sarsıntısız, günler-aylar süren kayma olayları ve volkanik olmayan tremor.",
+        "seviye": "İleri",
+        "refs": ["BerozaIde2011", "Dieterich1994", "Reilinger2006"],
+        "aciklama": "Bazı faylar enerjiyi ani deprem yerine **yavaş kayma** (slow slip events, günler-haftalar) + tremor ile boşaltır. GPS/InSAR ile saptanır, sismogramlarda görünmez. Büyük deprem riskini hem azaltabilir hem komşu segmente yükleyebilir.",
+    },
 }
 
 ACIKLAMALAR: dict[str, str] = {
@@ -758,6 +813,116 @@ $$\\Delta t = t_S - t_P \\approx 0.12 \\times R$$
 **Türkiye:** AFAD-EWS Marmara'da pilot; Japonya JMA-EEW (2007), Meksika SASMEX, ABD ShakeAlert operasyonel.
 
 **KRİTİK — yaygın hata:** EEW **deprem tahmini DEĞİLDİR.** Deprem zaten başladıktan sonra, hızlı dalganın yavaş dalgaya göre avantajını kullanan bir **tepki** sistemidir (Geller 1997: tahmin mümkün değil).
+""",
+    # ── Batch 2 (2/2, v1.79) — 6 ileri konu açıklaması ──
+    "sismik_moment_enerji": """
+### Sismik Moment, Enerji & Stress Drop
+
+Bir depremin fiziksel "boyutu" üç temel büyüklükle tanımlanır.
+
+**Sismik moment** (en temel ölçü):
+$$M_0 = \\mu \\cdot A \\cdot \\bar{D}$$
+$\\mu$ = kayma modülü (~30 GPa), $A$ = kırılma alanı (m²), $\\bar{D}$ = ortalama atım (m). Birim: **N·m**.
+
+**Açığa çıkan enerji:**
+$$E \\approx \\frac{M_0}{2 \\times 10^4}$$
+M7 deprem ~10¹⁵ J ≈ bir nükleer santralin yıllık üretimi mertebesinde.
+
+**Stress drop (gerilme düşüşü):**
+$$\\Delta\\sigma \\approx \\frac{M_0}{A^{1.5}}$$
+Tipik 1–10 MPa. Yüksek stress drop = daha şiddetli yüksek-frekans sarsıntı (bina hasarı için kritik).
+
+**Logaritmik ölçek:** Bir magnitüd artışı = ~32× enerji, ~1000× üç magnitüd. M7.8 (2023 Maraş) M6.8'den ~32× daha güçlüdür.
+
+**Yaygın hata:** "M6 ile M7 az fark" — hayır, 32× enerji farkı vardır.
+""",
+    "stick_slip": """
+### Stick-Slip & Sürtünme — Deprem Neden Ani Olur?
+
+Faylar sürekli, yumuşakça kaymaz; **yapışır-kayar** (stick-slip).
+
+**Mekanizma:**
+1. **Stick (yapışma):** Sürtünme blokları kilitler; tektonik kuvvet elastik enerji biriktirir (Reid 1910 elastik geri tepme).
+2. **Slip (kayma):** Gerilme statik sürtünme eşiğini aşınca fay **aniden** kayar → deprem.
+
+**Rate-state sürtünme yasası (Dieterich 1994):** Sürtünme katsayısı kayma **hızına** ($v$) ve temas **durumuna** ($\\theta$) bağlıdır:
+$$\\mu = \\mu_0 + a\\ln\\frac{v}{v_0} + b\\ln\\frac{v_0\\theta}{D_c}$$
+$a < b$ ise fay **kararsız** (deprem üretir); $a > b$ ise **kararlı** (sürünme/creep).
+
+**Nükleasyon:** Kırılma küçük bir zonda başlar, kritik boyuta ulaşınca hızla yayılır.
+
+**Türkiye:** KAF'ın İsmetpaşa segmenti sürünür (kararlı), Erzincan segmenti kilitlidir (kararsız → büyük deprem).
+
+**Yaygın hata:** "Fay sürekli azar azar kaysa deprem olmaz" — doğru, ama çoğu fay kilitlidir; sürünen segmentler istisnadır.
+""",
+    "deprem_tahmini": """
+### Deprem Tahmini: Neden Bu Kadar Zor?
+
+En çok yanlış anlaşılan konu. **Bilimsel uzlaşı (Geller 1997, Science/GJI): deterministik deprem tahmini mümkün değildir.**
+
+**Tahmin (prediction) vs Öngörü (forecast):**
+- **Tahmin (mümkün DEĞİL):** "Yarın, Erzincan'da, M7 olacak" — kesin zaman+yer+büyüklük. Hiçbir yöntem bunu güvenilir yapamaz.
+- **Öngörü (mümkün):** "Önümüzdeki 50 yılda Marmara'da M7+ olasılığı %X" — olasılıksal, uzun vadeli (PSHA, BPT).
+
+**Neden zor?**
+1. Fay sistemi kaotik, non-lineer; küçük farklar büyük sonuç değiştirir.
+2. Güvenilir, tekrarlanabilir **öncü işaret** bulunamadı (radon, hayvan davranışı, ışık, b-değeri — hiçbiri doğrulanmadı).
+3. Yer altı doğrudan gözlemlenemez (10+ km derinlik).
+
+**Sahte iddialar:** "Ay/gezegen konumu", "bulut şekli", "hayvan davranışı" — hiçbiri bilimsel temelli değil (Hough 2018).
+
+**Doğru yaklaşım:** Tahmin yerine **hazırlık** — sağlam bina (TBDY-2018), erken uyarı (tepki sistemi), afet planı.
+
+**Yaygın hata:** "Bilim insanları depremi biliyor ama saklıyor" — komplo; gerçek şu ki kimse kesin tahmin yapamaz.
+""",
+    "ambient_noise": """
+### Sismik Gürültü & Ambient Noise Tomografi
+
+Yer hiç durmaz: okyanus dalgaları, rüzgâr, insan aktivitesi sürekli zayıf **sismik gürültü** üretir. Eskiden "çöp" sayılan bu sinyal, modern sismolojinin güçlü aracı oldu.
+
+**İlke (Shapiro 2005):** İki istasyon arasındaki gürültünün **çapraz-korelasyonu**, o iki nokta arasında yayılan yüzey dalgasının **Green fonksiyonunu** verir — sanki birinde deprem olmuş gibi.
+
+**Avantaj:** Deprem **beklemeye gerek yok**; sürekli kayıttan yapı görüntülenir. Şehir ölçeğinde zemin haritalama, volkan/fay izleme, hatta zaman içinde değişim takibi (monitoring) mümkün.
+
+**Uygulama:** Mikrobölgeleme (Vs profili), baraj/bina sağlık izleme, jeotermal saha karakterizasyonu.
+
+**Türkiye:** Marmara ve Ege'de ambient noise tomografisi kabuk yapısı + zemin amplifikasyonu çalışmalarında kullanılıyor.
+
+**Yaygın hata:** "Gürültü ölçümü işe yaramaz" — tam tersine, sürekli ve her yerde olduğu için deprem-bağımsız, güçlü bir veri kaynağıdır.
+""",
+    "b_degeri_uzamsal": """
+### b-Değeri Uzamsal Değişimi — Stres Haritası mı?
+
+Gutenberg-Richter b-değeri ($\\log_{10}N = a - bM$) sadece bir bölge için değil, **harita üzerinde** hesaplanabilir.
+
+**Yorum (Wiemer-Wyss 2000):**
+- **Düşük b (~0.7):** Yüksek diferansiyel stres, kilitli **asperity** (kırılmaya yakın yama) ile ilişkilendirilir.
+- **Yüksek b (~1.3):** Heterojen malzeme, düşük stres, akışkan varlığı.
+
+**Hesap:** Bölge grid'e bölünür, her hücrede yeterli olay varsa (Mc üstü) Aki MLE ile b hesaplanır.
+
+**KRİTİK sınırlama:** **Mc (tamamlanma magnitüdü)** altındaki olaylar dahil edilirse b yanlış çıkar. Az olaylı hücreler güvenilmez. Bu uygulamada İstatistik panelinde "Uzamsal b-Değeri Haritası" mevcut.
+
+**Türkiye:** KAF segmentlerinde b-değeri değişimi stres yorumu için çalışılır (Öztürk 2011).
+
+**Yaygın hata:** "Düşük b = deprem yakında" — hayır, b düşüklüğü artmış *olasılık* ile ilişkili olabilir ama **kesin tahmin değildir** (Geller 1997).
+""",
+    "yavas_depremler": """
+### Yavaş Kayma & Sessiz Depremler (SSE)
+
+Her kayma sarsıntı üretmez. Bazı faylar enerjiyi **yavaş, sessiz** boşaltır — sismogramlarda görünmez ama GPS/InSAR ile saptanır.
+
+**Slow Slip Events (SSE):** Günler-haftalar-aylar süren, fay üzerinde yavaş kayma. Bir M6-7'ye eşdeğer moment açığa çıkarır ama **kimse hissetmez** (Beroza-Ide 2011).
+
+**Tremor (volkanik olmayan):** SSE'ye eşlik eden, uzun süreli zayıf titreşim; normal depremin keskin P/S varışı yoktur.
+
+**Nerede?** En çok dalma-batma zonlarında (Japonya Nankai, Cascadia). Kıtasal doğrultu-atımlı faylarda (KAF) daha az belgelenmiştir.
+
+**Önemi:** SSE komşu kilitli segmente **stres yükleyebilir** (tetikleme) veya enerjiyi zararsızca boşaltabilir. Deprem döngüsü anlayışını değiştirdi.
+
+**İzleme:** Yüksek-hassasiyetli GPS ağları + InSAR zaman serisi (bu uygulamada InSAR panelleri).
+
+**Yaygın hata:** "Kayma varsa deprem olur" — SSE sarsıntısız kaymadır; her kayma yıkıcı deprem değildir.
 """,
 }
 
@@ -1549,6 +1714,52 @@ REFERENCES: dict[str, dict] = {
         "isbn": "978-0-231-06534-8",
         "tip": "kitap",
         "not": "PSHA temelleri, deterministik vs. olasılıksal yaklaşım tartışması.",
+    },
+    # ── Batch 2 (2/2, v1.79) — ileri konular için ek kaynaklar ──
+    "Geller1997": {
+        "yazar": "Geller, R.J.",
+        "baslik": "Earthquake prediction: a critical review",
+        "yil": 1997, "dergi": "Geophysical Journal International",
+        "doi": "10.1111/j.1365-246X.1997.tb06588.x",
+        "url": "https://doi.org/10.1111/j.1365-246X.1997.tb06588.x",
+        "tip": "makale",
+        "not": "Deterministik deprem tahmininin mümkün olmadığına dair temel eleştiri.",
+    },
+    "Dieterich1994": {
+        "yazar": "Dieterich, J.",
+        "baslik": "A constitutive law for rate of earthquake production and its application to earthquake clustering",
+        "yil": 1994, "dergi": "Journal of Geophysical Research",
+        "doi": "10.1029/93JB02581",
+        "url": "https://doi.org/10.1029/93JB02581",
+        "tip": "makale",
+        "not": "Rate-state sürtünme yasası; deprem nükleasyonu ve kümelenme.",
+    },
+    "Kanamori2004_Physics": {
+        "yazar": "Kanamori, H. & Brodsky, E.E.",
+        "baslik": "The physics of earthquakes",
+        "yil": 2004, "dergi": "Reports on Progress in Physics",
+        "doi": "10.1088/0034-4885/67/8/R03",
+        "url": "https://doi.org/10.1088/0034-4885/67/8/R03",
+        "tip": "makale",
+        "not": "Deprem fiziği derlemesi: stress drop, enerji, sürtünme.",
+    },
+    "Shapiro2005_Noise": {
+        "yazar": "Shapiro, N.M., Campillo, M., Stehly, L. & Ritzwoller, M.H.",
+        "baslik": "High-resolution surface-wave tomography from ambient seismic noise",
+        "yil": 2005, "dergi": "Science",
+        "doi": "10.1126/science.1108339",
+        "url": "https://doi.org/10.1126/science.1108339",
+        "tip": "makale",
+        "not": "Ambient noise korelasyonundan yüzey dalgası tomografisi.",
+    },
+    "BerozaIde2011": {
+        "yazar": "Beroza, G.C. & Ide, S.",
+        "baslik": "Slow earthquakes and nonvolcanic tremor",
+        "yil": 2011, "dergi": "Annual Review of Earth and Planetary Sciences",
+        "doi": "10.1146/annurev-earth-040809-152531",
+        "url": "https://doi.org/10.1146/annurev-earth-040809-152531",
+        "tip": "makale",
+        "not": "Yavaş kayma olayları (SSE) ve volkanik olmayan tremor derlemesi.",
     },
 }
 
