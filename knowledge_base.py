@@ -4218,6 +4218,41 @@ ESSENTIAL_TEXTBOOKS: list[dict] = [
         "isbn": "978-0-471-14921-7",
         "odak": "Taban izolasyonu tasarım ilkeleri ve uygulamaları",
     },
+    # ── Türkçe başvuru/ders kitapları (v1.75 — kullanıcı önerisi, web doğrulamalı) ──
+    {
+        "id": "TR1", "yazar": "Celep, Zekai",
+        "baslik_tr": "Deprem Mühendisliğine Giriş ve Depreme Dayanıklı Yapı Tasarımı",
+        "baski": "2022", "yil": 2022, "yayinevi": "Beta Yayınevi",
+        "isbn": "978-975-95405-9-3",
+        "odak": "Türkiye TBDY-2018, deprem mühendisliği teorisi, kapsamlı ders kitabı (764 s.)",
+        "notlar": "Türkçe temel başvuru/ders kitabı; TBDY-2018 kurallarını teorik temellerle harmanlar (İTÜ).",
+        "url": "https://www.betayayinevi.com.tr",
+    },
+    {
+        "id": "TR2", "yazar": "Canbay, E.; Ersoy, U.; Özcebe, G.; Sucuoğlu, H. & Wasti, S.T.",
+        "baslik_tr": "Binalar İçin Deprem Mühendisliği: Temel İlkeler",
+        "baski": "2008", "yil": 2008, "yayinevi": "Evrim Yayınevi (ODTÜ)",
+        "isbn": "978-9944-0716-1-1",
+        "odak": "Deprem mühendisliği temel ilkeleri, dinamik analiz, betonarme bina davranışı",
+        "notlar": "Kült Türkçe eser; ODTÜ deprem mühendisliği ekolünün temel kitabı.",
+    },
+    {
+        "id": "TR3", "yazar": "TMMOB İnşaat Mühendisleri Odası (İMO)",
+        "baslik_tr": "Türkiye Bina Deprem Yönetmeliği (TBDY-2018) Eğitim El Kitabı — Açıklamalar ve Uygulama Örnekleri",
+        "baski": "2019", "yil": 2019, "yayinevi": "TMMOB İMO",
+        "isbn": "—",
+        "odak": "TBDY-2018 uygulama örnekleri, Türk mühendisleri için temel başvuru rehberi",
+        "notlar": "İMO resmi yayını (yayın kodu 165). Uygulamalı tasarım örnekleri. ISBN yerine İMO yayın kataloğundan teyit edilmeli.",
+        "url": "https://www.imo.org.tr",
+    },
+    {
+        "id": "TR4", "yazar": "Uzsoy, Şafak Z.",
+        "baslik_tr": "Yapı Dinamiği ve Deprem Mühendisliği — Çözülmüş Örnek Problemler",
+        "yayinevi": "Birsen Yayınevi",
+        "isbn": "978-975-511-448-4",
+        "odak": "Yapı dinamiği, deprem davranışı, çözümlü sınav/örnek problemler (510 s.)",
+        "notlar": "Türkçe; çözümlü problem ağırlıklı, sınav hazırlık ve uygulama için. Baskı yılı yayınevinden teyit edilmeli.",
+    },
 ]
 
 # ── BÖLÜM D: ANAHTAR AKADEMİSYENLER ─────────────────────────────────────────

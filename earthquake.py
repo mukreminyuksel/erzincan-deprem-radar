@@ -87,7 +87,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.74"
+APP_VERSION = "1.75"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -16763,7 +16763,7 @@ def _kutuphane_kitap_rehberi(textbooks):
             continue
         baslik = b.get("baslik_tr") or b.get("baslik_en") or "?"
         baslik_en = b.get("baslik_en")
-        isbn = b.get("isbn_us") or b.get("isbn_si") or "—"
+        isbn = b.get("isbn") or b.get("isbn_us") or b.get("isbn_si") or "—"
         with st.expander(f"📖 {b.get('yazar','?')} ({b.get('yil','?')}) — {baslik}"):
             if baslik_en and baslik_en != baslik:
                 st.markdown(f"*{baslik_en}*")
