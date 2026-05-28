@@ -87,7 +87,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.76"
+APP_VERSION = "1.77"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -16556,6 +16556,10 @@ def _render_akademik_kutuphane():
     except ImportError:
         LEARNING_PATH = []
         GLOSSARY = {}
+    try:
+        from knowledge_base import REGULATIONS_STANDARDS
+    except ImportError:
+        REGULATIONS_STANDARDS = []
 
     st.markdown("## 📚 Akademik Bilgi Merkezi")
     st.markdown(
@@ -16573,7 +16577,7 @@ def _render_akademik_kutuphane():
     )
 
     with tab_kitaplar:
-        _kutuphane_kitap_rehberi(ESSENTIAL_TEXTBOOKS)
+        _kutuphane_kitap_rehberi(ESSENTIAL_TEXTBOOKS, REGULATIONS_STANDARDS)
     with tab_arastirma:
         _kutuphane_arastirma(
             RECENT_PUBLICATIONS_EQ, KEY_SCHOLARS, KEY_JOURNALS_EQ,
@@ -16745,8 +16749,8 @@ def _kutuphane_konular(TOPICS, ACIKLAMALAR, REFERENCES, PLOTLY_CONFIG):
             st.info("Bu konu için kaynak bilgisi tanımlanmamış.")
 
 
-def _kutuphane_kitap_rehberi(textbooks):
-    """📚 Kitap Rehberi sekmesi — ESSENTIAL_TEXTBOOKS (ISBN'li temel eserler)."""
+def _kutuphane_kitap_rehberi(textbooks, standards=None):
+    """📚 Kitap Rehberi sekmesi — ESSENTIAL_TEXTBOOKS + REGULATIONS_STANDARDS."""
     if not textbooks:
         st.info("📚 Kitap rehberi içeriği hazırlanıyor.")
         return
@@ -16781,6 +16785,31 @@ def _kutuphane_kitap_rehberi(textbooks):
             if b.get("url"):
                 st.markdown(f"[🔗 Yayıncı / kaynak sayfası]({b['url']})")
     st.caption("⚠️ Kitap içeriği telif kapsamındadır; bu rehber yalnızca yön gösterir.")
+
+    # ── Yönetmelikler & Standartlar (v1.77) ──────────────────────────────────
+    if standards:
+        st.divider()
+        st.markdown("### 📋 Yönetmelikler & Standartlar")
+        st.caption(
+            "Sismik tasarımın yasal/teknik dayanakları (kitap değil). Türkiye + uluslararası. "
+            "Resmi metin için kurum kaynağına başvurun."
+        )
+        for s in standards:
+            tur = s.get("tur", "Standart")
+            bolge = s.get("bolge", "")
+            with st.expander(f"📋 {s.get('ad','?')}  ·  {bolge}"):
+                meta = [f"**Tür:** {tur}", f"**Kurum:** {s.get('kurum','?')}"]
+                if s.get("yil"):
+                    meta.append(f"**Yıl:** {s['yil']}")
+                if s.get("yururluk"):
+                    meta.append(f"**Yürürlük:** {s['yururluk']}")
+                st.markdown(" · ".join(meta))
+                if s.get("kapsam"):
+                    st.markdown(f"**Kapsam:** {s['kapsam']}")
+                if s.get("turkiye"):
+                    st.markdown(f"**🇹🇷 Türkiye ilişkisi:** {s['turkiye']}")
+                if s.get("url"):
+                    st.markdown(f"[🔗 Resmi kaynak]({s['url']})")
 
 
 def _kutuphane_arastirma(pubs, scholars, journals, dbs, institutions):

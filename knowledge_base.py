@@ -4315,6 +4315,61 @@ ESSENTIAL_TEXTBOOKS: list[dict] = [
     },
 ]
 
+# ── BÖLÜM C2: YÖNETMELİKLER & STANDARTLAR (v1.77) ───────────────────────────
+# Kitap değil; sismik tasarımın yasal/teknik dayanakları. "tur" ile ayrılır.
+REGULATIONS_STANDARDS: list[dict] = [
+    {
+        "id": "TBDY2018", "ad": "Türkiye Bina Deprem Yönetmeliği (TBDY-2018)",
+        "kurum": "AFAD", "yil": 2018, "yururluk": "1 Ocak 2019",
+        "tur": "Ulusal yönetmelik", "bolge": "Türkiye",
+        "kapsam": "Bina sismik tasarımı: deprem yer hareketi, dayanıma/şekildeğiştirmeye göre "
+                  "tasarım, betonarme/çelik/hafif çelik/yığma/ahşap özel kurallar (12 bölüm).",
+        "url": "https://www.resmigazete.gov.tr/eskiler/2018/03/20180318M1-2-1.pdf",
+        "turkiye": "Türkiye'de bina tasarımının güncel yasal dayanağı. TBDY-2024 taslağı hazırlık aşamasında.",
+    },
+    {
+        "id": "CYTHYE2016", "ad": "Çelik Yapıların Tasarım, Hesap ve Yapım Esasları (ÇYTHYE-2016)",
+        "kurum": "Çevre, Şehircilik ve İklim Değişikliği Bakanlığı", "yil": 2016,
+        "tur": "Ulusal yönetmelik", "bolge": "Türkiye",
+        "kapsam": "Çelik yapı tasarımı; TBDY-2018 ile birlikte çelik sismik tasarımın temeli.",
+        "url": "https://www.resmigazete.gov.tr",
+        "turkiye": "Türkiye çelik yapı tasarım esasları.",
+    },
+    {
+        "id": "TS500", "ad": "TS 500 — Betonarme Yapıların Tasarım ve Yapım Kuralları",
+        "kurum": "Türk Standardları Enstitüsü (TSE)", "yil": 2000,
+        "tur": "Ulusal standart", "bolge": "Türkiye",
+        "kapsam": "Betonarme malzeme + tasarım kuralları; TBDY ile birlikte uygulanır.",
+        "url": "https://www.tse.org.tr",
+        "turkiye": "Türkiye betonarme tasarım standardı.",
+    },
+    {
+        "id": "EC8", "ad": "TS EN 1998 / Eurocode 8 — Depreme Dayanıklı Yapıların Tasarımı",
+        "kurum": "CEN (Avrupa Standardizasyon Komitesi) / TSE", "yil": 2004,
+        "tur": "Avrupa standardı", "bolge": "Avrupa",
+        "kapsam": "Sismik tasarım Avrupa standardı; ulusal eklerle (National Annex) uygulanır.",
+        "url": "https://eurocodes.jrc.ec.europa.eu",
+        "turkiye": "AB uyum + akademik karşılaştırma; TBDY ile benzer felsefe.",
+    },
+    {
+        "id": "ASCE7", "ad": "ASCE/SEI 7 — Minimum Design Loads and Associated Criteria for Buildings",
+        "kurum": "American Society of Civil Engineers (ASCE)", "yil": 2022,
+        "tur": "ABD standardı", "bolge": "ABD",
+        "kapsam": "Bina yükleri + sismik tasarım kriterleri (ABD); son sürüm ASCE 7-22.",
+        "url": "https://www.asce.org/publications-and-news/asce-7",
+        "turkiye": None,
+    },
+    {
+        "id": "FEMAP58", "ad": "FEMA P-58 — Seismic Performance Assessment of Buildings",
+        "kurum": "FEMA / Applied Technology Council (ATC)", "yil": 2018,
+        "tur": "Metodoloji / kılavuz", "bolge": "ABD",
+        "kapsam": "Performans bazlı (next-gen) sismik değerlendirme; olasılıksal kayıp tahmini "
+                  "(HAZUS'un mühendislik-detaylı ardılı).",
+        "url": "https://www.fema.gov/emergency-managers/risk-management/earthquake/p-58",
+        "turkiye": None,
+    },
+]
+
 # ── BÖLÜM D: ANAHTAR AKADEMİSYENLER ─────────────────────────────────────────
 
 KEY_SCHOLARS: dict[str, list[dict]] = {
