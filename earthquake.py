@@ -78,7 +78,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.68"
+APP_VERSION = "1.69"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -6683,6 +6683,128 @@ def _render_artci_tahmin():
         "Kaynak: Reasenberg & Jones (1989), *Science* 243:1173-1176."
     )
 
+    # v1.69 — Sprint 7 Batch 1: Artçı Tahmin akademik standart
+    st.markdown(
+        f"""<div style="
+            background:linear-gradient(90deg,{BG2} 0%,rgba(255,179,0,0.08) 100%);
+            border-left:3px solid #FFB300;
+            border-radius:6px;
+            padding:0.55rem 0.9rem;
+            margin:0.4rem 0 0.8rem 0;
+            font-size:0.88rem;
+            color:{TEXT};
+            line-height:1.45;">
+            📊 <b>Mini rehber:</b> Artçı olasılık modeli (Reasenberg-Jones 1989), bir ana şok sonrası artçı
+            sıklığının Omori yasasıyla zamanla nasıl azaldığını ve belirli M üstü artçı görme olasılığını verir.
+            <b>Bu bireysel artçı tahmini DEĞİLDİR</b> — belirli pencerede en az 1 artçı görme olasılığıdır;
+            tek bir artçının zaman/yer/büyüklüğünü vermez.
+            <i>Omori-Utsu yasası, Reasenberg-Jones olasılığı, Türkiye p/K/c kalibrasyonu için aşağıdaki 📖
+            Akademik Açıklama panelini açın.</i>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+    render_academic_explanation(
+        title="📖 Akademik Açıklama — Artçı Olasılığı (Omori-Utsu & Reasenberg-Jones)",
+        what=(
+            "**Artçı deprem olasılığı** modeli, bir **ana şok** sonrası beklenen artçı aktivitesini istatistiksel "
+            "olarak kestirir. Temel: artçı sıklığı zamanla **Omori yasasıyla** (Omori 1894, Utsu güncellemesi "
+            "1961) azalır. **Reasenberg & Jones 1989** (*Science*) bunu Gutenberg-Richter ile birleştirip "
+            "**belirli bir zaman penceresinde belirli M üstü en az 1 artçı görme olasılığını** verir — bu, AFAD/"
+            "USGS'in büyük depremlerden sonra yayınladığı resmi 'artçı tahmini' bültenlerinin temelidir. Bu panel "
+            "Türkiye için Öztürk 2011 bölgesel kalibrasyonuyla artçı olasılığı hesaplar. **Bireysel artçı "
+            "tahmini değildir** — olasılıksal beklenen değerdir."
+        ),
+        how=(
+            "**Panel okuma:**\n\n"
+            "- **Omori sönüm eğrisi:** X = ana şoktan geçen süre, Y = günlük artçı sayısı. Eğri hızla düşer "
+            "(ilk gün en yoğun, sonra ~1/t).\n"
+            "- **Olasılık kartları:** Seçili pencere (24 saat / 7 gün / 30 gün) için belirli M üstü en az 1 "
+            "artçı görme olasılığı (%).\n\n"
+            "**Yorum:**\n"
+            "- İlk 24 saat en yüksek artçı riski; zamanla azalır.\n"
+            "- Büyük ana şok (M7.8) → daha çok ve daha büyük artçılar (Båth yasası: en büyük artçı ≈ ana şok − 1.2).\n"
+            "- 2023 Maraş: M7.8 sonrası M6+ onlarca artçı, M7.5 ise 9 saat sonra (artçı değil, tetiklenmiş "
+            "ikinci ana şok)."
+        ),
+        science=(
+            "**Omori-Utsu yasası (Utsu 1961):** Ana şoktan $t$ süre sonra artçı oranı:\n\n"
+            r"$$n(t) = \frac{K}{(t + c)^p}$$"
+            "\n\nburada $n(t)$ = günlük artçı sayısı (**1/gün**), $K$ = üretkenlik (ana şok büyüklüğüne bağlı), "
+            "$c$ = zaman ofseti (**gün**, ~0.01-0.3; ilk saatlerin eksik kaydını düzeltir), $p$ = sönüm üssü "
+            "(**boyutsuz**, tipik 0.9-1.1; yüksek p = hızlı sönüm).\n\n"
+            "**Reasenberg-Jones olasılığı (1989):** Omori + Gutenberg-Richter birleşik. $[T_1, T_2]$ "
+            "penceresinde $M \\geq M_{min}$ artçı oranı:\n\n"
+            r"$$N(M \geq M_{min}, T_1, T_2) = \int_{T_1}^{T_2} \frac{K \cdot 10^{-b(M_{min} - M_{main})}}{(t+c)^p} \, dt$$"
+            "\n\nEn az 1 artçı görme olasılığı (Poisson):\n\n"
+            r"$$P = 1 - e^{-N}$$"
+            "\n\nburada $b$ = Gutenberg-Richter b-değeri, $M_{main}$ = ana şok büyüklüğü. $a, b, p, c$ "
+            "parametreleri bölgesel kalibrasyon ister (Türkiye için Öztürk 2011).\n\n"
+            "**Båth yasası:** En büyük artçı ≈ ana şok magnitüdü − 1.2 (istatistiksel ortalama)."
+        ),
+        interpretation=(
+            "**Türkiye artçı örnekleri:**\n\n"
+            "- **1999 İzmit Mw 7.4:** Binlerce artçı; en büyük Düzce Mw 7.2 (3 ay sonra — aslında Coulomb "
+            "tetiklenmiş yeni ana şok, klasik artçı değil).\n"
+            "- **2020 Sivrice/Elazığ Mw 6.8:** Omori sönümlü artçı dizisi; ilk hafta yoğun.\n"
+            "- **2023 Kahramanmaraş Mw 7.8:** İlk 24 saatte M6+ çok sayıda; M7.5 (9 saat sonra) ayrı segment "
+            "tetiklenmesi. 30.000+ artçı kaydedildi (AFAD), aylarca sürdü.\n\n"
+            "**Pratik kullanım (AFAD/USGS resmi):**\n"
+            "- Büyük deprem sonrası 'önümüzdeki 7 günde M5+ artçı olasılığı %X' bültenleri bu modelle üretilir.\n"
+            "- Arama-kurtarma ve geçici barınma kararlarını destekler (hasarlı binaya girme riski).\n"
+            "- İlk gün en kritik; olasılık zamanla düşer ama sıfırlanmaz."
+        ),
+        limitations=(
+            "1. **Bireysel artçı tahmini DEĞİLDİR:** Model 'pencerede en az 1 artçı' olasılığı verir; tek bir "
+            "artçının zaman/yer/büyüklüğünü vermez (Geller 1997).\n"
+            "2. **p, K, c bölgesel kalibrasyon ister:** Türkiye için Öztürk 2011 ortalama parametreler; spesifik "
+            "fay için gerçek değerler sapabilir.\n"
+            "3. **Erken dönem eksik kayıt:** İlk saatlerde küçük artçılar büyüklerin gölgesinde kaybolur (c "
+            "parametresi bunu kısmen düzeltir ama belirsiz).\n"
+            "4. **Tetiklenmiş ana şok ≠ artçı:** 1999 Düzce, 2023 M7.5 'artçı' değil, Coulomb tetiklenmiş yeni "
+            "ana şoklardır. Model bunları öngöremez.\n"
+            "5. **Båth yasası istatistiksel:** 'En büyük artçı = ana − 1.2' ortalama; tek olayda ±0.5 sapar.\n"
+            "6. **ETAS daha gelişmiş:** Modern modeller (ETAS, Ogata 1988) artçıların kendi artçılarını da "
+            "modeller; bu panel basit Reasenberg-Jones kullanır.\n"
+            "7. **Yaygın hata — 'Artçılar bitti, güvenli':** Olasılık düşer ama sıfırlanmaz; büyük olaylarda "
+            "aylarca M5+ artçı olabilir. Hasarlı binaya girme riski sürer."
+        ),
+        references=[
+            "**Omori, F. (1894).** On the aftershocks of earthquakes. *Journal of the College of Science, "
+            "Imperial University of Tokyo*, 7, 111–200. "
+            "— *Artçı sönüm yasasının orijinal makalesi.*",
+            "**Utsu, T. (1961).** A statistical study on the occurrence of aftershocks. *Geophysical Magazine*, "
+            "30, 521–605. "
+            "— *Omori yasasının modern (p üssü) formu.*",
+            "**Reasenberg, P. A., & Jones, L. M. (1989).** Earthquake hazard after a mainshock in California. "
+            "*Science*, 243(4895), 1173–1176. DOI: "
+            "[10.1126/science.243.4895.1173](https://doi.org/10.1126/science.243.4895.1173) "
+            "— *Artçı olasılık modelinin orijinal makalesi (operasyonel temel).*",
+            "**Utsu, T., Ogata, Y., & Matsu'ura, R. S. (1995).** The centenary of the Omori formula for a decay "
+            "law of aftershock activity. *Journal of Physics of the Earth*, 43(1), 1–33. DOI: "
+            "[10.4294/jpe1952.43.1](https://doi.org/10.4294/jpe1952.43.1) "
+            "— *Omori formülü 100. yıl derlemesi.*",
+            "**Ogata, Y. (1988).** Statistical models for earthquake occurrences and residual analysis for "
+            "point processes. *Journal of the American Statistical Association*, 83(401), 9–27. DOI: "
+            "[10.1080/01621459.1988.10478560](https://doi.org/10.1080/01621459.1988.10478560) "
+            "— *ETAS modeli (gelişmiş artçı modeli).*",
+            "**Öztürk, S. (2011).** Characteristics of seismic activity in the western, central and eastern "
+            "parts of the North Anatolian Fault Zone, Turkey. *J. Seismol.* / *Pure Appl. Geophys.* "
+            "[doi.org/10.1007/s00024-011-0241-2](https://doi.org/10.1007/s00024-011-0241-2) "
+            "— *Türkiye/KAF artçı parametre kalibrasyonu.*",
+            "**Geller, R. J. (1997).** Earthquake prediction: a critical review. *GJI*, 131(3), 425–450. "
+            "DOI: [10.1111/j.1365-246X.1997.tb06588.x](https://doi.org/10.1111/j.1365-246X.1997.tb06588.x)",
+        ],
+        disclaimer=(
+            "⚠️ **Bu panel bireysel artçı tahmini DEĞİLDİR.** Reasenberg-Jones modeli belirli bir pencerede "
+            "belirli M üstü **en az 1 artçı görme olasılığını** verir; tek bir artçının zaman/yer/büyüklüğünü "
+            "öngörmez (Geller 1997). Parametreler (p, K, c) Türkiye için kaba kalibre (Öztürk 2011); spesifik "
+            "fayda sapar. Tetiklenmiş ikinci ana şoklar (1999 Düzce, 2023 M7.5) klasik artçı değildir, model "
+            "öngöremez. Resmi artçı bültenleri için **AFAD** ([deprem.afad.gov.tr](https://deprem.afad.gov.tr)) "
+            "kaynaktır. Artçı olasılığı düşse de sıfırlanmaz — hasarlı yapı riski sürer."
+        ),
+        expanded=False,
+    )
+
 
 if active_menu == "📈 Artçı Tahmin":
     _render_artci_tahmin()
@@ -7736,6 +7858,124 @@ def _render_sismik_acik():
     # v1.44 — Akademik bilgi havuzu expander'ı
     _render_bilim_notu("kaf_sismik_acik", st, baslik="🎓 Bunu Öğren — KAF Sismik Açık")
 
+    # v1.69 — Sprint 7 Batch 1: Sismik Açık akademik standart
+    st.markdown(
+        f"""<div style="
+            background:linear-gradient(90deg,{BG2} 0%,rgba(255,179,0,0.08) 100%);
+            border-left:3px solid #FFB300;
+            border-radius:6px;
+            padding:0.55rem 0.9rem;
+            margin:0.4rem 0 0.8rem 0;
+            font-size:0.88rem;
+            color:{TEXT};
+            line-height:1.45;">
+            📊 <b>Mini rehber:</b> Sismik açık (seismic gap), bir fay zonunda komşularına göre <b>uzun süredir
+            kırılmamış</b> ve stres biriktirmiş segmentleri işaret eder (McCann 1979); haritada KAF segmentleri
+            geçen süreye göre renklenir.
+            <b>Sismik açık deprem tahmini DEĞİLDİR</b> — hipotez ciddi bilimsel eleştiri altındadır (Kagan-Jackson
+            1991: bazı "boşluklar" kırılmadı, bazı "dolu" segmentler kırıldı).
+            <i>Seismic gap hipotezi, slip-deficit, eleştiriler ve KAF Marmara boşluğu için aşağıdaki 📖 Akademik
+            Açıklama panelini açın.</i>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+    render_academic_explanation(
+        title="📖 Akademik Açıklama — Sismik Açık (Seismic Gap) Hipotezi",
+        what=(
+            "**Sismik açık hipotezi** (seismic gap hypothesis), bir fay zonu boyunca **uzun süredir kırılmamış** "
+            "segmentlerin, komşu (yakın zamanda kırılmış) segmentlere göre **gelecekte kırılma olasılığının daha "
+            "yüksek** olduğunu öne sürer (McCann et al. 1979). Mantık: tektonik yükleme süreklidir, bu yüzden "
+            "uzun 'sessiz' bölgeler stres biriktirir (slip-deficit). Bu panel KAF segmentlerini son büyük "
+            "depremden geçen süreye göre renklendirir. **ÖNEMLİ:** Hipotez sezgisel ama **ciddi bilimsel "
+            "eleştiri** altındadır (Kagan & Jackson 1991, *JGR*) — basit haliyle tahmin gücü istatistiksel "
+            "olarak zayıftır."
+        ),
+        how=(
+            "**Harita + Gantt okuma:**\n\n"
+            "- **Segment rengi:** Geçen süre / beklenen tekrar oranına göre. Kırmızı = uzun süredir kırılmamış "
+            "(yüksek 'açık'), yeşil = yakın zamanda kırıldı (düşük).\n"
+            "- **Gantt şeridi:** Her segment için son depremden bugüne çubuk uzunluğu = geçen süre.\n"
+            "- **Slip-deficit:** Geçen süre × kayma hızı = birikmiş kayma açığı (m).\n\n"
+            "**Yorum:**\n"
+            "- Uzun bar + yüksek slip-deficit = 'olgun' segment (Marmara-Adalar, Yedisu).\n"
+            "- Kısa bar = yakın kırılma (Düzce 1999, İzmit 1999).\n"
+            "- **AMA:** uzun açık ≠ 'kesin kırılacak'; sadece istatistiksel eğilim (eleştirilere bkz.)."
+        ),
+        science=(
+            "**Slip-deficit (kayma açığı):**\n\n"
+            r"$$\Delta D_{gap} = V_{slip} \cdot (t - t_{son})$$"
+            "\n\nburada $V_{slip}$ = kayma hızı (**mm/yr**, KAF ≈ 20-24), $t - t_{son}$ = son büyük depremden bu "
+            "yana geçen süre (**yıl**). Açık ≥ karakteristik atımın %70'i → 'olgun' segment.\n\n"
+            "**Sismik açık olasılık yorumu (Nishenko-Buland 1987 — tartışmalı):** Tekrar aralığı dağılımı "
+            "lognormal varsayılırsa koşullu olasılık hesaplanabilir. Ancak bu BPT (Sismik Döngü paneli) ile "
+            "yapılmalı; basit 'gap = tehlike' yetersiz.\n\n"
+            "**Eleştiri (Kagan & Jackson 1991):** Global katalog testinde, sismik açık hipotezinin öngördüğü "
+            "yerler ile gerçek depremler arasında **anlamlı korelasyon bulunamadı** — bazı 'boşluklar' uzun süre "
+            "kırılmadı, bazı yakın-kırılmış segmentler tekrar kırıldı. Bu yüzden modern tehlike modelleri "
+            "(UCERF3) sismik açığı **tek başına** kullanmaz; BPT + Coulomb + GR birleşik kullanır."
+        ),
+        interpretation=(
+            "**Türkiye/KAF sismik açık örnekleri:**\n\n"
+            "- **Marmara-Adalar boşluğu:** 1766'dan beri (260 yıl) büyük kırılma yok; İstanbul için en çok "
+            "tartışılan 'açık' (Parsons 2004, Le Pichon 2001). 1999 İzmit doğudan kırılıp bu boşluğa stres "
+            "ekledi.\n"
+            "- **Yedisu segmenti (KAF doğu):** 1784'ten beri (242 yıl) sessiz; Erzincan-Karlıova arası 'açık' "
+            "(Hubert-Ferrari 2002).\n"
+            "- **1939 öncesi Erzincan:** 1668→1939 = 271 yıl açık idi, sonra kırıldı (hipoteze uyumlu örnek).\n\n"
+            "**Pratik yorum:**\n"
+            "- Sismik açık 'olgun segment' işaret eder, **izleme** önceliği verir.\n"
+            "- AMA tek başına tahmin değil; 2023 Maraş DAFZ 'açık' olarak iyi tanımlı değildi ama kırıldı.\n"
+            "- Marmara boşluğu yüksek tehlikeli kabul edilir (BPT + slip-deficit + tarihsel birleşik)."
+        ),
+        limitations=(
+            "1. **Sismik açık hipotezi ciddi eleştiri altında:** Kagan & Jackson 1991 (*JGR*) global testte "
+            "istatistiksel anlamlılık bulamadı. Basit 'gap = kırılacak' YANLIŞ olabilir.\n"
+            "2. **Deprem tahmini DEĞİLDİR:** Olgun segment artmış *olasılık* anlamına gelir; kesin zaman vermez "
+            "(Geller 1997).\n"
+            "3. **'Açık' tanımı subjektif:** Hangi süre 'uzun'? Hangi segment sınırı? Tanım belirsizliği "
+            "sonucu değiştirir.\n"
+            "4. **Karakteristik deprem varsayımı:** Her segment ~aynı büyüklük tekrar varsayar; küme/çok-segment "
+            "kırılma (2023 Maraş) bunu bozar.\n"
+            "5. **Tek-segment, etkileşimsiz:** Komşu segment Coulomb transferi (1999 İzmit→Düzce) basit gap "
+            "modelinde yok.\n"
+            "6. **Yaygın hata — 'En uzun açık = sıradaki deprem':** İstatistiksel olarak güçsüz; modern modeller "
+            "(UCERF3, AFAD TBDY-2018) gap'i tek başına kullanmaz, BPT+Coulomb+GR birleşik kullanır."
+        ),
+        references=[
+            "**McCann, W. R., Nishenko, S. P., Sykes, L. R., & Krause, J. (1979).** Seismic gaps and plate "
+            "tectonics: Seismic potential for major boundaries. *Pure and Applied Geophysics*, 117(6), "
+            "1082–1147. DOI: [10.1007/BF00876211](https://doi.org/10.1007/BF00876211) "
+            "— *Sismik açık hipotezinin orijinal makalesi.*",
+            "**Kagan, Y. Y., & Jackson, D. D. (1991).** Seismic gap hypothesis: Ten years after. *JGR*, "
+            "96(B13), 21419–21431. DOI: "
+            "[10.1029/91JB02210](https://doi.org/10.1029/91JB02210) "
+            "— *Sismik açık hipotezinin KRİTİK istatistiksel eleştirisi.*",
+            "**Parsons, T. (2004).** Recalculated probability of M ≥ 7 earthquakes beneath the Sea of Marmara, "
+            "Turkey. *JGR*, 109, B05304. DOI: "
+            "[10.1029/2003JB002667](https://doi.org/10.1029/2003JB002667) "
+            "— *Marmara sismik boşluğu olasılık analizi.*",
+            "**Hubert-Ferrari, A., et al. (2002).** Morphology, displacement, and slip rates along the North "
+            "Anatolian Fault. *JGR*, 107(B10), 2235. DOI: "
+            "[10.1029/2001JB000393](https://doi.org/10.1029/2001JB000393) "
+            "— *KAF segment tekrar + slip-deficit.*",
+            "**Stein, R. S., Barka, A. A., & Dieterich, J. H. (1997).** Progressive failure on the North "
+            "Anatolian fault since 1939. *GJI*, 128(3), 594–604. DOI: "
+            "[10.1111/j.1365-246X.1997.tb05321.x](https://doi.org/10.1111/j.1365-246X.1997.tb05321.x) "
+            "— *KAF göç + Coulomb (gap'ten daha açıklayıcı model).*",
+            "**Geller, R. J. (1997).** Earthquake prediction: a critical review. *GJI*, 131(3), 425–450. "
+            "DOI: [10.1111/j.1365-246X.1997.tb06588.x](https://doi.org/10.1111/j.1365-246X.1997.tb06588.x)",
+        ],
+        disclaimer=(
+            "⚠️ **Sismik açık bir deprem tahmini DEĞİLDİR ve hipotez tartışmalıdır.** Kagan & Jackson 1991 "
+            "(*JGR*) basit sismik açık hipotezinin istatistiksel olarak zayıf olduğunu göstermiştir — bazı "
+            "'boşluklar' uzun süre kırılmadı, bazı dolu segmentler tekrar kırıldı. Olgun segment artmış "
+            "*olasılık* gösterir, kesin zaman vermez (Geller 1997). Modern tehlike modelleri sismik açığı tek "
+            "başına kullanmaz; BPT + Coulomb + Gutenberg-Richter birleşik kullanır. Resmi tehlike için "
+            "**AFAD/TBDY-2018** geçerlidir."
+        ),
+        expanded=False,
+    )
+
 
 if active_menu == "🔴 Sismik Açık":
     _render_sismik_acik()
@@ -8480,6 +8720,132 @@ def _render_sismik_tehlike():
 
     # v1.44 — Akademik bilgi havuzu expander'ı
     _render_bilim_notu("psha", st, baslik="🎓 Bunu Öğren — PSHA Sismik Tehlike")
+
+    # v1.69 — Sprint 7 Batch 1: PSHA / Sismik Tehlike akademik standart
+    st.markdown(
+        f"""<div style="
+            background:linear-gradient(90deg,{BG2} 0%,rgba(255,179,0,0.08) 100%);
+            border-left:3px solid #FFB300;
+            border-radius:6px;
+            padding:0.55rem 0.9rem;
+            margin:0.4rem 0 0.8rem 0;
+            font-size:0.88rem;
+            color:{TEXT};
+            line-height:1.45;">
+            📊 <b>Mini rehber:</b> PSHA (Olasılıksal Sismik Tehlike Analizi), bir bölgede belirli bir süre içinde
+            (örn. 50 yılda %10) aşılması beklenen yer hareketi seviyesini (PGA / spektral ivme) hesaplar; TBDY-2018
+            tasarım haritalarının temelidir.
+            <b>"50 yılda %10" = "10 yıl içinde olacak" DEĞİLDİR</b> — bu yaygın yanlış; olasılıksal aşılma oranıdır,
+            kesin olay tahmini değil.
+            <i>Cornell 1968 PSHA formülasyonu, tehlike eğrisi, dönüş periyodu ve TBDY-2018 için aşağıdaki 📖
+            Akademik Açıklama panelini açın.</i>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+    render_academic_explanation(
+        title="📖 Akademik Açıklama — PSHA Olasılıksal Sismik Tehlike Analizi",
+        what=(
+            "**PSHA** (Probabilistic Seismic Hazard Analysis), Allin Cornell'in 1968'de geliştirdiği, bir "
+            "bölgede **belirli bir zaman penceresinde** (örn. 50 yıl) **belirli bir yer hareketi seviyesinin "
+            "aşılma olasılığını** hesaplayan standart yöntemdir. Tüm olası deprem kaynaklarını (fay + alan "
+            "kaynakları), her birinin tekrar oranını (Gutenberg-Richter) ve yer hareketi tahminini (GMPE) "
+            "birleştirir. Çıktı **tehlike eğrisi** ve **tehlike haritası**dır. Türkiye'de **TBDY-2018** (Türkiye "
+            "Bina Deprem Yönetmeliği) tasarım spektrumları bu yöntemle üretilir. Bu panel TBDY-2018 + SHARE 2013 "
+            "Avrupa modeli yaklaşımıyla Türkiye/Erzincan tehlikesini gösterir. **Olasılıksal**tır — kesin deprem "
+            "öngörmez, uzun-vadeli aşılma oranı verir."
+        ),
+        how=(
+            "**Tehlike haritası/eğrisi okuma:**\n\n"
+            "- **Tehlike haritası:** Her nokta için belirli olasılıkta (örn. 50 yılda %10 = 475 yıl dönüş "
+            "periyodu) beklenen **PGA** (g) veya spektral ivme.\n"
+            "- **Renk:** Yüksek PGA (kırmızı) = yüksek tehlike (KAF/DAF yakını); düşük (mavi) = düşük tehlike "
+            "(iç Anadolu kararlı bölge).\n"
+            "- **Dönüş periyodu (return period):**\n"
+            "  * 50 yılda %2 aşılma = **2475 yıl** dönüş (TBDY-2018 DD-1, en şiddetli)\n"
+            "  * 50 yılda %10 aşılma = **475 yıl** dönüş (DD-2, standart tasarım)\n"
+            "  * 50 yılda %50 aşılma = **72 yıl** dönüş (DD-3, sık)\n\n"
+            "**Yorum:**\n"
+            "- Erzincan KAF üzerinde → yüksek PGA (DD-2 için ~0.4-0.6 g).\n"
+            "- 'Aşılma olasılığı' kümülatiftir; tek bir olayın tarihini vermez."
+        ),
+        science=(
+            "**PSHA temel integral (Cornell 1968):** Bir yer hareketi seviyesi $y$'nin yıllık aşılma oranı:\n\n"
+            r"$$\lambda(Y > y) = \sum_{i} N_i \int_{m} \int_{r} P(Y > y \mid m, r) \cdot f_i(m) \cdot f_i(r) \, dm \, dr$$"
+            "\n\nburada:\n"
+            "- $\\lambda(Y>y)$ = $y$ seviyesinin yıllık aşılma oranı (**1/yıl**)\n"
+            "- $N_i$ = $i$ kaynağının yıllık deprem oranı (Gutenberg-Richter $a$ değeri)\n"
+            "- $P(Y>y \\mid m,r)$ = GMPE'den $m$ magnitüd, $r$ mesafe için aşılma olasılığı\n"
+            "- $f_i(m)$ = magnitüd dağılımı (G-R'den, $b$ değeri); $f_i(r)$ = mesafe dağılımı (kaynak geometrisi)\n\n"
+            "**Dönüş periyodu:**\n\n"
+            r"$$T_R = \frac{1}{\lambda(Y>y)}$$"
+            "\n\n**Poisson aşılma olasılığı** ($t$ yıl içinde en az 1 aşılma):\n\n"
+            r"$$P(Y>y, t) = 1 - e^{-\lambda t} = 1 - e^{-t/T_R}$$"
+            "\n\n50 yıl, $T_R$ = 475 yıl → $P = 1 - e^{-50/475} \\approx 0.10$ (= %10). Bu **Poisson "
+            "(hafızasız)** modeldir; zaman-bağımlı için BPT (Sismik Döngü paneli) kullanılır."
+        ),
+        interpretation=(
+            "**Türkiye/Erzincan PSHA örnekleri:**\n\n"
+            "- **Erzincan (KAF üstü):** TBDY-2018 DD-2 (475 yıl) için PGA ≈ 0.4–0.6 g (en yüksek tehlike "
+            "sınıfı). Tasarım spektrumu buna göre.\n"
+            "- **İstanbul (Marmara yakını):** DD-2 PGA ≈ 0.3–0.4 g; Avcılar gibi yumuşak zemin lokal artış.\n"
+            "- **İç Anadolu (Konya, kararlı):** DD-2 PGA ≈ 0.1-0.2 g (düşük tehlike).\n"
+            "- **SHARE 2013 (Woessner et al. 2015):** Avrupa-Akdeniz birleşik PSHA; Türkiye değerleri TBDY-2018 "
+            "ile uyumlu.\n\n"
+            "**Pratik yorum — KRİTİK yanlış anlama:**\n"
+            "- **'50 yılda %10' ≠ '10 yıl içinde olur':** Bu olasılıksal aşılma oranıdır. 475 yıl dönüş periyodu "
+            "= uzun-vadeli ortalama, kesin tarih DEĞİL.\n"
+            "- Bina tasarımı bu olasılık seviyesine göre yapılır (DD-2 = standart konut, DD-1 = hastane/kritik "
+            "yapı).\n"
+            "- PSHA yüksek tehlike = 'sağlam bina yap' demek, 'kaç' demek değil."
+        ),
+        limitations=(
+            "1. **PSHA deprem tahmini DEĞİLDİR:** Uzun-vadeli olasılıksal aşılma oranı verir; kesin zaman/yer/"
+            "büyüklük öngörmez (Geller 1997). 'Tehlike' ≠ 'tahmin'.\n"
+            "2. **'50 yılda %10' yaygın yanlış anlaşılır:** Bu '10 yılda olur' değil; Poisson aşılma "
+            "olasılığıdır (dönüş periyodu 475 yıl).\n"
+            "3. **GMPE belirsizliği büyük:** Yer hareketi tahmini (Akkar-Bommer 2010 vb.) ±%50 saçılım taşır; "
+            "PSHA bunu entegre eder ama belirsizlik kalır.\n"
+            "4. **Kaynak modeli varsayımları:** Fay geometrisi, maksimum magnitüd, G-R parametreleri "
+            "belirsizdir; epistemic belirsizlik logic-tree ile ele alınır.\n"
+            "5. **Yerel zemin (Vs30) ayrı katman:** PSHA ana kaya tehlikesi verir; yumuşak zemin amplifikasyonu "
+            "(1.5-3×) site-specific eklenmelidir.\n"
+            "6. **Poisson 'hafızasız' varsayım:** Standart PSHA son depremden bu yana geçen süreyi yok sayar; "
+            "zaman-bağımlı tehlike için BPT (Sismik Döngü) gerekir.\n"
+            "7. **Bu panel statik harita:** Tam PSHA için OpenQuake (Pagani 2014) + güncel kaynak modeli "
+            "gerekir; resmi değer TBDY-2018 doğrudan referansıdır."
+        ),
+        references=[
+            "**Cornell, C. A. (1968).** Engineering seismic risk analysis. *BSSA*, 58(5), 1583–1606. "
+            "[doi.org/10.1785/BSSA0580051583](https://doi.org/10.1785/BSSA0580051583) "
+            "— *PSHA yönteminin orijinal makalesi.*",
+            "**Woessner, J., et al. (2015).** The 2013 European Seismic Hazard Model: key components and "
+            "results. *Bulletin of Earthquake Engineering*, 13(12), 3553–3596. DOI: "
+            "[10.1007/s10518-015-9795-1](https://doi.org/10.1007/s10518-015-9795-1) "
+            "— *SHARE 2013 Avrupa-Akdeniz PSHA (Türkiye dahil).*",
+            "**Pagani, M., et al. (2014).** OpenQuake engine: an open hazard (and risk) software for the Global "
+            "Earthquake Model. *Seismological Research Letters*, 85(3), 692–702. DOI: "
+            "[10.1785/0220130087](https://doi.org/10.1785/0220130087) "
+            "— *Açık kaynak PSHA hesap motoru.*",
+            "**Akkar, S., & Bommer, J. J. (2010).** Empirical equations for the prediction of PGA, PGV, and "
+            "spectral accelerations in Europe, the Mediterranean, and the Middle East. *BSSA*, 100(6), "
+            "2828–2845. DOI: [10.1785/0120090056](https://doi.org/10.1785/0120090056) "
+            "— *Türkiye GMPE (PSHA girdisi).*",
+            "**TBDY-2018.** *Türkiye Bina Deprem Yönetmeliği 2018.* AFAD. "
+            "[tdth.afad.gov.tr](https://tdth.afad.gov.tr/) "
+            "— *Türkiye resmi tehlike haritası ve tasarım spektrumu.*",
+            "**Geller, R. J. (1997).** Earthquake prediction: a critical review. *GJI*, 131(3), 425–450. "
+            "DOI: [10.1111/j.1365-246X.1997.tb06588.x](https://doi.org/10.1111/j.1365-246X.1997.tb06588.x)",
+        ],
+        disclaimer=(
+            "⚠️ **Bu panel resmi tehlike değerlendirmesi değildir, deprem tahmini hiç değildir.** PSHA "
+            "uzun-vadeli **olasılıksal aşılma oranı** verir; '50 yılda %10' = 475 yıl dönüş periyodu, **'10 yıl "
+            "içinde olur' DEĞİLDİR** (yaygın yanlış). Mevcut bilimsel uzlaşı: deterministik deprem tahmini "
+            "mümkün değildir (Geller 1997). Yapı tasarımı, sigorta, afet planlaması için **TBDY-2018** "
+            "([tdth.afad.gov.tr](https://tdth.afad.gov.tr/)) ve AFAD resmi tehlike haritaları kullanılmalıdır. "
+            "Bu panel statik/eğitsel haritadır; tam PSHA için OpenQuake + güncel kaynak modeli gerekir."
+        ),
+        expanded=False,
+    )
 
 
 if active_menu == "🗺️ Sismik Tehlike":
@@ -10692,6 +11058,124 @@ def _render_sismik_dongu():
         "**Field et al. (2015)** *BSSA* 105(2A) (UCERF3 BPT uygulaması). "
         "⚠️ BPT olasılıkları μ ve α parametrelerinin doğruluğuna duyarlıdır; "
         "paleoseismik veri belirsizliği sonucu yansıtır."
+    )
+
+    # v1.69 — Sprint 7 Batch 1: Sismik Döngü akademik standart
+    st.markdown(
+        f"""<div style="
+            background:linear-gradient(90deg,{BG2} 0%,rgba(255,179,0,0.08) 100%);
+            border-left:3px solid #FFB300;
+            border-radius:6px;
+            padding:0.55rem 0.9rem;
+            margin:0.4rem 0 0.8rem 0;
+            font-size:0.88rem;
+            color:{TEXT};
+            line-height:1.45;">
+            📊 <b>Mini rehber:</b> Sismik döngü, bir fay segmentinin "yükleme → kırılma → boşalma" tekrarını
+            Brownian Passage Time (BPT) olasılık modeliyle gösterir; geçen süre ortalama tekrara yaklaştıkça
+            koşullu olasılık artar.
+            <b>BPT olasılığı bir deprem tahmini DEĞİLDİR</b> — μ (ortalama tekrar) ve α (değişkenlik) belirsizliğine
+            çok duyarlı; "%X olasılık" geniş güven aralığı taşır.
+            <i>BPT dağılımı, koşullu olasılık formülü, KAF tekrar aralıkları için aşağıdaki 📖 Akademik Açıklama
+            panelini açın.</i>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+    render_academic_explanation(
+        title="📖 Akademik Açıklama — Sismik Döngü & BPT Olasılık Modeli",
+        what=(
+            "**Sismik döngü** (seismic cycle), Reid 1910 elastik geri tepme teorisinin zaman boyutudur: bir fay "
+            "segmenti **yükleme (interseismic) → kırılma (coseismic) → boşalma (postseismic)** evrelerini "
+            "yarı-periyodik olarak tekrarlar. Bu panel **Brownian Passage Time (BPT)** modelini kullanır "
+            "(Matthews, Ellsworth & Reasenberg 2002) — karakteristik depremlerin tekrar aralığını **olasılıksal** "
+            "olarak modelleyen, USGS UCERF3 tehlike modelinde de kullanılan yöntem. Geçen süre ortalama tekrara "
+            "yaklaştıkça **koşullu kırılma olasılığı** artar; ama bu **deterministik tahmin değildir**, geniş "
+            "belirsizlik bandı taşır."
+        ),
+        how=(
+            "**Panel okuma:**\n\n"
+            "- **BPT olasılık eğrisi:** X = zaman, Y = koşullu kırılma olasılığı. Son depremden bu yana geçen "
+            "süre arttıkça eğri yükselir (ama asla %100 olmaz — α belirsizliği nedeniyle).\n"
+            "- **Ortalama tekrar (μ) çizgisi:** Segment için tarihsel/paleo ortalama tekrar süresi.\n"
+            "- **Şimdiki konum:** Geçen süre / μ oranı; %50'yi geçtiyse 'olgunlaşan' segment.\n\n"
+            "**Yorum:**\n"
+            "- Koşullu olasılık **30 yıllık pencere** için tipik verilir (UCERF3 standardı).\n"
+            "- KAF Erzincan: 1939'dan 87 yıl, μ≈250 yıl → düşük koşullu olasılık (henüz olgunlaşmadı).\n"
+            "- KAF Marmara-Adalar: 1766'dan 260 yıl, μ≈250 → yüksek koşullu olasılık (olgun)."
+        ),
+        science=(
+            "**Brownian Passage Time dağılımı (Matthews et al. 2002):** Tekrar aralığı, sabit yükleme + "
+            "Brownian gürültü (rastgele tetikleme) süperpozisyonu olarak modellenir. Olasılık yoğunluk "
+            "fonksiyonu:\n\n"
+            r"$$f(T) = \sqrt{\frac{\mu}{2\pi \alpha^2 T^3}} \exp\!\left( -\frac{(T-\mu)^2}{2\alpha^2 \mu T} \right)$$"
+            "\n\nburada $T$ = tekrar aralığı (**yıl**), $\\mu$ = ortalama tekrar süresi (**yıl**, KAF ≈ 250), "
+            "$\\alpha$ = değişkenlik katsayısı (aperiodicity, **boyutsuz**, tipik 0.3–0.5; α=0 tam periyodik, "
+            "α büyük rastgele).\n\n"
+            "**Koşullu kırılma olasılığı** (son depremden $t$ yıl geçmişken, sonraki $\\Delta t$ içinde):\n\n"
+            r"$$P(t < T \leq t + \Delta t \mid T > t) = \frac{\int_t^{t+\Delta t} f(T)\,dT}{\int_t^{\infty} f(T)\,dT}$$"
+            "\n\nBu **koşullu** olasılık, geçen süre arttıkça yükselir (yenileme süreci, renewal process). "
+            "Poisson modelinden (hafızasız) farkı: BPT 'zaman-bağımlı' tehlike verir.\n\n"
+            "**UCERF3 uygulaması (Field et al. 2015):** Kaliforniya tehlike modeli BPT + Coulomb etkileşim "
+            "kombinasyonu kullanır; Türkiye için benzer yaklaşım AFAD tehlike modelinde değerlendirilir."
+        ),
+        interpretation=(
+            "**Türkiye/KAF sismik döngü örnekleri:**\n\n"
+            "- **Erzincan (KAF doğu):** Son olay 1939, μ ≈ 250 yıl (Hubert-Ferrari 2002), α ≈ 0.3. 87 yıl geçti "
+            "= μ'nün %35'i → 30-yıllık koşullu olasılık düşük (~%5-10). Henüz olgunlaşmadı.\n"
+            "- **Marmara-Adalar (KAF batı):** Son olay 1766, μ ≈ 250 yıl. 260 yıl geçti = μ'yü aştı → 30-yıllık "
+            "koşullu olasılık yüksek (~%30-50, Parsons 2004 İstanbul). En kritik segment.\n"
+            "- **Düzce-Bolu:** Son olay 1999, μ ≈ 250-300 yıl. Çok genç, koşullu olasılık çok düşük.\n\n"
+            "**Pratik yorum:**\n"
+            "- BPT 'olgun segment' işaret eder ama **kesin zaman vermez**; α belirsizliği geniş bant yaratır.\n"
+            "- Marmara'nın yüksek koşullu olasılığı kentsel dönüşüm aciliyetini destekler (ama 'şu yıl' demez).\n"
+            "- Coulomb stres transferi (komşu segment etkisi) BPT'ye eklenince tablo karmaşıklaşır."
+        ),
+        limitations=(
+            "1. **BPT olasılığı deprem tahmini DEĞİLDİR:** Koşullu olasılık 'olgunluk' gösterir; kesin zaman "
+            "vermez (Geller 1997). '%30 olasılık' = '70 yılda 30 yıl içinde' gibi geniş bant.\n"
+            "2. **μ ve α belirsizliği sonucu yansıtır:** Paleoseismik veri ±%30 → koşullu olasılık ±çok geniş. "
+            "Az olay sayısı (3-5 paleo) α'yı güvenilmez kılar.\n"
+            "3. **Karakteristik deprem varsayımı:** BPT 'aynı segment ~aynı büyüklük tekrar' varsayar; küme/"
+            "supercycle davranışı (Kagan-Jackson 1991) bunu bozar.\n"
+            "4. **Tek segment, izole:** BPT komşu segment etkileşimini (Coulomb) içermez; gerçekte segmentler "
+            "birbirini tetikler (2023 Maraş çift kırılma).\n"
+            "5. **Yenileme süreci varsayımı:** Her olay sonrası 'saat sıfırlanır' varsayımı; kısmi kırılma "
+            "veya çok-segment olayda geçersiz.\n"
+            "6. **Yaygın hata — 'Olasılık %50, deprem yakın':** Koşullu olasılık olgunluk ölçüsüdür; %50 bile "
+            "'10 yıl da 100 yıl da' demektir. Resmi tehlike AFAD/TBDY-2018 olasılıksal haritadır."
+        ),
+        references=[
+            "**Reid, H. F. (1910).** *The Mechanics of the Earthquake.* Carnegie Institution of Washington. "
+            "[archive.org/details/mechanicsofearth00reid](https://archive.org/details/mechanicsofearth00reid) "
+            "— *Elastik geri tepme / sismik döngü teorisi.*",
+            "**Matthews, M. V., Ellsworth, W. L., & Reasenberg, P. A. (2002).** A Brownian model for recurrent "
+            "earthquakes. *BSSA*, 92(6), 2233–2250. DOI: "
+            "[10.1785/0120010267](https://doi.org/10.1785/0120010267) "
+            "— *BPT olasılık modelinin orijinal makalesi.*",
+            "**Field, E. H., et al. (2015).** Long-term time-dependent probabilities for the Third Uniform "
+            "California Earthquake Rupture Forecast (UCERF3). *BSSA*, 105(2A), 511–543. DOI: "
+            "[10.1785/0120140093](https://doi.org/10.1785/0120140093) "
+            "— *BPT'nin operasyonel tehlike modelinde uygulaması.*",
+            "**Parsons, T. (2004).** Recalculated probability of M ≥ 7 earthquakes beneath the Sea of Marmara, "
+            "Turkey. *JGR*, 109, B05304. DOI: "
+            "[10.1029/2003JB002667](https://doi.org/10.1029/2003JB002667) "
+            "— *Marmara BPT + Coulomb koşullu olasılık.*",
+            "**Hubert-Ferrari, A., et al. (2002).** Morphology, displacement, and slip rates along the North "
+            "Anatolian Fault. *JGR*, 107(B10), 2235. DOI: "
+            "[10.1029/2001JB000393](https://doi.org/10.1029/2001JB000393) "
+            "— *KAF tekrar aralıkları (μ).*",
+            "**Geller, R. J. (1997).** Earthquake prediction: a critical review. *GJI*, 131(3), 425–450. "
+            "DOI: [10.1111/j.1365-246X.1997.tb06588.x](https://doi.org/10.1111/j.1365-246X.1997.tb06588.x)",
+        ],
+        disclaimer=(
+            "⚠️ **BPT koşullu olasılığı bir deprem tahmini DEĞİLDİR.** Sismik döngü modeli segmentin "
+            "'olgunluğunu' olasılıksal gösterir; kesin zaman/büyüklük vermez (Geller 1997). Olasılık μ (ortalama "
+            "tekrar) ve α (değişkenlik) belirsizliğine çok duyarlıdır — paleoseismik veri ±%30 sonucu geniş "
+            "banda yayar. '%30 olasılık' = onlarca yıllık pencere demektir. Tek segment izole varsayımı komşu "
+            "etkileşimi (Coulomb) içermez. Resmi tehlike için **AFAD/TBDY-2018 olasılıksal tehlike haritası** "
+            "kullanılmalıdır."
+        ),
+        expanded=False,
     )
 
 
@@ -13971,6 +14455,127 @@ def _render_hazus_kayip():
         "**Silva et al. (2019)** *Earthq. Spectra* 35(4) (modern challenges). "
         "⚠️ Sonuçlar yaklaşık. Tam HAZUS uygulaması bina envanteri (TÜİK), zemin tipi "
         "(Vs30 — F-64), saatlik nüfus dağılımı gerektirir."
+    )
+
+    # v1.69 — Sprint 7 Batch 1: HAZUS Kayıp akademik standart
+    st.markdown(
+        f"""<div style="
+            background:linear-gradient(90deg,{BG2} 0%,rgba(255,179,0,0.08) 100%);
+            border-left:3px solid #FFB300;
+            border-radius:6px;
+            padding:0.55rem 0.9rem;
+            margin:0.4rem 0 0.8rem 0;
+            font-size:0.88rem;
+            color:{TEXT};
+            line-height:1.45;">
+            📊 <b>Mini rehber:</b> HAZUS metodolojisi, bir deprem senaryosunda beklenen <b>bölgesel</b> bina hasarı,
+            can kaybı ve ekonomik kaybı fragility (kırılganlık) eğrileriyle hızlı kestirir.
+            <b>Bu bina-bazlı kesin hasar tahmini DEĞİLDİR</b> — bölgesel hızlı kestirimdir; gerçek hasar için
+            yapısal mühendislik analizi gerekir.
+            <i>Fragility eğrileri, MMI→hasar olasılığı, İstanbul senaryosu ve TÜİK bina envanteri gereksinimi için
+            aşağıdaki 📖 Akademik Açıklama panelini açın.</i>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+    render_academic_explanation(
+        title="📖 Akademik Açıklama — HAZUS Bölgesel Kayıp Kestirimi",
+        what=(
+            "**HAZUS** (Hazards U.S.), ABD FEMA'nın geliştirdiği, bir deprem senaryosunda **bölgesel** ölçekte "
+            "beklenen **bina hasarı, can kaybı ve ekonomik kaybı** hızlı kestiren standart metodolojidir "
+            "(FEMA 2003). Temel mantık: yer hareketi şiddeti (PGA/MMI/spektral ivme) → her bina tipi için "
+            "**fragility (kırılganlık) eğrisi** → hasar olasılığı dağılımı → can/ekonomik kayıp. Bu panel "
+            "Erdik et al. 2003 İstanbul senaryosu yaklaşımıyla Erzincan/Türkiye için kavramsal kayıp kestirimi "
+            "yapar. **Bölgesel hızlı kestirim**dir — tek bir binanın hasar göreceği kesin değildir, istatistiksel "
+            "bir dağılımdır."
+        ),
+        how=(
+            "**Panel okuma:**\n\n"
+            "- **Hasar durumu dağılımı:** Her bina tipi için 5 hasar seviyesi (None/Slight/Moderate/Extensive/"
+            "Complete) olasılığı.\n"
+            "- **Can kaybı kestirimi:** Hasar durumu × bina doluluk (saatlik nüfus) × ölüm/yaralanma oranı.\n"
+            "- **Ekonomik kayıp:** Hasar oranı × bina değeri + içerik + iş kesintisi.\n\n"
+            "**Yorum:**\n"
+            "- Sonuçlar **bölgesel toplam** veya beklenen değer; tek bina için 'kesin yıkılır' demez.\n"
+            "- Saatlik senaryo önemli: gündüz (işyeri/okul dolu) vs gece (konut dolu) kayıp farklı.\n"
+            "- Türkiye için TBDY-2018 öncesi yapı stoku (1999 öncesi) çok daha kırılgan."
+        ),
+        science=(
+            "**Fragility (kırılganlık) eğrisi (Lagomarsino & Giovinazzi 2006):** Bir bina tipinin belirli bir "
+            "hasar durumuna $ds$ ulaşma olasılığı, yer hareketi şiddetinin (IM, örn. spektral ivme $S_a$) "
+            "**lognormal kümülatif dağılımı** ile modellenir:\n\n"
+            r"$$P(DS \geq ds \mid IM) = \Phi\!\left( \frac{\ln(IM) - \ln(\theta_{ds})}{\beta_{ds}} \right)$$"
+            "\n\nburada $\\Phi$ standart normal kümülatif fonksiyon, $\\theta_{ds}$ = $ds$ hasar durumu için "
+            "medyan eşik şiddeti (**g** veya MMI), $\\beta_{ds}$ = lognormal standart sapma (belirsizlik, "
+            "tipik 0.4–0.7). Her hasar seviyesi için ayrı eğri.\n\n"
+            "**Beklenen can kaybı:**\n\n"
+            r"$$N_{casualty} = \sum_{b} \sum_{ds} P(ds \mid IM_b) \cdot N_{occupant,b} \cdot R_{ds}$$"
+            "\n\nburada $N_{occupant,b}$ = $b$ bölgesindeki bina doluluğu (**kişi**, saatlik), $R_{ds}$ = "
+            "$ds$ hasar durumunda ölüm/yaralanma oranı (**boyutsuz**, Complete collapse için ~0.05–0.15).\n\n"
+            "**Ekonomik kayıp:**\n\n"
+            r"$$L_{economic} = \sum_b V_b \cdot DR_b$$"
+            "\n\nburada $V_b$ = bina değeri (**TL/USD**), $DR_b$ = hasar oranı (damage ratio, 0–1)."
+        ),
+        interpretation=(
+            "**Türkiye senaryoları:**\n\n"
+            "- **İstanbul M7.5 senaryosu (Erdik et al. 2003, JICA 2002):** ~50.000–90.000 ölü, ~500.000 ağır "
+            "hasarlı bina kestirimi (gece senaryosu, 1999 öncesi yapı stoku). Bu kestirimler kentsel dönüşüm "
+            "politikasını şekillendirdi.\n"
+            "- **2023 Kahramanmaraş gerçeği:** ~50.000+ ölü, ~230.000 yıkık/ağır hasarlı bina. HAZUS-tipi "
+            "ön-kestirimler büyüklük mertebesini doğru verdi ama **yapı kalitesi** (denetimsiz beton) sapması "
+            "kaybı artırdı.\n"
+            "- **Erzincan:** 1939'da ~33.000 ölü (o dönem nüfus düşük). Bugünkü nüfus + yapı stoku için HAZUS "
+            "senaryosu kritik planlama aracı.\n\n"
+            "**Pratik yorum:**\n"
+            "- HAZUS çıktısı **±2-3 kat** belirsizlik taşır; mertebe doğru, kesin sayı değil.\n"
+            "- En büyük belirsizlik **yapı kalitesi** ve **zemin (Vs30)** — Türkiye için denetimsiz yapı + "
+            "yumuşak zemin kaybı katlar."
+        ),
+        limitations=(
+            "1. **Bölgesel kestirim, bina-bazlı DEĞİL:** HAZUS istatistiksel dağılım verir; 'şu bina yıkılır' "
+            "demez. Bina-bazlı için detaylı yapısal analiz (pushover, zaman-tanım alanı) gerekir.\n"
+            "2. **Fragility eğrileri Türkiye'ye tam kalibre değil:** Çoğu eğri ABD/Avrupa yapı stoğundan; "
+            "Türkiye denetimsiz betonarme için ayrı kalibrasyon (Erdik 2003) kısmen yapıldı.\n"
+            "3. **Bina envanteri eksikliği:** Doğru HAZUS, TÜİK bina sayımı + kat/yaş/tip dağılımı gerektirir; "
+            "bu panel kaba varsayım kullanır.\n"
+            "4. **Vs30 zemin amplifikasyonu kritik:** Yumuşak zemin (Erzincan ovası) IM'i 1.5–3× büyütür → "
+            "kayıp katlanır. Bu panel basitleştirilmiş zemin varsayar (Vs30 paneli ile birlikte).\n"
+            "5. **Saatlik nüfus dağılımı belirsiz:** Gündüz/gece doluluk farkı kaybı 2-3× değiştirir; "
+            "kesin nüfus hareketi verisi yok.\n"
+            "6. **±2-3 kat belirsizlik:** HAZUS çıktıları mertebe-doğru; kesin ölü sayısı **değil**. "
+            "2023 Maraş gösterdi: yapı kalitesi sapması kestirimi aşabilir.\n"
+            "7. **Yaygın hata — 'HAZUS X ölü diyor, kesin':** Bu olasılıksal bir beklenen değerdir; gerçek "
+            "olay yapı kalitesi, saat, artçılar, hava koşullarına göre çok sapar."
+        ),
+        references=[
+            "**FEMA (2003).** *HAZUS-MH Technical Manual: Earthquake Model.* Federal Emergency Management "
+            "Agency, Washington D.C. "
+            "[fema.gov/flood-maps/products-tools/hazus](https://www.fema.gov/flood-maps/products-tools/hazus) "
+            "— *HAZUS kayıp kestirimi metodolojisi standardı.*",
+            "**Erdik, M., Aydinoglu, N., Fahjan, Y., et al. (2003).** Earthquake risk assessment for Istanbul "
+            "metropolitan area. *Earthquake Engineering and Engineering Vibration*, 2(1), 1–23. DOI: "
+            "[10.1007/BF02857534](https://doi.org/10.1007/BF02857534) "
+            "— *İstanbul M7.5 senaryosu (HAZUS Türkiye uygulaması).*",
+            "**Lagomarsino, S., & Giovinazzi, S. (2006).** Macroseismic and mechanical models for the "
+            "vulnerability and damage assessment of current buildings. *Bulletin of Earthquake Engineering*, "
+            "4(4), 415–443. DOI: "
+            "[10.1007/s10518-006-9024-z](https://doi.org/10.1007/s10518-006-9024-z) "
+            "— *Fragility eğrileri ve kırılganlık modeli.*",
+            "**Silva, V., et al. (2019).** Current challenges and future directions for seismic risk assessment. "
+            "*Earthquake Spectra*, 35(4), 1447–1465. DOI: "
+            "[10.1193/101218EQS226M](https://doi.org/10.1193/101218EQS226M) "
+            "— *Modern sismik risk değerlendirme zorlukları.*",
+            "**Sucuoğlu, H., & Akkar, S. (2014).** *Basic Earthquake Engineering.* Springer. "
+            "ISBN: 978-3-319-01026-7 — *Türkiye yapısal kırılganlık ve hasar.*",
+        ],
+        disclaimer=(
+            "⚠️ **Hasar/kayıp tahmini değildir — bölgesel hızlı kestirimdir.** HAZUS-MH (FEMA 2003) metodolojisi "
+            "istatistiksel **beklenen değer** verir; tek bir binanın hasar göreceği veya kesin ölü sayısı "
+            "**değildir** (±2-3 kat belirsizlik). Bina-bazlı yapısal hasar için detaylı mühendislik analizi "
+            "(pushover/zaman-tanım alanı) gerekir. Fragility eğrileri Türkiye yapı stoğuna tam kalibre değildir; "
+            "Vs30 zemin + denetimsiz yapı kaybı katlar. Bu panel **eğitim/planlama amaçlıdır**; resmi afet "
+            "planlaması için **AFAD risk haritaları + TBDY-2018 + TÜİK bina envanteri** kullanılmalıdır."
+        ),
+        expanded=False,
     )
 
 

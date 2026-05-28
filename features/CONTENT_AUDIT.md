@@ -27,10 +27,10 @@ Her panelin mevcut `st.caption`, `st.markdown`, `st.info`, `st.warning`, `st.suc
 |---|---|---:|---|
 | 🌍 Canlı Radar | 🟢 Akademik ✅ (v1.55) | 5 (harita + saatlik + derinlik + scroll list + scoreboard) | ✅ **PİLOT A — Hanks-Kanamori 1979 + Sinnott 1984** |
 | 🌊 ShakeMap | 🟢 Akademik ✅ (v1.63) | 3 | ✅ **Sprint 3 — Wald 1999 + Worden 2012 + Bakun-Wentworth 1997** |
-| 🔴 Sismik Açık | 🟡 Orta | 2 (harita + Gantt) | — |
+| 🔴 Sismik Açık | 🟢 Akademik ✅ (v1.69) | 2 (harita + Gantt) | ✅ **Sprint 7 — McCann 1979 + Kagan-Jackson 1991 eleştiri** |
 | 🚨 Erken Uyarı | 🟢 Akademik ✅ (v1.63) | 2 (timeline + skor kartları) | ✅ **Sprint 3 — Allen-Kanamori 2003 + AFAD-EWS** |
-| 📈 Artçı Tahmin | 🟠 Temel | 2 | — |
-| 🔄 Sismik Döngü | 🟠 Temel | 2 | — |
+| 📈 Artçı Tahmin | 🟢 Akademik ✅ (v1.69) | 2 | ✅ **Sprint 7 — Omori-Utsu + Reasenberg-Jones 1989** |
+| 🔄 Sismik Döngü | 🟢 Akademik ✅ (v1.69) | 2 | ✅ **Sprint 7 — Matthews 2002 BPT + Reid 1910** |
 
 ### 🧭 Fay & Tektonik
 
@@ -51,11 +51,11 @@ Her panelin mevcut `st.caption`, `st.markdown`, `st.info`, `st.warning`, `st.suc
 | 📊 İstatistik & Analiz | 🟡 Orta (η/RTL/AMR akademik v1.62) | 8+ (b-grid, η, RTL, AMR, korelasyon, scatter) | ✅ **Sprint 2 — η/RTL/AMR akademik** |
 | 📉 b-Değeri Zaman Serisi | 🟢 Akademik ✅ (v1.56) | 3 (b-değeri zaman + dağılım) | ✅ **PİLOT B — Aki 1965 MLE + Bayrak 2002** |
 | 🌐 Dinamik Tetikleme | 🟠 Temel | 2 | — |
-| 🗺️ Sismik Tehlike (PSHA) | 🟡 Orta | 2 | — |
+| 🗺️ Sismik Tehlike (PSHA) | 🟢 Akademik ✅ (v1.69) | 2 | ✅ **Sprint 7 — Cornell 1968 + SHARE 2013 + TBDY-2018** |
 | 🗺️ Tsunami Tehlike | 🟠 Temel | 2 | — |
 | ⏱️ Tsunami Varış | 🟠 Temel | 1 | — |
 | 🌊 Tsunami Kataloğu | 🟠 Temel | 2 | — |
-| 🏚️ HAZUS Kayıp | 🟡 Orta | 3 | — |
+| 🏚️ HAZUS Kayıp | 🟢 Akademik ✅ (v1.69) | 3 | ✅ **Sprint 7 — FEMA 2003 + Erdik 2003 + Lagomarsino 2006** |
 
 ### 🛰️ Uydu & Jeofizik
 
