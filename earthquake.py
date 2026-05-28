@@ -78,7 +78,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.67"
+APP_VERSION = "1.68"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -632,6 +632,16 @@ st.markdown(f"""
   [data-testid="stVerticalBlock"] > div {{ gap: 0.25rem !important; }}
   div[data-testid="element-container"] {{ margin-bottom: 0 !important; }}
   hr {{ margin: 0.25rem 0 !important; }}
+
+  /* v1.68 — Uzun LaTeX formülleri mobil/dar ekranda taşma yerine yatay kaydırılsın
+     (akademik açıklama panellerinde 14+ blok 90+ char; haversine/cases denklemleri) */
+  .katex-display {{
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    max-width: 100% !important;
+    padding: 2px 0;
+  }}
+  .katex-display > .katex {{ white-space: nowrap; }}
 
   /* Autorefresh sırasında sayfa soluklaşmasın — tüm seçicileri kapsa */
   [data-testid="stAppViewContainer"],
