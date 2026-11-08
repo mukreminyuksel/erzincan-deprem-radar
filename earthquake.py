@@ -955,11 +955,11 @@ with st.sidebar:
 
     zaman_secenekleri = list(QUICK_WINDOWS.keys()) + ["Özel gün sayısı", "Özel Tarih Aralığı"]
     # İlk açılışta URL'den gelen string sözcüğü options içinde olmayabilir → fallback
-    _z_default = st.session_state.get("sb_zaman", "Son 7 gün")
-    if _z_default not in zaman_secenekleri:
-        _z_default = "Son 7 gün"
+    # Değer session_state üzerinden verilir; index= ile birlikte verilirse
+    # Streamlit "default value + Session State API" uyarısı basar.
+    if st.session_state.get("sb_zaman") not in zaman_secenekleri:
+        st.session_state["sb_zaman"] = "Son 7 gün"
     zaman_secim = st.selectbox("Zaman Aralığı", zaman_secenekleri,
-                                index=zaman_secenekleri.index(_z_default),
                                 key="sb_zaman")
 
     if zaman_secim == "Özel Tarih Aralığı":
