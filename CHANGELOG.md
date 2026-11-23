@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.82 - 2026-11-23 — ⚡ Hız + yayın kararlılığı
+
+**Yayın:** Streamlit Cloud uygulaması "Oh no" ekranında kalıyordu. Neden kod değil, deponun gizli (private) olması ve Streamlit'in onu indirememesiydi. Depo public yapıldı, uygulama yeniden başlatıldı.
+
+**Hız (profil ölçümü, 600 km / 30 gün, önbellek dolu):** Canlı Radar yenilemesi **5,0 sn → 1,3 sn**. Neden: ~900 bin fay vertex'i her yenilemede Python listesi olarak Plotly'ye veriliyor, Plotly her noktayı tek tek doğrulayıp kopyalıyordu. Yeni `fault_traces_for_view()` görünür fayları renge göre gruplayıp NaN ayırıcılı numpy dizisi olarak (bbox + LOD başına) önbellekliyor. Dalga simülasyonu haritası da aynı fonksiyonu kullanıyor.
+
+**Bellek:** Sınırsız 9 önbelleğe `max_entries` eklendi (`fetch_all` her dakika yeni anahtar üretiyordu).
+
+**Uyku:** `.github/workflows/keep-awake.yml` — 6 saatte bir uygulamayı gerçek tarayıcıyla açar, uyuyorsa uyandırır.
+
+**Kullanıcı istekleri:** Plaka hareket yönü yazıları ve noktaları kırmızıdan beyaza (deprem işaretiyle karışıyordu). Otomatik yenileme varsayılanı 60 → 300 sn.
+
+**Düzeltmeler:** `sb_zaman` ve `sb_refresh` seçim kutularındaki "default value + Session State API" uyarısı giderildi. Listede mesafe `99.11245578474867 km` yerine `99.1 km` gösteriliyor (vektörleştirmede yuvarlama kaybolmuştu).
+
 ## v1.74–v1.81 - 2026-05-28 — 📚 FAZ B: AKADEMİK BİLGİ MERKEZİ (büyük sürüm)
 
 **Amaç:** Kullanıcı vizyonu — "kitaplardan bilgiler, ileri düzey pratik kaynaklar, yeni teknolojiler, araştırmalar". Panel-açıklama standardından (Faz A) ayrı, eğitim/kaynak merkezi. Mevcut `📚 Akademik Kütüphane` → 4-sekmeli **Akademik Bilgi Merkezi**.

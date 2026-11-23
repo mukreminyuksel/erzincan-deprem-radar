@@ -87,7 +87,7 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.81"
+APP_VERSION = "1.82"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -551,7 +551,7 @@ ALL_FETCHERS = {
     "INGV":      fetch_ingv,
 }
 
-@st.cache_data(ttl=600, show_spinner=False)
+@st.cache_data(ttl=600, show_spinner=False, max_entries=32)
 def fetch_all(lat, lon, radius_km, min_mag, start_dt, end_dt, active_sources):
     # Cache buster for mag_color change
     statuses = {}
@@ -585,7 +585,8 @@ def fetch_all(lat, lon, radius_km, min_mag, start_dt, end_dt, active_sources):
     dlat = df_lat_rad - lat_rad
     dlon = df_lon_rad - lon_rad_val
     a_hav = np.sin(dlat / 2) ** 2 + math.cos(lat_rad) * np.cos(df_lat_rad) * np.sin(dlon / 2) ** 2
-    df["uzaklik_km"] = 6371.0 * 2.0 * np.arcsin(np.sqrt(a_hav))
+    # 0.1 km'ye yuvarla: liste ve tooltip'lerde "99.11245578474867 km" görünmesin
+    df["uzaklik_km"] = np.round(6371.0 * 2.0 * np.arcsin(np.sqrt(a_hav)), 1)
     df = df.sort_values("zaman", ascending=False).reset_index(drop=True)
 
     # Tekilleştirme — Kandilli UTC+3 düzeltmesi, toleranslar genişletildi
@@ -918,7 +919,7 @@ def _sb_init_state_from_url():
         "sb_radius": _try("sb_radius", 100, int),
         "sb_min_mag": _try("sb_min_mag", 1.0, float),
         "sb_zaman":  _try("sb_zaman", "Son 7 gün", str),
-        "sb_refresh": _try("sb_refresh", 60, int),
+        "sb_refresh": _try("sb_refresh", 300, int),
         "sb_harita":  _try("sb_harita", "Uydu", str),
         "sb_show_faults": _try("sb_show_faults", True, lambda v: v in ("1","true","True")),
         "sb_show_plates": _try("sb_show_plates", True, lambda v: v in ("1","true","True")),
@@ -1025,12 +1026,12 @@ with st.sidebar:
         days_label  = zaman_secim
 
     _refresh_opts = [30, 60, 120, 180, 240, 300]  # tekrar eden 60 temizlendi
-    _refresh_default = st.session_state.get("sb_refresh", 60)
-    if _refresh_default not in _refresh_opts:
-        _refresh_default = 60
+    # Varsayılan 300 sn: 60 sn'de sayfa çok sık yenilenip yoruyordu.
+    # Değer yalnız session_state'ten verilir (index= ile birlikte uyarı basar).
+    if st.session_state.get("sb_refresh") not in _refresh_opts:
+        st.session_state["sb_refresh"] = 300
     refresh_s = st.selectbox("Otomatik Yenileme",
                               _refresh_opts,
-                              index=_refresh_opts.index(_refresh_default),
                               format_func=lambda x: f"Her {x} saniye",
                               key="sb_refresh")
 
@@ -1395,6 +1396,47 @@ def load_fault_lines():
 
 FAULT_LINES = load_fault_lines()
 
+
+@st.cache_resource(show_spinner=False, max_entries=8)
+def fault_traces_for_view(margin_deg, lod_step=1):
+    """Görünür fayları renge göre gruplayıp numpy dizisi olarak döndürür.
+
+    Plotly, Python listelerini eleman eleman doğrulayıp kopyalıyor; ~900 bin
+    vertex'te bu her yeniden çalıştırmada saniyeler sürüyordu. Float numpy
+    dizileri (ayırıcı NaN) doğrulamayı atlar ve tarayıcıya base64 gider.
+    Sonuç (bbox, LOD) başına önbelleklenir; dönüş değeri salt okunur kullanılır.
+    """
+    lat_min, lat_max = ERZ_LAT - margin_deg, ERZ_LAT + margin_deg
+    lon_pad = margin_deg / math.cos(math.radians(ERZ_LAT))
+    lon_min, lon_max = ERZ_LON - lon_pad, ERZ_LON + lon_pad
+    visible = [f for f in FAULT_LINES
+               if f["max_lat"] >= lat_min and f["min_lat"] <= lat_max
+               and f["max_lon"] >= lon_min and f["min_lon"] <= lon_max]
+    by_color = {}
+    for fault in visible:
+        entry = by_color.setdefault(fault["color"], {"lats": [], "lons": [], "labels": []})
+        f_lats, f_lons = fault["lats"], fault["lons"]
+        if lod_step > 1 and len(f_lats) > 4:
+            # Uçlar her zaman korunur, ortadan her lod_step'inci vertex alınır
+            f_lats = [f_lats[0]] + f_lats[1:-1:lod_step] + [f_lats[-1]]
+            f_lons = [f_lons[0]] + f_lons[1:-1:lod_step] + [f_lons[-1]]
+        entry["lats"].extend(f_lats + [np.nan])
+        entry["lons"].extend(f_lons + [np.nan])
+        seg = fault["segment"]
+        label = f"{fault['fay_adi']} — {seg}" if seg else fault["fay_adi"]
+        label = f"{safe_html(label)}<br>Kayma: {safe_html(fault['kayma'])}"
+        if fault["uzunluk"]:
+            label += f" · Uzunluk: {safe_html(fault['uzunluk'])} km"
+        entry["labels"].extend([label] * len(f_lats) + [""])
+    traces = [
+        (color,
+         np.asarray(d["lats"], dtype=float),
+         np.asarray(d["lons"], dtype=float),
+         np.asarray(d["labels"], dtype=object))
+        for color, d in by_color.items()
+    ]
+    return traces, len(visible)
+
 # PB2002 (Peter Bird 2003) plaka sınır tipleri — Türkiye + komşu Mediterranean odaklı
 # convergent = yaklaşan (subduction/collision) — kırmızı
 # divergent  = ayrılan (rift/MOR) — mavi
@@ -1546,7 +1588,7 @@ def _euler_to_delta_deg(euler_lat, euler_lon, omega_deg_myr, lat, lon):
     dlon_deg_yr = math.degrees(ve_rad / cos_phi)
     return dlat_deg_yr, dlon_deg_yr
 
-@st.cache_resource(show_spinner=False)
+@st.cache_resource(show_spinner=False, max_entries=8)
 def load_plate_velocities(ref_lat: float = ERZ_LAT, ref_lon: float = ERZ_LON,
                           reference_frame: str = "EU"):
     """Tüm plakalar için (ref_lat, ref_lon) noktasında deg/yıl hız vektörü.
@@ -1677,7 +1719,7 @@ def make_mapbox_layout(stil):
         return dict(style="carto-positron")
 
 
-@st.cache_data(show_spinner=False, ttl=300)
+@st.cache_data(show_spinner=False, ttl=300, max_entries=16)
 def calc_etas_cache(df_sub_dict, d_frac, b_eta):
     import math
 
@@ -1709,7 +1751,7 @@ def calc_etas_cache(df_sub_dict, d_frac, b_eta):
             log_r_list.append(math.log10(max(best_r, 0.1)))
     return eta_list, log_t_list, log_r_list
 
-@st.cache_data(show_spinner=False, ttl=300)
+@st.cache_data(show_spinner=False, ttl=300, max_entries=16)
 def calc_rtl_cache(df_dict, rtl_r0, rtl_t0, ERZ_LAT, ERZ_LON):
     import math
 
@@ -1734,7 +1776,7 @@ def calc_rtl_cache(df_dict, rtl_r0, rtl_t0, ERZ_LAT, ERZ_LON):
         rtl_scores.append(score)
     return rtl_times, rtl_scores
 
-@st.cache_data(show_spinner=False, ttl=300)
+@st.cache_data(show_spinner=False, ttl=300, max_entries=16)
 def calc_amr_cache(df_dict):
     import math
 
@@ -1779,7 +1821,7 @@ def calc_amr_cache(df_dict):
     return amr_df["zaman"].tolist(), C.tolist(), best_m, best_tf, best_fitted.tolist(), T_obs, t0_amr, best_rmse
 
 # ─── CACHED FUNCTIONS FOR PERFORMANCE ───────────────────────────────────────
-@st.cache_data(show_spinner=False, ttl=300)
+@st.cache_data(show_spinner=False, ttl=300, max_entries=16)
 def calc_b_grid_cache(df_mc_dict, bg_n, bg_sr, bg_min, radius_km, ERZ_LAT, ERZ_LON, mc_g):
     import math
 
@@ -1946,21 +1988,7 @@ def _render_canli_radar():
         # Fay hatları (MTA Diri Fay Haritası — kayma türüne göre renklendirilmiş)
         if show_faults and FAULT_LINES:
             # Erzincan + (yarıçap × 1.6) bbox dışındakileri filtrele (perf için)
-            deg = 1.0 / 111.0
-            margin = max(radius_km * 1.6, 250) * deg
-            lat_min, lat_max = ERZ_LAT - margin, ERZ_LAT + margin
-            lon_min, lon_max = ERZ_LON - margin / math.cos(math.radians(ERZ_LAT)), \
-                               ERZ_LON + margin / math.cos(math.radians(ERZ_LAT))
-
-            # v1.9 precomputed bbox + bbox-overlap testi (Python any() generator yerine
-            # O(1) numerik karşılaştırma — 14,500 fay × ortalama 10 vertex'lik any()
-            # döngüsünden ~10× hızlanma; ayrıca segmenti yalnızca uçları view dışındaysa
-            # gözden kaçırma riskini ortadan kaldırır).
-            def in_view(fault):
-                return (fault["max_lat"] >= lat_min and fault["min_lat"] <= lat_max
-                        and fault["max_lon"] >= lon_min and fault["min_lon"] <= lon_max)
-
-            visible = [f for f in FAULT_LINES if in_view(f)]
+            margin = max(radius_km * 1.6, 250) / 111.0
 
             # v1.49 — Ajan 5B LOD (Codex önceliği 4): yarıçap-tabanlı vertex
             # simplification. Mapbox zoom server-side bilinmediği için kullanıcının
@@ -1976,45 +2004,25 @@ def _render_canli_radar():
             else:
                 _lod_step, _lod_label = 8, "Sadece ana hatlar (1/8)"
 
-            # Renge göre gruplayıp tek trace'e topla (None separator ile)
-            by_color = {}
-            for fault in visible:
-                color = fault["color"]
-                entry = by_color.setdefault(color, {"lats": [], "lons": [], "labels": []})
-                # Vertex simplification — uçları her zaman koru (Visvalingam basitleştirme),
-                # ortayı her _lod_step'inci ile çek.
-                f_lats, f_lons = fault["lats"], fault["lons"]
-                if _lod_step > 1 and len(f_lats) > 4:
-                    # İlk + son her zaman, ortalar her step'inci
-                    f_lats = [f_lats[0]] + f_lats[1:-1:_lod_step] + [f_lats[-1]]
-                    f_lons = [f_lons[0]] + f_lons[1:-1:_lod_step] + [f_lons[-1]]
-                entry["lats"].extend(f_lats + [None])
-                entry["lons"].extend(f_lons + [None])
-                seg = fault["segment"]
-                label = f"{fault['fay_adi']} — {seg}" if seg else fault["fay_adi"]
-                label = f"{safe_html(label)}<br>Kayma: {safe_html(fault['kayma'])}"
-                if fault["uzunluk"]:
-                    label += f" · Uzunluk: {safe_html(fault['uzunluk'])} km"
-                entry["labels"].extend([label] * len(f_lats) + [None])
-
-            for color, data in by_color.items():
+            # Renge göre gruplanmış, önbellekli numpy dizileri (bkz. fault_traces_for_view)
+            _fault_traces, _fault_count = fault_traces_for_view(margin, _lod_step)
+            for color, f_lats, f_lons, f_labels in _fault_traces:
                 # Gölge (siyah, alt katman)
                 fig_map.add_trace(go.Scattermapbox(
-                    lat=data["lats"], lon=data["lons"], mode="lines",
+                    lat=f_lats, lon=f_lons, mode="lines",
                     showlegend=False, hoverinfo="skip",
                     line=dict(color="rgba(0,0,0,0.55)", width=3.5),
                 ))
                 # Renkli üst çizgi
                 fig_map.add_trace(go.Scattermapbox(
-                    lat=data["lats"], lon=data["lons"], mode="lines",
+                    lat=f_lats, lon=f_lons, mode="lines",
                     name="Fay hattı", showlegend=False,
                     line=dict(color=color, width=1.8),
-                    text=data["labels"],
+                    text=f_labels,
                     hovertemplate="<b>%{text}</b><extra></extra>",
                 ))
 
             # v1.49 — LOD seviyesi göstergesi (Codex önerisi: kullanıcı detay seviyesini bilsin)
-            _fault_count = len(visible)
             st.caption(
                 f"🗺️ **Fay detay seviyesi:** {_lod_label} · "
                 f"Yarıçap {radius_km} km · {_fault_count} segment görünür"
@@ -2121,10 +2129,11 @@ def _render_canli_radar():
                 lon=[p["lon"] for p in plate_motions],
                 mode="markers+text",
                 name="Plaka Hareket Yönü",
-                marker=dict(size=14, color="#FF0055", symbol="circle"),
+                # Beyaz: kırmızı nokta deprem işaretiyle karışıyordu
+                marker=dict(size=14, color="#FFFFFF", symbol="circle"),
                 text=[p["text"] for p in plate_motions],
                 textposition="bottom right",
-                textfont=dict(size=18, color="#FF0055"),
+                textfont=dict(size=18, color="#FFFFFF"),
                 hovertext=[p["isim"] for p in plate_motions],
                 hovertemplate="<b>%{text}</b><br>%{hovertext}<extra></extra>",
                 showlegend=False,
@@ -3614,37 +3623,14 @@ if active_menu == "🎓 Bilgi Havuzu":
 
             # Fay Hatları (Canlı Radardaki Altlık)
             if FAULT_LINES:
-                deg = 1.0 / 111.0
-                margin = max(220 * 1.6, 250) * deg
-                lat_min, lat_max = ERZ_LAT - margin, ERZ_LAT + margin
-                lon_min, lon_max = ERZ_LON - margin / math.cos(math.radians(ERZ_LAT)), ERZ_LON + margin / math.cos(math.radians(ERZ_LAT))
-
-                def in_view(fault):
-                    return (fault["max_lat"] >= lat_min and fault["min_lat"] <= lat_max
-                            and fault["max_lon"] >= lon_min and fault["min_lon"] <= lon_max)
-
-                visible = [f for f in FAULT_LINES if in_view(f)]
-
-                by_color = {}
-                for fault in visible:
-                    color = fault["color"]
-                    entry = by_color.setdefault(color, {"lats": [], "lons": [], "labels": []})
-                    entry["lats"].extend(fault["lats"] + [None])
-                    entry["lons"].extend(fault["lons"] + [None])
-                    seg = fault["segment"]
-                    label = f"{fault['fay_adi']} — {seg}" if seg else fault["fay_adi"]
-                    label = f"{label}<br>Kayma: {fault['kayma']}"
-                    if fault["uzunluk"]:
-                        label += f" · Uzunluk: {fault['uzunluk']} km"
-                    entry["labels"].extend([label] * len(fault["lats"]) + [None])
-
-                for color, data in by_color.items():
+                _fault_traces, _ = fault_traces_for_view(max(220 * 1.6, 250) / 111.0)
+                for color, f_lats, f_lons, f_labels in _fault_traces:
                     fig_erz.add_trace(go.Scattermapbox(
-                        lat=data["lats"], lon=data["lons"],
+                        lat=f_lats, lon=f_lons,
                         mode="lines",
                         line=dict(width=1.5, color=color),
                         hoverinfo="text",
-                        text=data["labels"],
+                        text=f_labels,
                         hovertemplate="%{text}<extra></extra>",
                         name="Diri Fay (MTA)",
                         showlegend=False
@@ -5910,7 +5896,7 @@ def _build_coupling_traces(years: int, vis_scale: float):
     ))
     return traces
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, max_entries=16)
 def _plaka_build_figure(mode_key: str, focus_lat: float, focus_lon: float,
                         city: str, plate_code: str = "AN",
                         active_idx: int = 0, show_coupling: bool = False,
@@ -8643,7 +8629,7 @@ def _shakemap_circle_coords(lat: float, lon: float, radius_km: float, n: int = 4
     return coords_lat, coords_lon
 
 
-@st.cache_data(ttl=600, show_spinner=False)
+@st.cache_data(ttl=600, show_spinner=False, max_entries=16)
 def _shakemap_fetch_usgs_events(min_magnitude: float = 5.0, limit: int = 15):
     """
     USGS FDSN Event API'den Türkiye bölgesindeki son depremleri çek.
@@ -9126,7 +9112,7 @@ def _psha_zone_label(zone: int) -> str:
     return {1: "Zone-1 (en yüksek)", 2: "Zone-2", 3: "Zone-3", 4: "Zone-4 (en düşük)"}.get(zone, f"Zone-{zone}")
 
 
-@st.cache_data(ttl=600, show_spinner=False)
+@st.cache_data(ttl=600, show_spinner=False, max_entries=64)
 def _psha_try_efehr_api(lat: float, lon: float):
     """EFEHR API denemesi — 5 sn timeout, fail olursa None."""
     try:

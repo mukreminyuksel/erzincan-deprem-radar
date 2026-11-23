@@ -1,0 +1,48 @@
+# Streamlit Community Cloud, 12 saat ziyaret almayan uygulamayı uyutur.
+# Bu iş 6 saatte bir uygulamayı gerçek bir tarayıcıyla açar; uyuyorsa
+# "Yes, get this app back up!" düğmesine basıp uyandırır.
+name: Uygulamayı uyanık tut
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"   # 6 saatte bir (UTC, dakika 17: yoğun saat başından kaçınır)
+  workflow_dispatch: {}        # Actions sekmesinden elle de çalıştırılabilir
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Playwright kur
+        run: |
+          npm init -y >/dev/null
+          npm install playwright@1.48.2 >/dev/null
+          npx playwright install --with-deps chromium >/dev/null
+      - name: Uygulamayı aç, uyuyorsa uyandır
+        env:
+          APP_URL: https://erzincan.streamlit.app/
+        run: |
+          cat > ping.mjs <<'EOF'
+          import { chromium } from "playwright";
+          const browser = await chromium.launch();
+          const page = await browser.newPage();
+          await page.goto(process.env.APP_URL, { waitUntil: "domcontentloaded", timeout: 90000 });
+          await page.waitForTimeout(8000);
+          const wake = page.getByRole("button", { name: /get this app back up/i });
+          if (await wake.count()) {
+            console.log("Uygulama uyuyordu, uyandırılıyor...");
+            await wake.first().click();
+            await page.waitForTimeout(60000);
+          } else {
+            console.log("Uygulama zaten uyanık.");
+          }
+          console.log("Sayfa başlığı:", await page.title());
+          await browser.close();
+          EOF
+          node ping.mjs
