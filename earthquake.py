@@ -951,7 +951,37 @@ with st.sidebar:
 
     # ─── FİLTRELER (her zaman görünür — kullanıcının ana etkileşim noktası) ──
     # key= ile session_state'e bağlı (URL persistence için zorunlu)
-    radius_km = st.slider("Yarıçap (km)", 50, 600, step=10, key="sb_radius")
+    # Yarıçap: slider hızlı seçim (50–600 km), altındaki kutuya elle daha büyük
+    # değer yazılabilir (ör. 2000 km; en fazla 20.000 km ≈ dünyanın yarısı,
+    # USGS'in kabul ettiği üst sınır). Asıl değer "sb_radius"ta tutulur (URL'ye
+    # de o yazılır); slider ve kutu callback'lerle ona senkronlanır.
+    RADIUS_SLIDER_MAX, RADIUS_INPUT_MAX = 600, 20000
+    try:
+        _r = int(st.session_state.get("sb_radius", 100))
+    except (TypeError, ValueError):
+        _r = 100
+    st.session_state["sb_radius"] = min(max(_r, 50), RADIUS_INPUT_MAX)
+    _r_slider = min(st.session_state["sb_radius"], RADIUS_SLIDER_MAX)
+    if st.session_state.get("sb_radius_slider") != _r_slider:
+        st.session_state["sb_radius_slider"] = _r_slider
+    if st.session_state.get("sb_radius_input") != st.session_state["sb_radius"]:
+        st.session_state["sb_radius_input"] = st.session_state["sb_radius"]
+
+    def _sync_radius_from_slider():
+        st.session_state["sb_radius"] = int(st.session_state["sb_radius_slider"])
+
+    def _sync_radius_from_input():
+        st.session_state["sb_radius"] = int(st.session_state["sb_radius_input"])
+
+    st.slider("Yarıçap (km)", 50, RADIUS_SLIDER_MAX, step=10,
+              key="sb_radius_slider", on_change=_sync_radius_from_slider)
+    st.number_input("Elle yarıçap (km) — 600'den büyük için buraya yaz",
+                    min_value=50, max_value=RADIUS_INPUT_MAX, step=50,
+                    key="sb_radius_input", on_change=_sync_radius_from_input,
+                    help="Örn. 2000 km: Türkiye ve çevresinin tamamı. "
+                         "20000 km: bütün dünya. Büyük yarıçap ve uzun süre "
+                         "seçilirse veri yüklemesi uzayabilir.")
+    radius_km = int(st.session_state["sb_radius"])
     min_mag   = st.slider("Min. Büyüklük", 0.5, 5.0, step=0.5, key="sb_min_mag")
 
     zaman_secenekleri = list(QUICK_WINDOWS.keys()) + ["Özel gün sayısı", "Özel Tarih Aralığı"]
@@ -2151,7 +2181,10 @@ def _render_canli_radar():
         ))
 
         mapbox_cfg = make_mapbox_layout(harita_stil)
-        mapbox_cfg.update({"center": dict(lat=ERZ_LAT, lon=ERZ_LON), "zoom": 6})
+        # 600 km'ye kadar eski görünüm (zoom 6); daha büyük yarıçapta her 2 katında
+        # bir kademe uzaklaş ki dairenin tamamı görünsün (2000 km ≈ 4.3, 20000 km → 1).
+        _zoom = 6.0 if radius_km <= 600 else max(1.0, 6.0 - math.log2(radius_km / 600))
+        mapbox_cfg.update({"center": dict(lat=ERZ_LAT, lon=ERZ_LON), "zoom": _zoom})
 
         fig_map.update_layout(
             mapbox=mapbox_cfg,
