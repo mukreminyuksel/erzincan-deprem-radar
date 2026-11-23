@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.83 - 2026-11-23 — 📍 İzleme merkezi seçimi + geniş yarıçap
+
+**Merkez seçimi:** Kenar çubuğunda "📍 Merkez" kutusu. Varsayılan Erzincan; hazır listede 38 depremsel şehir (Kyoto, Tokyo, Los Angeles, Santiago...) ve OpenStreetMap Nominatim ile serbest yer arama ("🔎 Başka bir yer ara…"). Seçim URL'de saklanır (`sb_center`, `sb_clat`, `sb_clon`).
+Merkeze bağlanan kısımlar: veri çekme ve mesafeler, Canlı Radar haritası (pin, odak, fay kesiti), RTL, b-değeri ızgarası, göç grafiği, gök durumu, başlık. Erzincan'a özel sayfalar (senaryo simülasyonu, 1939 arşivi, plaka hızları, PSHA) Erzincan'da kalır. Kandilli ve AFAD yalnız Türkiye verisi verir.
+
+**Geniş yarıçap:** Slider 50–600 km; altındaki kutuya 20.000 km'ye kadar elle değer yazılabilir. 600 km üstünde harita yarıçapa göre uzaklaşır.
+
+**Düzeltme:** Derinlik vermeyen kaynaklarda "nan km" yerine "? km".
+
 ## v1.82 - 2026-11-23 — ⚡ Hız + yayın kararlılığı
 
 **Yayın:** Streamlit Cloud uygulaması "Oh no" ekranında kalıyordu. Neden kod değil, deponun gizli (private) olması ve Streamlit'in onu indirememesiydi. Depo public yapıldı, uygulama yeniden başlatıldı.

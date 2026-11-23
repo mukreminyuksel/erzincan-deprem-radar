@@ -87,7 +87,85 @@ except ImportError:
 
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
-APP_VERSION = "1.82"
+
+# İzleme merkezi (v1.83): Canlı izleme bu merkeze göre çalışır; varsayılan Erzincan.
+# ERZ_LAT/ERZ_LON Erzincan'a özel sayfalar (1939 arşivi, senaryo, PSHA, plaka
+# hızları) için sabit kalır. Liste: depremsel olarak önemli şehirler.
+DEFAULT_CENTER = "Erzincan"
+CENTER_PRESETS = {
+    "Erzincan": (39.7333, 39.4917),
+    "İstanbul": (41.0082, 28.9784),
+    "İzmir": (38.4237, 27.1428),
+    "Ankara": (39.9334, 32.8597),
+    "Kahramanmaraş": (37.5858, 36.9371),
+    "Hatay (Antakya)": (36.2025, 36.1606),
+    "Malatya": (38.3552, 38.3095),
+    "Elazığ": (38.6810, 39.2264),
+    "Bingöl": (38.8847, 40.4939),
+    "Van": (38.5012, 43.3730),
+    "Düzce": (40.8438, 31.1565),
+    "Bursa": (40.1885, 29.0610),
+    "Erzurum": (39.9043, 41.2679),
+    "Atina, Yunanistan": (37.9838, 23.7275),
+    "Roma, İtalya": (41.9028, 12.4964),
+    "Napoli, İtalya": (40.8518, 14.2681),
+    "Tahran, İran": (35.6892, 51.3890),
+    "Tiflis, Gürcistan": (41.7151, 44.8271),
+    "Bükreş, Romanya": (44.4268, 26.1025),
+    "Kyoto, Japonya": (35.0116, 135.7681),
+    "Tokyo, Japonya": (35.6762, 139.6503),
+    "Osaka, Japonya": (34.6937, 135.5023),
+    "Taipei, Tayvan": (25.0330, 121.5654),
+    "Manila, Filipinler": (14.5995, 120.9842),
+    "Cakarta, Endonezya": (-6.2088, 106.8456),
+    "Katmandu, Nepal": (27.7172, 85.3240),
+    "Pekin, Çin": (39.9042, 116.4074),
+    "Los Angeles, Kaliforniya": (34.0522, -118.2437),
+    "San Francisco, Kaliforniya": (37.7749, -122.4194),
+    "Seattle, ABD": (47.6062, -122.3321),
+    "Anchorage, Alaska": (61.2181, -149.9003),
+    "Mexico City, Meksika": (19.4326, -99.1332),
+    "Lima, Peru": (-12.0464, -77.0428),
+    "Santiago, Şili": (-33.4489, -70.6693),
+    "Quito, Ekvador": (-0.1807, -78.4678),
+    "Wellington, Yeni Zelanda": (-41.2865, 174.7762),
+    "Christchurch, Yeni Zelanda": (-43.5321, 172.6362),
+    "Reykjavik, İzlanda": (64.1466, -21.9426),
+}
+CENTER_SEARCH_OPTION = "🔎 Başka bir yer ara…"
+
+
+def fmt_depth(value, decimals=1):
+    """Derinliği "12.3 km" biçiminde verir; kaynak derinlik vermediyse "? km"."""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return "? km"
+    return "? km" if math.isnan(v) else f"{v:.{decimals}f} km"
+
+
+@st.cache_data(ttl=86400, show_spinner=False, max_entries=256)
+def geocode_place(query):
+    """Yer adını OpenStreetMap Nominatim ile koordinata çevirir (ücretsiz, anahtarsız).
+
+    Yalnız kullanıcının yazdığı yer adı gönderilir. Nominatim kuralı gereği
+    tanımlayıcı bir User-Agent kullanılır; sonuç 1 gün önbelleklenir (servis
+    saniyede en fazla 1 istek kabul eder). Hata olursa boş liste döner.
+    """
+    try:
+        r = requests.get(
+            "https://nominatim.openstreetmap.org/search",
+            params={"q": query, "format": "jsonv2", "limit": 6, "accept-language": "tr"},
+            headers={"User-Agent": "ErzincanDepremRadari/1.83 (Streamlit app)"},
+            timeout=10,
+        )
+        r.raise_for_status()
+        return [(item["display_name"], float(item["lat"]), float(item["lon"]))
+                for item in r.json()]
+    except Exception:
+        return []
+
+APP_VERSION = "1.83"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -928,6 +1006,12 @@ def _sb_init_state_from_url():
         if k not in st.session_state:
             st.session_state[k] = v
 
+    # İzleme merkezi: ad + koordinat (aranan yerler listede olmadığından koordinat da saklanır)
+    if "sb_center" in qp and "center" not in st.session_state:
+        try:
+            st.session_state.center = (qp["sb_center"], float(qp["sb_clat"]), float(qp["sb_clon"]))
+        except Exception:
+            pass
     # Tema (özel state key)
     if "sb_tema" in qp:
         st.session_state.tema = qp["sb_tema"]
@@ -948,6 +1032,52 @@ _sb_init_state_from_url()
 # Görünüm/Veri Kaynakları/Sistem expanded=False ile başlar — kullanıcı tıklayınca açılır.
 with st.sidebar:
     st.markdown("### 🎯 Ayarlar")
+
+    # ─── İzleme merkezi (v1.83) ─────────────────────────────────────────────
+    # Seçilen merkez st.session_state.center = (ad, enlem, boylam) olarak tutulur.
+    if "center" not in st.session_state:
+        st.session_state.center = (DEFAULT_CENTER, *CENTER_PRESETS[DEFAULT_CENTER])
+    _c_name = st.session_state.center[0]
+    _center_opts = list(CENTER_PRESETS)
+    if _c_name not in CENTER_PRESETS:      # aramayla bulunmuş yer: listenin başına ekle
+        _center_opts = [_c_name] + _center_opts
+    _center_opts.append(CENTER_SEARCH_OPTION)
+    # Aramadan seçilen yer bir sonraki çalıştırmada kutuya yazılır (widget
+    # oluştuktan sonra değeri aynı çalıştırmada değiştirilemez).
+    if st.session_state.pop("_center_pick_pending", False) or \
+            st.session_state.get("sb_center_pick") not in _center_opts:
+        st.session_state["sb_center_pick"] = _c_name
+
+    def _on_center_pick():
+        pick = st.session_state["sb_center_pick"]
+        if pick in CENTER_PRESETS:
+            st.session_state.center = (pick, *CENTER_PRESETS[pick])
+
+    _pick = st.selectbox("📍 Merkez", _center_opts, key="sb_center_pick",
+                         on_change=_on_center_pick,
+                         help="Canlı izleme (harita, liste, mesafeler, analizler) bu "
+                              "noktaya göre çalışır. Kandilli ve AFAD yalnız Türkiye "
+                              "verisi verir; yurt dışında USGS, EMSC, GFZ ve INGV kullanılır.")
+    if _pick == CENTER_SEARCH_OPTION:
+        _q = st.text_input("Yer adı yazıp Enter'a bas", key="sb_center_query",
+                           placeholder="ör. Kyoto, Los Angeles, Lizbon")
+        if _q.strip():
+            _hits = geocode_place(_q.strip())
+            if not _hits:
+                st.caption("Sonuç bulunamadı ya da arama servisine ulaşılamadı.")
+            else:
+                _labels = [h[0] for h in _hits]
+                _sel = st.selectbox("Bulunan yerler", _labels, key="sb_center_hit")
+                if st.button("Bu yeri merkez yap", key="sb_center_apply"):
+                    name, lat, lon = _hits[_labels.index(_sel)]
+                    # Uzun OSM adını kısalt: ilk ve son parça (ör. "Kyoto, Japonya")
+                    parts = [p.strip() for p in name.split(",")]
+                    short = parts[0] if len(parts) == 1 else f"{parts[0]}, {parts[-1]}"
+                    st.session_state.center = (short, lat, lon)
+                    st.session_state["_center_pick_pending"] = True
+                    st.rerun()
+    CENTER_NAME, CENTER_LAT, CENTER_LON = st.session_state.center
+    IS_ERZINCAN_CENTER = (CENTER_NAME == DEFAULT_CENTER)
 
     # ─── FİLTRELER (her zaman görünür — kullanıcının ana etkileşim noktası) ──
     # key= ile session_state'e bağlı (URL persistence için zorunlu)
@@ -1112,6 +1242,13 @@ with st.sidebar:
     # ─── v1.45.8 — Sidebar state'ini URL query params'a yansıt ─────────────
     # Refresh sonrası state geri yüklensin (init fonksiyonu bunları okur).
     try:
+        if IS_ERZINCAN_CENTER:
+            for _k in ("sb_center", "sb_clat", "sb_clon"):
+                st.query_params.pop(_k, None)
+        else:
+            st.query_params["sb_center"] = CENTER_NAME
+            st.query_params["sb_clat"]   = f"{CENTER_LAT:.4f}"
+            st.query_params["sb_clon"]   = f"{CENTER_LON:.4f}"
         st.query_params["sb_radius"]      = str(radius_km)
         st.query_params["sb_min_mag"]     = str(min_mag)
         st.query_params["sb_zaman"]       = zaman_secim
@@ -1154,7 +1291,7 @@ st.markdown(f"""
     <div>
       <span style="font-size:1.25rem;font-weight:800">🌍 Erzincan Deprem Radari <span style="font-size:0.78rem;opacity:0.75">(v {APP_VERSION})</span></span>
       <span style="margin-left:12px;font-size:0.8rem;opacity:0.55">
-        {radius_km} km &nbsp;·&nbsp; M{min_mag}+ &nbsp;·&nbsp;
+        📍 {safe_html(CENTER_NAME)} &nbsp;·&nbsp; {radius_km} km &nbsp;·&nbsp; M{min_mag}+ &nbsp;·&nbsp;
         {days_label} &nbsp;·&nbsp; {len(active_sources)} kaynak paralel
         &nbsp;·&nbsp; <span class="blink" style="color:#f44336">● CANLI</span>
       </span>
@@ -1166,7 +1303,7 @@ st.markdown(f"""
 
 # ─── Veri ───────────────────────────────────────────────────────────────────
 with st.spinner(f"{len(active_sources)} kaynak paralel sorgulanıyor..."):
-    df, statuses = fetch_all(ERZ_LAT, ERZ_LON, radius_km, min_mag, query_start, query_end, tuple(active_sources))
+    df, statuses = fetch_all(CENTER_LAT, CENTER_LON, radius_km, min_mag, query_start, query_end, tuple(active_sources))
 
 # Kaynak pilleri
 src_html = ""
@@ -1428,7 +1565,7 @@ FAULT_LINES = load_fault_lines()
 
 
 @st.cache_resource(show_spinner=False, max_entries=8)
-def fault_traces_for_view(margin_deg, lod_step=1):
+def fault_traces_for_view(margin_deg, lod_step=1, clat=ERZ_LAT, clon=ERZ_LON):
     """Görünür fayları renge göre gruplayıp numpy dizisi olarak döndürür.
 
     Plotly, Python listelerini eleman eleman doğrulayıp kopyalıyor; ~900 bin
@@ -1436,9 +1573,9 @@ def fault_traces_for_view(margin_deg, lod_step=1):
     dizileri (ayırıcı NaN) doğrulamayı atlar ve tarayıcıya base64 gider.
     Sonuç (bbox, LOD) başına önbelleklenir; dönüş değeri salt okunur kullanılır.
     """
-    lat_min, lat_max = ERZ_LAT - margin_deg, ERZ_LAT + margin_deg
-    lon_pad = margin_deg / math.cos(math.radians(ERZ_LAT))
-    lon_min, lon_max = ERZ_LON - lon_pad, ERZ_LON + lon_pad
+    lat_min, lat_max = clat - margin_deg, clat + margin_deg
+    lon_pad = margin_deg / max(math.cos(math.radians(clat)), 0.05)
+    lon_min, lon_max = clon - lon_pad, clon + lon_pad
     visible = [f for f in FAULT_LINES
                if f["max_lat"] >= lat_min and f["min_lat"] <= lat_max
                and f["max_lon"] >= lon_min and f["min_lon"] <= lon_max]
@@ -1994,10 +2131,10 @@ def _render_canli_radar():
             sizes = sub["buyukluk"].apply(lambda m: max(8, m * 6))
             hover_text = sub.apply(lambda r:
                 f"<b>M{r['buyukluk']:.1f} — {r['sinif']}</b><br>"
-                f"Derinlik: {r['derinlik']:.1f} km<br>"
+                f"Derinlik: {fmt_depth(r['derinlik'])}<br>"
                 f"Zaman: {r['zaman_str']}<br>"
                 f"Konum: {safe_html(str(r['konum'])[:55])}<br>"
-                f"Erzincan'a: {r['uzaklik_km']} km<br>"
+                f"Merkeze: {r['uzaklik_km']} km<br>"
                 f"Kaynak: {safe_html(r['kaynak'])}", axis=1)
 
             # Siyah dis hat (biraz daha buyuk, tamamen siyah)
@@ -2035,7 +2172,7 @@ def _render_canli_radar():
                 _lod_step, _lod_label = 8, "Sadece ana hatlar (1/8)"
 
             # Renge göre gruplanmış, önbellekli numpy dizileri (bkz. fault_traces_for_view)
-            _fault_traces, _fault_count = fault_traces_for_view(margin, _lod_step)
+            _fault_traces, _fault_count = fault_traces_for_view(margin, _lod_step, CENTER_LAT, CENTER_LON)
             for color, f_lats, f_lons, f_labels in _fault_traces:
                 # Gölge (siyah, alt katman)
                 fig_map.add_trace(go.Scattermapbox(
@@ -2172,10 +2309,10 @@ def _render_canli_radar():
         # Erzincan pin
         pin_color = "#ffffff" if (harita_stil in ["Uydu", "Uydu+Yol", "Koyu"]) else "#1a2a3a"
         fig_map.add_trace(go.Scattermapbox(
-            lat=[ERZ_LAT], lon=[ERZ_LON], mode="markers+text",
-            name="Erzincan",
+            lat=[CENTER_LAT], lon=[CENTER_LON], mode="markers+text",
+            name=CENTER_NAME,
             marker=dict(size=16, color=pin_color, symbol="circle"),
-            text=["📍 Erzincan"], textposition="top right",
+            text=[f"📍 {CENTER_NAME}"], textposition="top right",
             textfont=dict(color=pin_color, size=12, family="Arial Bold"),
             hoverinfo="skip",
         ))
@@ -2184,7 +2321,7 @@ def _render_canli_radar():
         # 600 km'ye kadar eski görünüm (zoom 6); daha büyük yarıçapta her 2 katında
         # bir kademe uzaklaş ki dairenin tamamı görünsün (2000 km ≈ 4.3, 20000 km → 1).
         _zoom = 6.0 if radius_km <= 600 else max(1.0, 6.0 - math.log2(radius_km / 600))
-        mapbox_cfg.update({"center": dict(lat=ERZ_LAT, lon=ERZ_LON), "zoom": _zoom})
+        mapbox_cfg.update({"center": dict(lat=CENTER_LAT, lon=CENTER_LON), "zoom": _zoom})
 
         fig_map.update_layout(
             mapbox=mapbox_cfg,
@@ -2272,7 +2409,7 @@ def _render_canli_radar():
                 cards += (
                     f'<div class="eq-card" style="border-left-color:{c}">'
                     f'{e} <b style="color:{c}">M{row["buyukluk"]:.1f}</b>'
-                    f' <span style="color:{TEXT}">&nbsp;·&nbsp; {row["derinlik"]:.0f} km'
+                    f' <span style="color:{TEXT}">&nbsp;·&nbsp; {fmt_depth(row["derinlik"], 0)}'
                     f' &nbsp;·&nbsp; {row["uzaklik_km"]} km</span><br>'
                     f'<span style="font-size:0.74rem;color:{sub}">'
                     f'{row["zaman_str"]} &nbsp;·&nbsp; {loc}'
@@ -2362,10 +2499,10 @@ def _render_canli_radar():
             ),
             text=sub.apply(lambda r:
                 f"<b>M{r['buyukluk']:.1f}</b><br>"
-                f"Derinlik: <b>{r['derinlik']:.1f} km</b> (zeminden asagiya)<br>"
+                f"Derinlik: <b>{fmt_depth(r['derinlik'])}</b> (zeminden asagiya)<br>"
                 f"Zaman: {r['zaman_str']}<br>"
                 f"Konum: {safe_html(str(r['konum'])[:55])}<br>"
-                f"Erzincan'a: {r['uzaklik_km']} km &nbsp;|&nbsp; {safe_html(r['kaynak'])}", axis=1),
+                f"Merkeze: {r['uzaklik_km']} km &nbsp;|&nbsp; {safe_html(r['kaynak'])}", axis=1),
             hovertemplate="%{text}<extra></extra>",
         ))
 
@@ -2829,7 +2966,7 @@ if active_menu == "📝 Raporlar":
         f"**Son 24 saat:** {len(last24h)}",
         f"**En büyük olay:** M{df['buyukluk'].max():.1f}",
         f"**Aktif kaynak sayısı:** {df['kaynak'].nunique()}",
-        f"**Erzincan'a en yakın olay:** {df['uzaklik_km'].min():.1f} km",
+        f"**Merkeze ({CENTER_NAME}) en yakın olay:** {df['uzaklik_km'].min():.1f} km",
     ]
     st.markdown("\n\n".join(report_lines))
     report_text = "\n".join(line.replace("**", "") for line in report_lines)
@@ -4114,7 +4251,7 @@ def _render_istatistik_bottom():
                             f"<b>M{r['buyukluk']:.1f}</b><br>"
                             f"Ana depremi {r['gun_once']:.1f} gün önce<br>"
                             f"Uzaklık: {r['uzaklik_ana']:.1f} km<br>"
-                            f"Derinlik: {r['derinlik']:.1f} km<br>"
+                            f"Derinlik: {fmt_depth(r['derinlik'])}<br>"
                             f"Zaman: {r['zaman_str']}", axis=1),
                         hovertemplate="%{text}<extra></extra>",
                     ))
@@ -4374,11 +4511,11 @@ def _render_istatistik_bottom():
                 ))
                 # Erzincan merkezi
                 fig_mig.add_trace(go.Scatter(
-                    x=[ERZ_LON], y=[ERZ_LAT], mode="markers+text",
+                    x=[CENTER_LON], y=[CENTER_LAT], mode="markers+text",
                     marker=dict(size=14, color="#ff3333", symbol="star"),
-                    text=["ERZ"], textposition="top right",
+                    text=[CENTER_NAME[:3].upper()], textposition="top right",
                     textfont=dict(color="#ff3333", size=10),
-                    name="Erzincan", showlegend=False,
+                    name=CENTER_NAME, showlegend=False,
                     hoverinfo="skip",
                 ))
                 fig_mig.update_layout(
@@ -4737,7 +4874,7 @@ def _render_istatistik_bottom():
                                    30, 730, 180, 30, key="rtl_t0")
 
                 with st.spinner("RTL hesaplanıyor..."):
-                    rtl_times, rtl_scores = calc_rtl_cache(exp_df.to_dict("list"), rtl_r0, rtl_t0, ERZ_LAT, ERZ_LON)
+                    rtl_times, rtl_scores = calc_rtl_cache(exp_df.to_dict("list"), rtl_r0, rtl_t0, CENTER_LAT, CENTER_LON)
 
                 if len(rtl_scores) >= 5:
                     arr = np.array(rtl_scores)
@@ -5168,7 +5305,7 @@ def _render_istatistik_bottom():
                     Mc_g = float(exp_df["buyukluk"].quantile(0.15))
                     df_mc = exp_df[exp_df["buyukluk"] >= Mc_g]
                     # Pass dict instead of DataFrame to st.cache_data to avoid hashing issues if index differs
-                    b_grid, lats_g, lons_g = calc_b_grid_cache(df_mc.to_dict("list"), bg_n, bg_sr, bg_min, radius_km, ERZ_LAT, ERZ_LON, Mc_g)
+                    b_grid, lats_g, lons_g = calc_b_grid_cache(df_mc.to_dict("list"), bg_n, bg_sr, bg_min, radius_km, CENTER_LAT, CENTER_LON, Mc_g)
 
                 if not np.all(np.isnan(b_grid)):
                     fig_bmap = go.Figure()
@@ -5204,10 +5341,10 @@ def _render_istatistik_bottom():
 
                     # Erzincan
                     fig_bmap.add_trace(go.Scatter(
-                        x=[ERZ_LON], y=[ERZ_LAT],
-                        mode="markers+text", name="Erzincan",
+                        x=[CENTER_LON], y=[CENTER_LAT],
+                        mode="markers+text", name=CENTER_NAME,
                         marker=dict(size=14, color="#ff3333", symbol="star"),
-                        text=["ERZ"], textposition="top right",
+                        text=[CENTER_NAME[:3].upper()], textposition="top right",
                         textfont=dict(color="#ff3333", size=10),
                         hoverinfo="skip",
                     ))
@@ -5375,11 +5512,11 @@ def _render_astronomik():
         # BİLEŞEN 1 — Anlık Gök Durumu Kartları (Erzincan üzerinde, şu an)
         # ───────────────────────────────────────────────────────────────────
         st.markdown("---")
-        st.markdown('<div class="chart-title">🌌 1. Anlık Gök Durumu — Erzincan Üzerinde</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="chart-title">🌌 1. Anlık Gök Durumu — {safe_html(CENTER_NAME)} Üzerinde</div>', unsafe_allow_html=True)
 
         now_obs = ephem.Observer()
-        now_obs.lat = str(ERZ_LAT)
-        now_obs.lon = str(ERZ_LON)
+        now_obs.lat = str(CENTER_LAT)
+        now_obs.lon = str(CENTER_LON)
         now_obs.date = datetime.utcnow()
 
         moon_now = ephem.Moon(now_obs)
