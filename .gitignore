@@ -19,3 +19,6 @@ earthquake_profiled.py
 
 # USGS ham indirmeleri (işlenmiş hali data/usgs_2023/*.geojson)
 data/usgs_2023/_raw/
+
+# Resmi yazı taslakları (kişisel bilgi içerebilir, depoya girmez)
+MTA_izin_dilekcesi_TASLAK.md
