@@ -18,6 +18,7 @@ from plotly.subplots import make_subplots
 from streamlit_autorefresh import st_autorefresh
 from streamlit_option_menu import option_menu
 
+import similarity as _sim
 from earthquake_core import (
     QUICK_WINDOWS,
     activity_level,
@@ -165,7 +166,7 @@ def geocode_place(query):
     except Exception:
         return []
 
-APP_VERSION = "1.83"
+APP_VERSION = "1.84"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -1354,6 +1355,7 @@ _KATEGORILER = {
         "icon": "bar-chart-line",
         "panels": [
             ("📊 İstatistik & Analiz",      "bar-chart-line"),
+            ("🔗 Benzer Bölgeler",          "link-45deg"),
             ("📉 b-Değeri Zaman Serisi",    "graph-down"),
             ("🌐 Dinamik Tetikleme",        "globe2"),
             ("🗺️ Sismik Tehlike",          "map-fill"),
@@ -17128,6 +17130,309 @@ def _kutuphane_ogrenme(learning_path, glossary):
     else:
         st.info("🚧 Deprem bilimi terim sözlüğü hazırlanıyor.")
 
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 🔗 BENZER BÖLGELER + BAĞLI İZLEME (v1.84)
+# Hesap: similarity.py (testli). Veri: data/global_catalog_m45.csv.gz (USGS M4.5+,
+# haftalık GitHub Actions ile güncellenir). Kalıcı gruplar: data/linked_regions.json.
+# ═══════════════════════════════════════════════════════════════════════════
+_APP_DIR = os.path.dirname(os.path.abspath(__file__))
+WORLD_CATALOG_PATH = os.path.join(_APP_DIR, "data", "global_catalog_m45.csv.gz")
+LINKED_GROUPS_PATH = os.path.join(_APP_DIR, "data", "linked_regions.json")
+_SIM_DISCLAIMER = (
+    "**Önemli:** İki bölgenin geçmiş depremlerinin benzer olması ya da aynı günlerde "
+    "deprem görmüş olması, birindeki depremin ötekini etkilediğini **göstermez**; böyle "
+    "bir bağ bilimsel olarak kurulamamıştır. Bu panel benzer bölgeleri yan yana "
+    "izlemek ve karşılaştırmak içindir, **tahmin üretmez**."
+)
+
+
+@st.cache_resource(show_spinner="Dünya deprem kataloğu yükleniyor…", max_entries=1)
+def _load_world_catalog(_mtime):
+    cat = _sim.load_catalog(WORLD_CATALOG_PATH)
+    return cat, _sim._cell_index(cat)
+
+
+def _world_catalog():
+    if not os.path.exists(WORLD_CATALOG_PATH):
+        return None, None, 0.0
+    mtime = os.path.getmtime(WORLD_CATALOG_PATH)
+    cat, cells = _load_world_catalog(mtime)
+    return cat, cells, mtime
+
+
+@st.cache_resource(show_spinner=False, max_entries=16)
+def _find_similar_cached(lat, lon, radius_km, _mtime):
+    cat, cells, _ = _world_catalog()
+    return _sim.find_similar(cat, lat, lon, radius_km, cells=cells)
+
+
+@st.cache_data(ttl=600, show_spinner=False, max_entries=2)
+def _usgs_month_m45():
+    """USGS'in son 30 gün M4.5+ dünya akışı (tek istek, 10 dk önbellek). Hata: None."""
+    try:
+        r = requests.get("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_month.geojson",
+                         timeout=20)
+        r.raise_for_status()
+        out = []
+        for f in r.json().get("features", []):
+            p, g = f.get("properties") or {}, (f.get("geometry") or {}).get("coordinates") or []
+            if len(g) >= 2 and p.get("time") is not None and p.get("mag") is not None:
+                out.append((p["time"] / 1000.0, g[1], g[0], float(p["mag"]), p.get("place") or ""))
+        return out
+    except Exception:
+        return None
+
+
+def _load_linked_groups_file():
+    try:
+        with open(LINKED_GROUPS_PATH, encoding="utf-8") as f:
+            return list(json.load(f).get("gruplar", []))
+    except Exception:
+        return []
+
+
+def _all_linked_groups():
+    """[(grup, kalıcı_mı)] — depodaki dosya + bu oturumda ataçlananlar."""
+    return ([(g, True) for g in _load_linked_groups_file()]
+            + [(g, False) for g in st.session_state.get("linked_groups", [])])
+
+
+def _render_benzer_bolgeler():
+    st.markdown('<div class="chart-title">🔗 Benzer Bölgeler ve Bağlı İzleme</div>', unsafe_allow_html=True)
+    st.info(_SIM_DISCLAIMER)
+    cat, cells, mtime = _world_catalog()
+    if cat is None:
+        st.error("Dünya kataloğu dosyası bulunamadı (data/global_catalog_m45.csv.gz).")
+        return
+    y0 = datetime.utcfromtimestamp(int(cat.t.min())).year
+    y1 = datetime.utcfromtimestamp(int(cat.t.max())).strftime("%d.%m.%Y")
+    n_groups = len(_all_linked_groups())
+    tab_find, tab_linked = st.tabs(["🔍 Benzer bölgeleri bul", f"📎 Bağlı bölgeler ({n_groups})"])
+
+    # ─── Benzer bölgeleri bul ───────────────────────────────────────────────
+    with tab_find:
+        if st.session_state.get("_sim_flash"):
+            st.success(st.session_state.pop("_sim_flash"))
+        c1, c2 = st.columns([2, 1])
+        with c1:
+            st.markdown(f"**Referans bölge:** 📍 {safe_html(CENTER_NAME)} "
+                        f"({CENTER_LAT:.2f}, {CENTER_LON:.2f}) — merkezi kenar çubuğundaki "
+                        "**📍 Merkez** kutusundan değiştirebilirsin.")
+            st.caption(f"Katalog: USGS, M4.5 ve üzeri, {y0} – {y1}, "
+                       f"{f'{len(cat):,}'.replace(',', '.')} deprem. "
+                       "Aynı yarıçaplı bölgeler dünya genelinde taranır.")
+        with c2:
+            sim_r = st.number_input("Karşılaştırma yarıçapı (km)", min_value=50, max_value=1000,
+                                    value=100, step=25, key="sim_radius",
+                                    help="Referans ve aday bölgeler bu yarıçaplı daireler. "
+                                         "Küçük yarıçapta deprem sayısı az kalabilir.")
+        if st.button("🔍 Benzer bölgeleri ara", type="primary", key="sim_search"):
+            st.session_state.sim_query = (CENTER_NAME, CENTER_LAT, CENTER_LON, int(sim_r))
+        q = st.session_state.get("sim_query")
+        if not q:
+            st.caption("Aramak için düğmeye bas. Tarama birkaç saniye sürer.")
+        else:
+            q_name, q_lat, q_lon, q_r = q
+            with st.spinner("Dünya taranıyor… (birkaç saniye)"):
+                ref, n_ref, by_prof, by_sync, scanned = _find_similar_cached(q_lat, q_lon, q_r, mtime)
+            if n_ref < 10:
+                st.warning(f"{q_name} çevresinde {q_r} km içinde yalnız {n_ref} deprem (M4.5+) var; "
+                           "karşılaştırma için en az 10 gerekir. Yarıçapı büyüt.")
+            else:
+                if n_ref < 30:
+                    st.caption(f"⚠️ Referans bölgede {n_ref} deprem var; örnek küçük, sonuçlar kaba.")
+                m = st.columns(5)
+                m[0].metric("Deprem (M4.5+)", n_ref)
+                m[1].metric("Yıllık ortalama", f"{ref.rate_per_year:.2f}")
+                m[2].metric("b-değeri", "—" if math.isnan(ref.b) else f"{ref.b:.2f}")
+                m[3].metric("En büyük", f"M{ref.max_mag:.1f}")
+                m[4].metric("Medyan derinlik", fmt_depth(ref.median_depth, 0))
+
+                def _base_row(c):
+                    return {
+                        "Ataçla": False,
+                        "Bölge": c.name or f"{c.lat:.1f}, {c.lon:.1f}",
+                        "Profil benzerliği": c.score,
+                        "Aynı gün": c.sync.days,
+                        "Deprem": c.profile.n,
+                        "Yıllık": round(c.profile.rate_per_year, 2),
+                        "b": None if math.isnan(c.profile.b) else round(c.profile.b, 2),
+                        "En büyük": c.profile.max_mag,
+                        "Medyan derinlik (km)": None if math.isnan(c.profile.median_depth)
+                                                else round(c.profile.median_depth),
+                        "Uzaklık (km)": round(c.distance_km),
+                    }
+
+                # Dünya haritası
+                fig = go.Figure()
+                for lst, color, label in ((by_prof, "#4fc3f7", "Profil benzeri"),
+                                          (by_sync, "#ffb74d", "Eşzamanlı")):
+                    if lst:
+                        fig.add_trace(go.Scattergeo(
+                            lat=[c.lat for c in lst], lon=[c.lon for c in lst], name=label,
+                            mode="markers", marker=dict(size=9, color=color, line=dict(width=1, color="#000")),
+                            text=[safe_html(c.name) for c in lst], hovertemplate="%{text}<extra></extra>"))
+                fig.add_trace(go.Scattergeo(lat=[q_lat], lon=[q_lon], name=safe_html(q_name), mode="markers",
+                                            marker=dict(size=15, color="#ffffff", symbol="star",
+                                                        line=dict(width=1, color="#000"))))
+                fig.update_geos(projection_type="natural earth", showcountries=True,
+                                landcolor="#1b2a3a" if DARK else "#e8eef4",
+                                oceancolor="#08121f" if DARK else "#cfe3f3", showocean=True,
+                                countrycolor="#3a5068" if DARK else "#9fb3c8", bgcolor="rgba(0,0,0,0)")
+                fig.update_layout(height=420, margin=dict(t=0, b=0, l=0, r=0),
+                                  paper_bgcolor="rgba(0,0,0,0)", font=dict(color=TEXT),
+                                  legend=dict(orientation="h", y=-0.02))
+                st.plotly_chart(fig, use_container_width=True, key="sim_world_map")
+
+                # Kutular form içinde: işaretlemek sayfayı yenilemez, yalnız düğme gönderir
+                with st.form("sim_link_form", border=False):
+                    t_prof, t_sync = st.tabs(["📐 Profil benzerliği", "📅 Eşzamanlılık (aynı günler)"])
+                    with t_prof:
+                        st.caption("Büyüklük dağılımı (%35), derinlik dağılımı (%35), yıllık sıklık (%20) "
+                                   "ve b-değeri (%10) karşılaştırılır. 100 = aynı profil.")
+                        ed_p = st.data_editor(pd.DataFrame([_base_row(c) for c in by_prof]),
+                                              hide_index=True, key=f"sim_ed_p_{q}",
+                                              disabled=[k for k in _base_row(by_prof[0]) if k != "Ataçla"]
+                                              if by_prof else True,
+                                              use_container_width=True)
+                    with t_sync:
+                        st.caption("Referans bölgedeki depremlerle **±1 gün** içinde, büyüklüğü **±0.3** ve "
+                                   "derinliği **±15 km** yakın deprem görülen farklı gün sayısı. Tesadüf "
+                                   "beklentisi, aday bölgenin takvimi 100 kez rastgele kaydırılarak ölçülür "
+                                   "(artçı dizileri yapay anlamlılık üretmesin diye).")
+                        rows = []
+                        for c in by_sync:
+                            r = _base_row(c)
+                            r["Tesadüfen beklenen"] = round(c.sync.expected, 1)
+                            r["p"] = round(c.sync.p_value, 3)
+                            r["Yorum"] = "zayıf işaret" if c.sync.p_value <= 0.01 else "tesadüf olabilir"
+                            rows.append(r)
+                        if rows:
+                            cols = ["Ataçla", "Bölge", "Aynı gün", "Tesadüfen beklenen", "p", "Yorum",
+                                    "Profil benzerliği", "Deprem", "Uzaklık (km)"]
+                            ed_s = st.data_editor(pd.DataFrame(rows)[cols], hide_index=True,
+                                                  key=f"sim_ed_s_{q}",
+                                                  disabled=[k for k in cols if k != "Ataçla"],
+                                                  use_container_width=True)
+                        else:
+                            ed_s = None
+                            st.caption("En az 2 ortak günü olan bölge bulunamadı.")
+                        st.caption(f"Not: {f'{scanned:,}'.replace(',', '.')} bölge tarandı. Bu kadar çok "
+                                   "karşılaştırmada p = 0.01 düzeyinde birkaç sonuç tesadüfen de çıkar; "
+                                   "\"zayıf işaret\" bir bağ olduğunu göstermez.")
+
+                    st.markdown("##### 📎 Seçilenleri referans bölgeyle ataçla")
+                    g_name = st.text_input("Grup adı", value=f"{q_name} benzerleri", key="sim_group_name")
+                    submitted = st.form_submit_button(f"📎 İşaretlenenleri {q_name} ile ataçla")
+                if submitted:
+                    picked = []
+                    for ed, lst in ((ed_p, by_prof), (ed_s, by_sync)):
+                        if ed is not None and len(lst):
+                            picked += [lst[i] for i, flag in enumerate(ed["Ataçla"].tolist()) if flag]
+                    if not picked:
+                        st.warning("Önce tablolardan en az bir bölgenin \"Ataçla\" kutusunu işaretle.")
+                    else:
+                        regions = [{"ad": q_name, "lat": round(q_lat, 4), "lon": round(q_lon, 4),
+                                    "yaricap_km": q_r}]
+                        seen = set()
+                        for c in picked:
+                            key = (round(c.lat, 2), round(c.lon, 2))
+                            if key not in seen:
+                                seen.add(key)
+                                regions.append({"ad": c.name or f"{c.lat:.1f}, {c.lon:.1f}",
+                                                "lat": round(c.lat, 4), "lon": round(c.lon, 4),
+                                                "yaricap_km": q_r})
+                        name = g_name.strip() or f"{q_name} grubu"
+                        st.session_state.setdefault("linked_groups", []).append({
+                            "ad": name,
+                            "olusturma": utc_now_naive().strftime("%Y-%m-%d"),
+                            "bolgeler": regions,
+                        })
+                        st.session_state["_sim_flash"] = (f"\"{name}\" grubu oluşturuldu ({len(regions)} "
+                                                          "bölge). 📎 Bağlı bölgeler sekmesinden izleyebilirsin.")
+                        st.rerun()
+
+    # ─── Bağlı bölgeler ─────────────────────────────────────────────────────
+    with tab_linked:
+        groups = _all_linked_groups()
+        if not groups:
+            st.caption("Henüz bağlı grup yok. 🔍 sekmesinde benzer bölgeleri bulup "
+                       "ataçlayarak bir grup oluşturabilirsin.")
+            return
+        c1, c2 = st.columns(2)
+        thr = c1.slider("Tetikleyici büyüklük", 4.5, 7.5, 5.0, 0.1, key="link_thr",
+                        help="Gruptaki bir bölgede bu büyüklükte ya da üstünde deprem olursa grup öne çıkar.")
+        win = c2.selectbox("Son kaç gün", [1, 3, 7, 14, 30], index=2, key="link_win")
+        feed = _usgs_month_m45()
+        if feed is None:
+            st.warning("USGS son 30 gün akışına şu an ulaşılamıyor; durum gösterilemiyor.")
+            return
+        now_ts = datetime.now(tz=None).timestamp()
+        f_t = [e[0] for e in feed]
+        f_lat = [e[1] for e in feed]
+        f_lon = [e[2] for e in feed]
+        f_mag = [e[3] for e in feed]
+        span = cat.span_years
+        for gi, (g, permanent) in enumerate(groups):
+            regions = g.get("bolgeler", [])
+            rows, triggers = [], []
+            for reg in regions:
+                lat, lon, rad = float(reg["lat"]), float(reg["lon"]), float(reg.get("yaricap_km", 100))
+                rate = len(_sim.region_index(cat, lat, lon, rad)) / span
+                stt = _sim.region_status(f_t, f_lat, f_lon, f_mag, lat, lon, rad, rate, days=30)
+                for (t, la, lo, mg, pl) in feed:
+                    if mg >= thr and now_ts - t <= win * 86400 and \
+                            _sim.haversine_km(lat, lon, np.array([la]), np.array([lo]))[0] <= rad:
+                        triggers.append((reg["ad"], mg, t, pl))
+                if stt.n_recent == 0:
+                    durum = "sakin"
+                elif stt.n_recent >= 2 and stt.ratio >= 3:
+                    durum = "olağandan yüksek"
+                else:
+                    durum = "olağan"
+                rows.append({
+                    "Bölge": reg["ad"],
+                    "Son 30 gün (M4.5+)": stt.n_recent,
+                    "Normalde beklenen": round(stt.expected_recent, 2),
+                    "Oran (×)": "—" if math.isnan(stt.ratio) else f"{stt.ratio:.1f}",
+                    "En büyük (30 g)": "—" if math.isnan(stt.max_recent) else f"M{stt.max_recent:.1f}",
+                    "Son olay": "—" if math.isnan(stt.last_event_t) else
+                                f"{(now_ts - stt.last_event_t) / 86400:.1f} gün önce",
+                    "Durum": durum,
+                })
+            tag = "kalıcı" if permanent else "bu oturum"
+            if triggers:
+                reg_name, mg, t, pl = max(triggers, key=lambda x: x[1])
+                title = (f"⚠️ {g.get('ad', 'Grup')} — {reg_name} bölgesinde M{mg:.1f} "
+                         f"({(now_ts - t) / 86400:.1f} gün önce) · {tag}")
+            else:
+                title = f"✅ {g.get('ad', 'Grup')} — son {win} günde M{thr:.1f}+ yok · {tag}"
+            with st.expander(title, expanded=bool(triggers)):
+                if triggers:
+                    st.markdown("**Tetikleyen olay(lar):** " + "; ".join(
+                        f"{safe_html(r)}: M{m:.1f} — {safe_html(p)}" for r, m, _t, p in triggers[:5]))
+                    st.caption("Diğer bölgelerin son 30 günü, kendi uzun dönem ortalamalarıyla "
+                               "karşılaştırılıyor. Bu bir durum özetidir; bir bölgedeki deprem "
+                               "diğerlerinde deprem olacağı anlamına gelmez.")
+                st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
+                if not permanent and st.button("🗑️ Bu grubu kaldır", key=f"link_del_{gi}"):
+                    idx = gi - len(_load_linked_groups_file())
+                    st.session_state.linked_groups.pop(idx)
+                    st.rerun()
+        session_groups = st.session_state.get("linked_groups", [])
+        if session_groups:
+            st.caption("\"bu oturum\" grupları sayfa yenilenince kaybolur. Kalıcı yapmak için aşağıdaki "
+                       "dosyayı indirip depodaki data/linked_regions.json dosyasının yerine koy.")
+            payload = {"gruplar": _load_linked_groups_file() + session_groups}
+            st.download_button("⬇️ Grupları indir (linked_regions.json)",
+                               json.dumps(payload, ensure_ascii=False, indent=2),
+                               file_name="linked_regions.json", mime="application/json",
+                               key="link_download")
+
+
+if active_menu == "🔗 Benzer Bölgeler":
+    _render_benzer_bolgeler()
 
 if active_menu == "📚 Akademik Kütüphane":
     _render_akademik_kutuphane()

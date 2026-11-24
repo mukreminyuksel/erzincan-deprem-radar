@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.84 - 2026-11-24 — 🔗 Benzer Bölgeler ve Bağlı İzleme
+
+**Yeni panel (📊 Analiz & Modeller → 🔗 Benzer Bölgeler):** Seçili merkez + yarıçap referans bölge alınır, dünyadaki aynı boy bölgelerle karşılaştırılır.
+- **Profil benzerliği (0–100):** büyüklük dağılımı %35, derinlik dağılımı %35, yıllık sıklık %20 (log), b-değeri %10 (Aki MLE).
+- **Eşzamanlılık:** ±1 gün içinde, ±0.3 büyüklük ve ±15 km derinlik yakın deprem görülen *farklı gün* sayısı. Tesadüf beklentisi, aday bölgenin takvimi 100 kez dairesel kaydırılarak ölçülür (artçı dizilerinin kümelenmesi korunur; bağımsızlık varsayan Poisson formülü ilk denemede artçı dizileri yüzünden yapay anlamlılık üretti, bırakıldı). Binlerce bölge tarandığı için sonuçlar "zayıf işaret / tesadüf olabilir" diye etiketlenir.
+- **Ataçlama:** Seçilen bölgeler referansla grup olur (oturumda hemen çalışır; kalıcılık için `data/linked_regions.json`, panelden indirilebilir).
+- **Bağlı izleme:** USGS son 30 gün M4.5+ akışıyla her bölgenin son 30 günü uzun dönem ortalamasıyla karşılaştırılır; gruptaki bir bölgede eşik üstü deprem varsa grup öne çıkar.
+- Panelde açık uyarı: benzerlik bir etkileşim ya da tahmin göstermez.
+
+**Veri:** `data/global_catalog_m45.csv.gz` — USGS M4.5+, 1990–bugün, ~232 bin deprem, 4,3 MB. `tools/build_global_catalog.py` üretir; `.github/workflows/refresh-catalog.yml` haftada bir yeniler.
+
+**Kod:** Hesap `similarity.py` modülünde (Streamlit'ten bağımsız), `tests/test_similarity.py` 10 test.
+
 ## v1.83 - 2026-11-23 — 📍 İzleme merkezi seçimi + geniş yarıçap
 
 **Merkez seçimi:** Kenar çubuğunda "📍 Merkez" kutusu. Varsayılan Erzincan; hazır listede 38 depremsel şehir (Kyoto, Tokyo, Los Angeles, Santiago...) ve OpenStreetMap Nominatim ile serbest yer arama ("🔎 Başka bir yer ara…"). Seçim URL'de saklanır (`sb_center`, `sb_clat`, `sb_clon`).

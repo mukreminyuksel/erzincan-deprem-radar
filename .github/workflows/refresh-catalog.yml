@@ -1,0 +1,36 @@
+# "Benzer Bölgeler" panelinin kullandığı dünya kataloğunu (USGS M4.5+) haftada bir
+# yeniler ve değiştiyse depoya commitler. Streamlit Cloud yeni commit'i görünce
+# uygulamayı kendisi günceller.
+name: Dünya kataloğunu güncelle
+
+on:
+  schedule:
+    - cron: "41 3 * * 1"     # her pazartesi 03:41 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install "requests>=2.31"
+      - name: Kataloğu indir
+        run: python tools/build_global_catalog.py
+      - name: Değiştiyse commitle
+        run: |
+          if git diff --quiet -- data/global_catalog_m45.csv.gz; then
+            echo "Katalog değişmedi."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/global_catalog_m45.csv.gz
+          git commit -m "Dünya kataloğu güncellendi ($(date -u +%Y-%m-%d))"
+          git push
