@@ -178,7 +178,7 @@ def geocode_place(query):
     except Exception:
         return []
 
-APP_VERSION = "2.00"
+APP_VERSION = "2.01"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -17517,7 +17517,7 @@ def _kor_catalog(key):
 
 _KOR_KATALOGLAR = {
     "usgs": ("Büyük depremler: M4.5+ 1973'ten, M5.5+ 1900'den (USGS)", 4.5),
-    "emsc": ("Küçük depremler dahil: M2+ (EMSC, 2010–, kapsam bölgeye göre değişir)", 2.0),
+    "emsc": ("Küçük depremler dahil: M2+ (EMSC, 2004–, kapsam bölgeye göre değişir)", 2.0),
 }
 _KOR_ADIMLAR = {"Haftalık": 7, "Aylık": 30, "3 aylık": 90, "Yıllık": 365}
 _TS_1973 = datetime(1973, 1, 1, tzinfo=timezone.utc).timestamp()
@@ -17834,23 +17834,40 @@ def _render_bul(radius_km):
                                     "Aralık uzadıkça tesadüfi çakışmalar elenir.".replace(",", "."))
     want_mag = c[1].number_input("En küçük büyüklük (M)", min_value=2.0 if emsc_ok else 4.5, max_value=7.5,
                                  value=2.0 if emsc_ok else 4.5, step=0.5, key="bul_mag_all")
-    t1, t0 = now_ts, now_ts - n_days * 86400
-    if t0 < _TS_1973:
-        min_mag, kat, why = max(float(want_mag), 5.5), "usgs", "1973 öncesinde dünya geneli kayıt ancak M5.5 ve üstünde var"
-    elif t0 < emsc_t0 or want_mag >= 4.5:
-        min_mag, kat, why = max(float(want_mag), 4.5), "usgs", "2010 öncesinde küçük depremlerin dünya geneli kaydı yok"
-    else:
-        min_mag, kat, why = float(want_mag), "emsc", ""
+    # Verinin sınırları (keyfi değil, kayıtların başladığı yıllar)
+    emsc_y = _utc_from_ts(emsc_t0).year if emsc_ok else None
+    emsc_days = int((now_ts - emsc_t0) / 86400) if emsc_ok else 0
+    d1973 = int((now_ts - _TS_1973) / 86400)
+    limits = ([f"**M2+** → {emsc_y}'ten beri ({emsc_days:,} gün)"] if emsc_ok else []) + [
+        f"**M4.5+** → 1973'ten beri ({d1973:,} gün)", f"**M5.5+** → 1900'den beri ({max_days:,} gün)"]
+    c[2].caption("Dünya geneli kayıtların başladığı yıllar:  \n" + " · ".join(limits).replace(",", "."))
+
+    t0 = now_ts - n_days * 86400
+    need_mag = 5.5 if t0 < _TS_1973 else (4.5 if t0 < emsc_t0 else 2.0)     # bu geçmiş için gereken en küçük M
+    min_mag, days_eff = float(want_mag), int(n_days)
+    if want_mag < need_mag:
+        # İstenen geçmiş ile istenen büyüklük birlikte olmuyor: kullanıcı seçer
+        keep_days = (emsc_days if want_mag < 4.5 else d1973) if (want_mag >= 4.5 or emsc_ok) else d1973
+        _nd, _kd = f"{n_days:,}".replace(",", "."), f"{keep_days:,}".replace(",", ".")
+        opt_a = f"Geçmişi koru: {_nd} gün, büyüklük M{need_mag:g}+"
+        opt_b = f"Büyüklüğü koru: M{want_mag:g}+, geçmiş {_kd} gün"
+        st.warning(f"**{_nd} gün geriye gidince M{want_mag:g} büyüklüğünde dünya geneli kayıt yok** "
+                   f"(o büyüklükte kayıtlar {_kd} gün önce başlıyor). Hangisini koruyalım?")
+        pick = st.radio("Seçim", [opt_a, opt_b], key=f"bul_conflict_{n_days}_{want_mag}", horizontal=True,
+                        label_visibility="collapsed")
+        if pick == opt_a:
+            min_mag = need_mag
+        else:
+            days_eff = keep_days
+    kat = "emsc" if (min_mag < 4.5 and emsc_ok) else "usgs"
     cat, sig = _kor_catalog(kat)
     cat_t0 = float(cat.t.min())
     t1 = float(cat.t.max())
-    t0 = max(t1 - n_days * 86400, cat_t0)
-    src = "EMSC (M2+, 2010–)" if kat == "emsc" else "USGS (M4.5+ 1973–, M5.5+ 1900–)"
-    info = f"≈ **{n_days / 365.25:.1f} yıl** · {_utc_from_ts(t0):%d.%m.%Y} – {_utc_from_ts(t1):%d.%m.%Y} · **M{min_mag:g}+** · veri: {src}"
-    if min_mag > float(want_mag):
-        info += (f"  \n⚠️ En küçük büyüklük **M{min_mag:g}**'e yükseltildi: {why}. Daha küçük depremler için "
-                 + ("54 yıldan (M4.5+)" if min_mag >= 5.5 else "17 yıldan (M2+)") + " kısa bir geçmiş seç.")
-    c[2].markdown(info)
+    t0 = max(t1 - days_eff * 86400, _kat_floor_ts(kat, cat, min_mag))
+    n_days = int(round((t1 - t0) / 86400))
+    st.markdown(f"**İncelenen:** {_utc_from_ts(t0):%d.%m.%Y} – {_utc_from_ts(t1):%d.%m.%Y} "
+                f"(≈ {n_days / 365.25:.1f} yıl) · **M{min_mag:g} ve üstü** · veri: "
+                + ("EMSC" if kat == "emsc" else "USGS"))
     t_split = t0 + (t1 - t0) * 2 / 3 if n_days >= 90 else t1
     auto = st.checkbox("Eşleşme ölçütlerini veriye göre otomatik seç (önerilir)", value=True, key="bul_auto",
                        help="Küçük ve sık depremlerde sıkı ölçütler (aynı gün, ±0,1 M, ±1 km) kullanılır. Büyük ve "

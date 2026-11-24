@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.01 - 2026-11-24 — Benzer Bölgeler: büyüklük/geçmiş çakışmasında kullanıcı seçer
+
+**Sorun (kullanıcı: "kafasına göre değer alıyor"):** istenen geçmiş için istenen büyüklükte veri yoksa uygulama büyüklüğü kendisi yükseltip küçük bir uyarı gösteriyordu.
+**Çözüm:** Sessiz değişiklik yok. Çakışmada açık bir soru çıkar: "Geçmişi koru (büyüklük yükselir)" ya da "Büyüklüğü koru (geçmiş kısalır)". Verinin sınırları her zaman görünür (M2+ 2004'ten, M4.5+ 1973'ten, M5.5+ 1900'den) ve "İncelenen: tarih aralığı · büyüklük · veri" satırı gerçekte ne hesaplandığını yazar.
+**Veri:** EMSC küçük deprem kataloğu 2010'dan 2004'e uzatıldı (+157 bin deprem; M2+ için en fazla 8.363 gün ≈ 23 yıl). 2004–2009 kayıtları daha seyrek (2004: yılda 10 bin; 2010: 50 bin).
+
 ## v2.00 - 2026-11-24 — Benzer Bölgeler: ölçütler veriye göre otomatik
 
 **Sorun (kullanıcı: "düzgün çalışmıyor, analizler düzgün olmadı"):** 6.171 günün üstünde sayfa işe yarar sonuç üretmiyordu. Küçük depremler için seçilen sıkı ölçütler (100 km, aynı gün, ±0,1 M, ±1 km, yalnız ölçülmüş derinlik) büyük ve seyrek depremlere de uygulanıyordu: 10.000 günde merkezde 4, 46.000 günde 2 deprem kalıyor, "yetersiz" uyarısı çıkıyordu.

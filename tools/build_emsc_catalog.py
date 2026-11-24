@@ -1,4 +1,4 @@
-"""EMSC dünya kataloğunu (M2.0+, 2010'dan bugüne) yıl yıl indirir.
+"""EMSC dünya kataloğunu (M2.0+, 2004'ten bugüne) yıl yıl indirir.
 
 "Benzer Bölgeler → Zaman örtüşmesi" paneli küçük büyüklükler (M2–M4.5) için bunu
 kullanır. USGS dünya kataloğu M4.5 altını kapsamadığı için ayrı tutulur.
@@ -28,7 +28,7 @@ from pathlib import Path
 import requests
 
 URL = "https://www.seismicportal.eu/fdsnws/event/1/query"
-START_YEAR = 2010
+START_YEAR = 2004
 MIN_MAG = 2.0
 LIMIT = 20000
 OUT_DIR = Path(__file__).resolve().parent.parent / "data" / "emsc_m20"
