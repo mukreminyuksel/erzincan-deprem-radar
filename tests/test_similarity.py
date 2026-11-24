@@ -249,3 +249,34 @@ def test_find_event_matches_no_reference_events():
     cat = make_catalog(cluster(50, 50, 20))
     res = sim.find_event_matches(cat, 0, 0, 100, t0=0, t1=1000 * DAY, min_mag=2.0)
     assert res.n_ref == 0 and res.regions == []
+
+
+def test_default_depths_and_measured_copy():
+    ev = [(k * DAY, 0.0, 0.0, 7.0, 3.0, "A") for k in range(60)]                 # sabit 7,0 km
+    ev += [(k * DAY + 5, 0.0, 0.0, 20.0 + 0.137 * k, 3.0, "A") for k in range(40)]  # ölçülmüş, dağınık
+    cat = make_catalog(ev)
+    assert sim.default_depths(cat) == [7.0]
+    measured = sim.with_measured_depths(cat)
+    assert np.isnan(measured.depth).sum() == 60 and not np.isnan(cat.depth).any()
+
+
+def test_match_between_replicates_and_require_depth():
+    rng = np.random.default_rng(21)
+    days = np.sort(rng.choice(200, 30, replace=False))
+    ev = []
+    for k, d in enumerate(days):
+        ev.append((int(d) * DAY + 100, 0.0, 0.0, 6.0 + 0.3 * (k % 4), 3.0 + 0.2 * (k % 4), "A"))
+        ev.append((int(d) * DAY + 900, 40.0, 60.0, 6.2 + 0.3 * (k % 4), 3.0 + 0.2 * (k % 4), "B"))
+    cat = make_catalog(ev)
+    st = sim.match_between(cat, 0, 0, 40, 60, 100, t0=0, t1=200 * DAY, min_mag=2.0, tol_days=0, dmag=0.1, ddepth=1.0)
+    assert st.paired == 30 and st.overlap == pytest.approx(100.0) and st.z > 3 and st.matched_days == 30
+    # ikinci yarıda da sürüyor
+    late = sim.match_between(cat, 0, 0, 40, 60, 100, t0=100 * DAY, t1=200 * DAY, min_mag=2.0,
+                             tol_days=0, dmag=0.1, ddepth=1.0)
+    assert late.paired == late.n_a > 0 and late.z > 2
+    # derinliği olmayan depremler require_depth ile dışlanır
+    cat2 = sim.Catalog(cat.t, cat.lat, cat.lon, np.full(len(cat), np.nan), cat.mag, cat.place)
+    none = sim.match_between(cat2, 0, 0, 40, 60, 100, t0=0, t1=200 * DAY, min_mag=2.0, require_depth=True)
+    assert none.n_a == 0 and none.paired == 0
+    res = sim.find_event_matches(cat2, 0, 0, 100, t0=0, t1=200 * DAY, min_mag=2.0, require_depth=True)
+    assert res.n_ref == 0

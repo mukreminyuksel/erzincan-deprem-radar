@@ -717,8 +717,78 @@ def _shift_null(ref_day, ref_mag, ref_depth, ev_day, ev_mag, ev_depth, tol_days,
     return np.logical_or.reduceat(hits, start, axis=0).sum(axis=0)
 
 
+def default_depths(cat: Catalog, share=0.02) -> list:
+    """Ölçülmemiş (varsayılan atanmış) derinlik değerleri.
+
+    Ağlar derinliği hesaplayamadığında sabit bir değer yazar (ör. 5, 7, 10, 33 km). Gerçek
+    ölçümler ondalıklı ve dağınıktır; tek bir değerin tüm katalogda %2'den fazla tekrar
+    etmesi sabit atama işaretidir. Dönüş: bu değerlerin listesi (0,1 km'ye yuvarlı).
+    """
+    d = np.round(cat.depth[~np.isnan(cat.depth)], 1)
+    if len(d) == 0:
+        return []
+    vals, counts = np.unique(d, return_counts=True)
+    return [float(v) for v, c in zip(vals, counts) if c / len(d) > share]
+
+
+def with_measured_depths(cat: Catalog) -> Catalog:
+    """Varsayılan derinlikleri NaN yapılmış katalog kopyası (diğer diziler paylaşılır)."""
+    depth = cat.depth.copy()
+    depth[np.isin(np.round(depth, 1), default_depths(cat))] = np.nan
+    return Catalog(cat.t, cat.lat, cat.lon, depth, cat.mag, cat.place)
+
+
+@dataclass
+class PairStats:
+    n_a: int
+    n_b: int
+    paired: int
+    overlap: float        # çakışma %
+    matched_days: int
+    expected: float
+    z: float
+    p_value: float
+
+
+def match_between(cat: Catalog, lat_a, lon_a, lat_b, lon_b, radius_km, *, t0, t1, min_mag, tol_days=1,
+                  dmag=0.3, ddepth=10.0, require_depth=False) -> PairStats:
+    """İki belirli bölgenin [t0, t1) aralığındaki nokta kümesi çakışması (find_event_matches ile aynı ölçüt).
+
+    Keşif aralığında bulunan bir bölgenin, sonraki (görülmemiş) aralıkta da çakışıp çakışmadığını
+    sınamak için kullanılır.
+    """
+    m = (cat.t >= t0) & (cat.t < t1) & (cat.mag >= min_mag)
+    if require_depth:
+        m &= ~np.isnan(cat.depth)
+    sel = np.nonzero(m)[0]
+    t, la, lo, mg, dp = cat.t[sel], cat.lat[sel], cat.lon[sel], cat.mag[sel], cat.depth[sel]
+    day = (t // 86400).astype(np.int64)
+    ia = np.nonzero(haversine_km(lat_a, lon_a, la, lo) <= radius_km)[0]
+    ib = np.nonzero(haversine_km(lat_b, lon_b, la, lo) <= radius_km)[0]
+    nan = float("nan")
+    if len(ia) == 0 or len(ib) == 0:
+        return PairStats(len(ia), len(ib), 0, 0.0, 0, nan, nan, nan)
+    pi, pj = _pairs(day[ia], mg[ia], dp[ia], day[ib], mg[ib], dp[ib], tol_days, dmag, ddepth)
+    paired = 0
+    if len(pi):
+        cost = (np.abs(mg[ib][pj] - mg[ia][pi]) / max(dmag, 1e-9) + np.abs(dp[ib][pj] - dp[ia][pi]) / max(ddepth, 1e-9)
+                + np.abs(day[ib][pj] - day[ia][pi]) / (tol_days + 1.0))
+        paired = len(_one_to_one(pi, pj, cost))
+    span = max(int(math.ceil((t1 - t0) / 86400)), 2 * tol_days + 2)
+    null = _shift_null(day[ia], mg[ia], dp[ia], day[ib], mg[ib], dp[ib], tol_days, dmag, ddepth,
+                       int(t0 // 86400), span)
+    guard = 2 * tol_days + 1
+    body = null[guard: span - guard + 1] if span > 2 * guard + 2 else null[1:]
+    obs = int(null[0])
+    exp = float(body.mean()) if len(body) else nan
+    return PairStats(len(ia), len(ib), paired, 100.0 * paired / (len(ia) + len(ib) - paired), obs, exp,
+                     (obs - exp) / math.sqrt(max(exp, 0.25)) if len(body) else nan,
+                     float((1 + (body >= obs).sum()) / (1 + len(body))) if len(body) else nan)
+
+
 def find_event_matches(cat: Catalog, ref_lat, ref_lon, radius_km, *, t0, t1, min_mag, tol_days=1,
-                       dmag=0.3, ddepth=10.0, top_n=15, n_tested=80, min_matched=2) -> EventMatchSearch:
+                       dmag=0.3, ddepth=10.0, top_n=15, n_tested=80, min_matched=2,
+                       require_depth=False) -> EventMatchSearch:
     """Referans bölgenin her depremi için, dünyada yakın zamanda (±tol_days gün) benzer büyüklük
     (±dmag) ve derinlikte (±ddepth km) deprem olan bölgeleri bulur.
 
@@ -728,7 +798,10 @@ def find_event_matches(cat: Catalog, ref_lat, ref_lon, radius_km, *, t0, t1, min
     Ayrıca her aday için, eşi bulunan referans depremi sayısının tesadüf beklentisi referans
     takvimi gün gün kaydırılarak ölçülür (expected, z, p).
     """
-    sel = np.nonzero((cat.t >= t0) & (cat.t < t1) & (cat.mag >= min_mag))[0]
+    mask = (cat.t >= t0) & (cat.t < t1) & (cat.mag >= min_mag)
+    if require_depth:                                        # derinliği ölçülmemiş depremleri tümüyle dışla
+        mask &= ~np.isnan(cat.depth)
+    sel = np.nonzero(mask)[0]
     sub = cat.subset(sel)
     day = (sub.t // 86400).astype(np.int64)
     day0 = int(t0 // 86400)
@@ -820,3 +893,30 @@ def find_event_matches(cat: Catalog, ref_lat, ref_lon, radius_km, *, t0, t1, min
             break
     out.regions = chosen
     return out
+
+
+def pair_points(cat: Catalog, lat_a, lon_a, lat_b, lon_b, radius_km, *, t0, t1, min_mag, tol_days=1,
+                dmag=0.3, ddepth=10.0, require_depth=False):
+    """Grafik için: iki bölgenin noktaları ve birebir eşleşen çiftler.
+
+    Dönüş: dict(a_t, a_mag, a_depth, b_t, b_mag, b_depth, pair_a, pair_b)
+    """
+    m = (cat.t >= t0) & (cat.t < t1) & (cat.mag >= min_mag)
+    if require_depth:
+        m &= ~np.isnan(cat.depth)
+    sel = np.nonzero(m)[0]
+    t, la, lo, mg, dp = cat.t[sel], cat.lat[sel], cat.lon[sel], cat.mag[sel], cat.depth[sel]
+    day = (t // 86400).astype(np.int64)
+    ia = np.nonzero(haversine_km(lat_a, lon_a, la, lo) <= radius_km)[0]
+    ib = np.nonzero(haversine_km(lat_b, lon_b, la, lo) <= radius_km)[0]
+    pa = pb = np.array([], dtype=int)
+    if len(ia) and len(ib):
+        pi, pj = _pairs(day[ia], mg[ia], dp[ia], day[ib], mg[ib], dp[ib], tol_days, dmag, ddepth)
+        if len(pi):
+            cost = (np.abs(mg[ib][pj] - mg[ia][pi]) / max(dmag, 1e-9)
+                    + np.abs(dp[ib][pj] - dp[ia][pi]) / max(ddepth, 1e-9)
+                    + np.abs(day[ib][pj] - day[ia][pi]) / (tol_days + 1.0))
+            keep = _one_to_one(pi, pj, cost)
+            pa, pb = pi[keep], pj[keep]
+    return dict(a_t=t[ia], a_mag=mg[ia], a_depth=dp[ia], b_t=t[ib], b_mag=mg[ib], b_depth=dp[ib],
+                pair_a=pa, pair_b=pb)

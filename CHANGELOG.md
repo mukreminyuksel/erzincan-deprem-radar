@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.97 - 2026-11-24 — 🔗 Benzer Bölgeler: tek akış, kendi kendini sınayan arama
+
+**Yeniden tasarım (kullanıcı: "grafikler karman çorman; en gerçekçi tasarımı yap"):** beş sekme → iki (🎯 Benzer bölgeleri bul, 📎 Bağlı bölgeler). Tek ekran: soru → ayarlar → **tek cümlelik sonuç** → tek tablo → tek grafik.
+- **Keşif + sınama:** aralığın ilk 2/3'ünde nokta kümesi (gün, büyüklük, derinlik) en çok çakışan bölgeler bulunur; son 1/3'ünde aynı ölçüm yeniden yapılır (`match_between`). Gerçek ilişki sürer, tesadüf sürmez.
+- **Kanıt etiketi:** Güçlü (keşifte z ≥ 3, sınamada z ≥ 2, ≥ 1.000 km) / Komşu bölge / Sürmedi / Sınanamadı / Yok.
+- **Ölçülmemiş derinlikler çıkarılır** (varsayılan açık): katalogda %2'den fazla tekrar eden sabit derinlik değerleri (EMSC: 0, 1, 2, 5, 6, 7, 8, 10 km; USGS: 10, 33, 35 km) eşleştirme dışı (`default_depths`).
+- Grafik: seçilen tek bölgenin noktaları merkezinkilerle üst üste, eşleşen çiftler bağlı, keşif/sınama sınırı işaretli. Zaman grafiği yöntemi "ikinci görüş" anahtarıyla isteğe bağlı.
+- Kaldırıldı: profil benzerliği ve iki bölge sekmeleri (hesap fonksiyonları ve testleri duruyor).
+- **Bulgu (Erzincan 100 km, son 1.000 gün, M2+, aynı gün, ±0,1 M, ±1 km, ölçülmüş derinlik):** 240 deprem; en yüksek çakışma %2; anlamlı uzak bölge 0. Güney Idaho (z 3,2) ve Cebelitarık (z 6,2) keşifte dikkat çekici, sınamada sürmedi (z −0,3 ve 1,4).
+
 ## v1.96 - 2026-11-24 — 🎯 Nokta kümesi çakışması (iki yönlü puan)
 
 **Deprem deprem eşleştirme, kullanıcı tarifine göre:** puan artık **çakışma %** = birebir eşleşen nokta ÷ iki bölgedeki toplam farklı nokta (gün, büyüklük, derinlik); %100 = kümeler aynı. Bölgede eşleşmeyen çok deprem varsa puan düşer (önceki puan tek yönlüydü). Birebir eşleşme en yakın çiftten başlar. Varsayılanlar: son 30 gün, aynı gün, ±0,1 M, ±1 km; aralık serbest (EMSC ~6.100 güne, USGS ~13.400 güne kadar).

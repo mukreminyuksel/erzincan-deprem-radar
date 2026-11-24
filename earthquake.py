@@ -1,7 +1,6 @@
 from __future__ import annotations  # Python 3.9 uyumu — PEP 604 'X | None' syntax fix
 
 import base64
-import collections
 import concurrent.futures
 import csv
 import functools
@@ -179,7 +178,7 @@ def geocode_place(query):
     except Exception:
         return []
 
-APP_VERSION = "1.96"
+APP_VERSION = "1.97"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -381,12 +380,6 @@ def _world_catalog():
     mtime = os.path.getmtime(WORLD_CATALOG_PATH)
     cat, cells = _load_world_catalog(mtime)
     return cat, cells, mtime
-
-
-@st.cache_resource(show_spinner=False, max_entries=16)
-def _find_similar_cached(lat, lon, radius_km, mtime):
-    cat, cells, _ = _world_catalog()
-    return _sim.find_similar(cat, lat, lon, radius_km, cells=cells)
 
 
 @st.cache_data(ttl=600, show_spinner=False, max_entries=2)
@@ -17493,90 +17486,6 @@ def _kutuphane_ogrenme(learning_path, glossary):
 # Hesap: similarity.py (testli). Veri: data/global_catalog_m45.csv.gz (USGS M4.5+,
 # haftalık GitHub Actions ile güncellenir). Kalıcı gruplar: data/linked_regions.json.
 # ═══════════════════════════════════════════════════════════════════════════
-@st.cache_resource(show_spinner=False, max_entries=32)
-def _compare_cached(lat_a, lon_a, lat_b, lon_b, radius_km, mtime):
-    cat, _cells, _ = _world_catalog()
-    return _sim.compare_regions(cat, lat_a, lon_a, lat_b, lon_b, radius_km)
-
-
-def _render_iki_bolge(cat, radius_km):
-    """Seçili merkez ile kullanıcının seçtiği ikinci bölgeyi doğrudan karşılaştırır."""
-    others = [k for k in CENTER_PRESETS if k != CENTER_NAME]
-    default = "San Andreas Fayı — Parkfield, Kaliforniya"
-    b_name = st.selectbox(f"📍 {CENTER_NAME} hangi bölgeyle karşılaştırılsın?", others,
-                          index=others.index(default) if default in others else 0, key="pair_b",
-                          help="Listede olmayan bir yer için: önce kenar çubuğundaki 📍 Merkez kutusundan "
-                               "o yeri merkez yap, sonra burada Erzincan'ı seç.")
-    b_lat, b_lon = CENTER_PRESETS[b_name]
-    _c, _cells, mtime = _world_catalog()
-    with st.spinner("Karşılaştırılıyor…"):
-        cmp_ = _compare_cached(CENTER_LAT, CENTER_LON, b_lat, b_lon, radius_km, mtime)
-    pa, pb = cmp_.profile_a, cmp_.profile_b
-    if cmp_.n_a < 10 or cmp_.n_b < 10:
-        az = CENTER_NAME if cmp_.n_a < 10 else b_name
-        st.warning(f"{az} çevresinde {radius_km} km içinde yeterli deprem yok (M4.5+: {CENTER_NAME} "
-                   f"{cmp_.n_a}, {b_name} {cmp_.n_b}; en az 10 gerekir). Yukarıdan bölge yarıçapını büyüt.")
-
-    def _f(v, fmt="{:.2f}"):
-        return "—" if v is None or (isinstance(v, float) and math.isnan(v)) else fmt.format(v)
-
-    k = st.columns(4)
-    k[0].metric("Profil benzerliği", _f(cmp_.score, "{:.0f} / 100"))
-    k[1].metric("Aynı günlerde benzer deprem", f"{cmp_.sync.days} gün")
-    k[2].metric("Tesadüfen beklenen", _f(cmp_.sync.expected, "{:.1f} gün") if cmp_.sync.tested else "—")
-    k[3].metric("Aradaki uzaklık", f"{cmp_.distance_km:,.0f} km".replace(",", "."))
-    st.dataframe(pd.DataFrame({
-        "": ["Deprem sayısı (M4.5+)", "Yıllık ortalama", "b-değeri", "En büyük deprem", "Medyan derinlik"],
-        CENTER_NAME: [str(cmp_.n_a), _f(pa.rate_per_year), _f(pa.b), _f(pa.max_mag, "M{:.1f}"),
-                      _f(pa.median_depth, "{:.0f} km")],
-        b_name: [str(cmp_.n_b), _f(pb.rate_per_year), _f(pb.b), _f(pb.max_mag, "M{:.1f}"),
-                 _f(pb.median_depth, "{:.0f} km")],
-    }), hide_index=True, width="stretch")
-
-    # Sade yorum
-    if cmp_.sync.tested:
-        if cmp_.sync.p_value <= 0.01:
-            verdict = (f"Aynı günlere denk gelen {cmp_.sync.days} gün, tesadüf beklentisinin "
-                       f"({cmp_.sync.expected:.1f} gün) belirgin üstünde (p = {cmp_.sync.p_value:.3f}). "
-                       "Bu **zayıf bir işaret**; tek başına iki bölge arasında bağ olduğunu göstermez.")
-        else:
-            verdict = (f"Aynı günlere denk gelen {cmp_.sync.days} gün, tesadüfen beklenenle "
-                       f"({cmp_.sync.expected:.1f} gün) **uyumlu** (p = {cmp_.sync.p_value:.2f}). "
-                       "Veri, iki bölgenin depremlerinin zaman içinde birlikte hareket ettiğini **göstermiyor**.")
-        st.markdown(f"**Zamanlama:** {verdict}")
-        st.markdown(f"**Karakter:** Profil benzerliği {cmp_.score:.0f}/100 — büyüklük ve derinlik dağılımı, "
-                    "sıklık ve b-değeri ne kadar benziyor. Yüksek puan iki bölgenin *benzer tipte* deprem "
-                    "ürettiğini söyler, *aynı anda* ürettiğini değil.")
-    if cmp_.sync.examples:
-        with st.expander(f"Aynı günlere denk gelen depremler (ilk {len(cmp_.sync.examples)})"):
-            st.dataframe(pd.DataFrame([{
-                f"{CENTER_NAME} (UTC)": _utc_from_ts(ta).strftime("%d.%m.%Y %H:%M"), "M ": f"{ma:.1f}",
-                f"{b_name} (UTC)": _utc_from_ts(tb).strftime("%d.%m.%Y %H:%M"), "M": f"{mb:.1f}",
-            } for ta, tb, ma, mb in cmp_.sync.examples]), hide_index=True, width="stretch")
-
-    fig = go.Figure()
-    fig.add_trace(go.Bar(x=cmp_.years, y=cmp_.yearly_a, name=CENTER_NAME, marker_color="#4fc3f7"))
-    fig.add_trace(go.Bar(x=cmp_.years, y=cmp_.yearly_b, name=b_name, marker_color="#ffb74d"))
-    fig.update_layout(barmode="group", height=320, margin=dict(t=30, b=10, l=10, r=10),
-                      title=dict(text=f"Yıllık deprem sayısı (M4.5+, {radius_km} km)", font=dict(size=13)),
-                      paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font=dict(color=TEXT),
-                      legend=dict(orientation="h", y=1.12, x=0.35))
-    st.plotly_chart(fig, width="stretch", key="pair_yearly")
-
-    if st.button(f"📎 {b_name} bölgesini {CENTER_NAME} ile ataçla", key="pair_link"):
-        st.session_state.setdefault("linked_groups", []).append({
-            "ad": f"{CENTER_NAME} + {b_name}",
-            "olusturma": utc_now_naive().strftime("%Y-%m-%d"),
-            "bolgeler": [
-                {"ad": CENTER_NAME, "lat": round(CENTER_LAT, 4), "lon": round(CENTER_LON, 4), "yaricap_km": radius_km},
-                {"ad": b_name, "lat": round(b_lat, 4), "lon": round(b_lon, 4), "yaricap_km": radius_km},
-            ],
-        })
-        st.session_state["_sim_flash"] = ("Ataçlandı. Bu iki bölgeden birinde eşik üstü deprem olursa "
-                                          "sayfanın üstünde uyarı görürsün.")
-        st.rerun()
-
-
 EMSC_DIR = os.path.join(_APP_DIR, "data", "emsc_m20")
 
 
@@ -17852,160 +17761,155 @@ def _render_zaman_ortusmesi(radius_km):
             st.rerun()
 
 
+@functools.lru_cache(maxsize=2)
+def _measured_catalog(kat, sig):
+    cat, _s = _kor_catalog(kat)
+    return _sim.with_measured_depths(cat), _sim.default_depths(cat)
+
+
 @st.cache_resource(show_spinner=False, max_entries=16)
-def _event_match_cached(kat, lat, lon, radius_km, t0, t1, min_mag, tol_days, dmag, ddepth, sig):
-    cat, _sig = _kor_catalog(kat)
-    return _sim.find_event_matches(cat, lat, lon, radius_km, t0=t0, t1=t1, min_mag=min_mag,
-                                   tol_days=tol_days, dmag=dmag, ddepth=ddepth)
+def _discover_cached(kat, lat, lon, radius_km, t0, t_split, t1, min_mag, tol_days, dmag, ddepth, measured, sig):
+    """Keşif aralığında [t0, t_split) çakışan bölgeleri bulur; sınama aralığında [t_split, t1) yeniden ölçer."""
+    cat = _measured_catalog(kat, sig)[0] if measured else _kor_catalog(kat)[0]
+    kw = dict(min_mag=min_mag, tol_days=tol_days, dmag=dmag, ddepth=ddepth, require_depth=measured)
+    disc = _sim.find_event_matches(cat, lat, lon, radius_km, t0=t0, t1=t_split, **kw)
+    tests = [(_sim.match_between(cat, lat, lon, r.lat, r.lon, radius_km, t0=t_split, t1=t1, **kw)
+              if t1 > t_split else None) for r in disc.regions]
+    return disc, tests
 
 
 _ES_PENCERE = {"Aynı gün": 0, "3 gün (±1 gün)": 1, "Hafta (±3 gün)": 3}
+_KANIT_SIRA = {"Güçlü": 0, "Komşu bölge": 1, "Sürmedi": 2, "Sınanamadı": 3, "Yok": 4}
 
 
-def _render_deprem_eslestir(radius_km):
-    st.caption(f"📍 {CENTER_NAME} çevresindeki depremler bir nokta kümesidir: her nokta (gün, büyüklük, derinlik). "
-               "Dünyanın her bölgesinin aynı günlerdeki nokta kümesi bununla üst üste konur; **aynı günlerde, "
-               "neredeyse aynı büyüklük ve derinlikte** olan noktalar çakışmış sayılır. Kümesi en çok çakışan "
-               "bölgeler listelenir. Bölge yarıçapını yukarıdaki kutudan değiştirebilirsin.")
+def _kanit(region, test):
+    """Kanıt etiketi: keşifte belirgin fazlalık (z ≥ 3) + sınama döneminde sürme (z ≥ 2)."""
+    if region.z < 3 or region.matched < 3:
+        return "Yok"
+    if test is None or test.n_a < 3 or test.n_b < 3 or math.isnan(test.z):
+        return "Sınanamadı"
+    if test.z < 2:
+        return "Sürmedi"
+    return "Komşu bölge" if region.distance_km < 1000 else "Güçlü"
+
+
+def _render_bul(radius_km):
     kats = [k for k in ("emsc", "usgs") if k == "usgs" or _emsc_sig()]
-    kat = st.radio("Veri", kats, format_func=lambda k: _KOR_KATALOGLAR[k][0], key="es_kat")
+    c = st.columns([2.2, 1, 1])
+    kat = c[0].radio("Veri", kats, format_func=lambda k: _KOR_KATALOGLAR[k][0], key="bul_kat")
     cat, sig = _kor_catalog(kat)
     cat_t0, cat_t1 = float(cat.t.min()), float(cat.t.max())
-    d0, d1 = _utc_from_ts(cat_t0).date(), _utc_from_ts(cat_t1).date()
+    max_days = int((cat_t1 - cat_t0) / 86400)
     floor = _KOR_KATALOGLAR[kat][1]
-    c = st.columns([1.3, 1, 1, 1])
-    with c[0]:
-        mode = st.radio("Zaman aralığı", ["Son N gün", "Tarih aralığı"], horizontal=True, key="es_mode")
-        if mode == "Son N gün":
-            n_days = st.number_input("Kaç gün", min_value=7, max_value=int((cat_t1 - cat_t0) / 86400),
-                                     value=30, step=10, key=f"es_days_{kat}")
-            t1, t0 = cat_t1, cat_t1 - n_days * 86400
-        else:
-            dr = st.date_input("Başlangıç – bitiş", value=(d1 - timedelta(days=30), d1),
-                               min_value=d0, max_value=d1, key=f"es_dates_{kat}")
-            if not isinstance(dr, (tuple, list)) or len(dr) != 2:
-                st.caption("Bitiş tarihini de seç.")
-                return
-            t0 = datetime(dr[0].year, dr[0].month, dr[0].day, tzinfo=timezone.utc).timestamp()
-            t1 = datetime(dr[1].year, dr[1].month, dr[1].day, tzinfo=timezone.utc).timestamp() + 86400
-    min_mag = c[1].number_input("En küçük büyüklük (M)", min_value=floor, max_value=7.0, value=floor,
-                                step=0.5, key=f"es_mag_{kat}")
-    pencere = c[1].selectbox("Zaman eşleşmesi", list(_ES_PENCERE), index=0, key="es_pencere",
-                             help="Bir depremin eşi sayılması için öbür depremin ne kadar yakın zamanda "
-                                  "olması gerektiği (UTC takvim günü).")
-    dmag = c[2].number_input("Büyüklük toleransı (± M)", min_value=0.0, max_value=1.0, value=0.1, step=0.1,
-                             key="es_dmag2", help="0 = tam aynı büyüklük.")
-    ddepth = c[3].number_input("Derinlik toleransı (± km)", min_value=0.2, max_value=50.0, value=1.0, step=0.5,
-                               key="es_ddepth2")
+    n_days = c[1].number_input("Kaç günlük geçmiş", min_value=30, max_value=max_days,
+                               value=min(1000, max_days), step=100, key=f"bul_days_{kat}",
+                               help="Aralık uzadıkça tesadüfi çakışmalar elenir; kalan benzerlik daha anlamlıdır.")
+    min_mag = c[2].number_input("En küçük büyüklük (M)", min_value=floor, max_value=7.0, value=floor,
+                                step=0.5, key=f"bul_mag_{kat}")
+    with st.expander("⚙️ İnce ayar (eşleşme ölçütleri)"):
+        e = st.columns(4)
+        pencere = e[0].selectbox("Zaman eşleşmesi", list(_ES_PENCERE), index=0, key="bul_pencere",
+                                 help="Bir depremin eşi sayılması için öbür depremin ne kadar yakın zamanda "
+                                      "olması gerektiği (UTC takvim günü).")
+        dmag = e[1].number_input("Büyüklük toleransı (± M)", min_value=0.0, max_value=1.0, value=0.1, step=0.1,
+                                 key="bul_dmag")
+        ddepth = e[2].number_input("Derinlik toleransı (± km)", min_value=0.2, max_value=50.0, value=1.0,
+                                   step=0.5, key="bul_ddepth")
+        measured = e[3].checkbox("Yalnız derinliği ölçülmüş depremler", value=True, key="bul_measured",
+                                 help="Ağlar derinliği hesaplayamadığında sabit bir değer yazar (ör. 5, 7, 10 km). "
+                                      "Bu depremler dahil edilirse aynı varsayılanı kullanan bölgeler yapay "
+                                      "olarak \"aynı derinlikte\" görünür.")
     tol = _ES_PENCERE[pencere]
-    if (t1 - t0) / 86400 < 4 * tol + 6:
-        st.warning("Aralık bu zaman eşleşmesi için çok kısa; aralığı uzat.")
+    t1, t0 = cat_t1, cat_t1 - n_days * 86400
+    t_split = t0 + (t1 - t0) * 2 / 3 if n_days >= 90 else t1
+    with st.spinner("Dünya taranıyor… (uzun aralıklarda 20 sn sürebilir)"):
+        disc, tests = _discover_cached(kat, CENTER_LAT, CENTER_LON, radius_km, int(t0), int(t_split), int(t1),
+                                       float(min_mag), tol, float(dmag), float(ddepth), bool(measured), sig)
+    has_test = t_split < t1
+    if measured:
+        defaults = _measured_catalog(kat, sig)[1]
+        st.caption("Derinliği varsayılan değerle yazılmış depremler çıkarıldı ("
+                   + ", ".join(f"{v:g}" for v in defaults) + " km). İnce ayardan değiştirebilirsin.")
+    if disc.n_ref < 5:
+        st.warning(f"{CENTER_NAME} çevresinde {radius_km} km içinde bu ölçütlerle yalnız {disc.n_ref} deprem var; "
+                   "karşılaştırma için yetersiz. Yarıçapı ya da gün sayısını büyüt, büyüklük eşiğini düşür "
+                   "ya da \"yalnız derinliği ölçülmüş\" seçeneğini kapat.")
         return
-    with st.spinner("Dünya taranıyor…"):
-        res = _event_match_cached(kat, CENTER_LAT, CENTER_LON, radius_km, int(t0), int(t1), float(min_mag),
-                                  tol, float(dmag), float(ddepth), sig)
-    if res.n_ref == 0:
-        st.warning(f"{CENTER_NAME} çevresinde {radius_km} km içinde bu aralıkta M{min_mag}+ deprem yok. "
-                   "Yarıçapı büyüt, büyüklük eşiğini düşür ya da aralığı uzat.")
-        return
-    regs = res.regions
-    ref_color = "#ffffff" if DARK else "#10233a"
-    palette = ["#4fc3f7", "#ffb74d", "#81c784", "#f06292", "#ba68c8", "#ffd54f", "#4db6ac"]
-    ref_x = [_utc_from_ts(int(t)) for t in res.ref_t]
-
-    k = st.columns(4)
-    k[0].metric(f"{CENTER_NAME}: deprem", res.n_ref)
-    k[1].metric("Eşleşme bulunan bölge", f"{res.scanned:,}".replace(",", "."))
-    if regs:
-        k[2].metric("En çok çakışan bölge", regs[0].name[:22] or "—")
-        k[3].metric("Çakışma", f"%{regs[0].overlap:.0f}",
-                    help="Birebir eşleşen nokta sayısı ÷ iki bölgedeki toplam farklı nokta. "
-                         "%100 = iki nokta kümesi tamamen üst üste.")
-    labels = [f"{r.name or f'{r.lat:.1f}, {r.lon:.1f}'} (%{r.overlap:.0f})" for r in regs]
-    ukey = f"{kat}_{int(t0)}_{int(t1)}_{min_mag}_{tol}_{dmag}_{ddepth}_{radius_km}_{CENTER_NAME}"
-    show = st.multiselect("Grafikte üst üste göster", labels, default=labels[:1], key=f"es_show_{ukey}")
-    sel = [regs[labels.index(lab)] for lab in show]
-
-    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.06,
-                        subplot_titles=("Büyüklük (M)", "Derinlik (km)"))
-    for row, ref_y in ((1, res.ref_mag), (2, res.ref_depth)):
-        for i, r in enumerate(sel):
-            col = palette[i % len(palette)]
-            ry = r.ev_mag if row == 1 else r.ev_depth
-            matched_mask = np.zeros(len(r.ev_t), dtype=bool)
-            matched_mask[r.pair_ev] = True
-            rx = np.array([_utc_from_ts(int(t)) for t in r.ev_t])
-            # eşleşmeyenler soluk, eşleşenler dolu
-            fig.add_trace(go.Scattergl(x=rx[~matched_mask], y=ry[~matched_mask], mode="markers",
-                                       marker=dict(size=5, color=col, opacity=0.22), showlegend=False,
-                                       hoverinfo="skip"), row=row, col=1)
-            fig.add_trace(go.Scattergl(
-                x=rx[matched_mask], y=ry[matched_mask], mode="markers", name=labels[regs.index(r)],
-                legendgroup=str(i), showlegend=(row == 1),
-                marker=dict(size=9, color=col, opacity=0.9, line=dict(width=0.6, color="#000")),
-                text=[f"M{a:.1f} · {fmt_depth(b_, 0)}" for a, b_ in zip(r.ev_mag[matched_mask], r.ev_depth[matched_mask])],
-                hovertemplate="%{x|%d.%m.%Y}<br>%{text}<extra>" + safe_html(r.name) + "</extra>"), row=row, col=1)
-            # eşleşen çiftleri birleştiren ince çizgiler (en fazla 400)
-            lx, ly = [], []
-            for a, b_ in list(zip(r.pair_ref, r.pair_ev))[:400]:
-                lx += [ref_x[a], rx[b_], None]
-                ly += [ref_y[a], ry[b_], None]
-            fig.add_trace(go.Scattergl(x=lx, y=ly, mode="lines", line=dict(color=col, width=0.7),
-                                       opacity=0.45, showlegend=False, hoverinfo="skip"), row=row, col=1)
-        fig.add_trace(go.Scattergl(
-            x=ref_x, y=ref_y, mode="markers", name=CENTER_NAME, legendgroup="ref", showlegend=(row == 1),
-            marker=dict(size=10, color=ref_color, symbol="diamond", line=dict(width=0.8, color="#000")),
-            text=[f"M{a:.1f} · {fmt_depth(b_, 0)}" for a, b_ in zip(res.ref_mag, res.ref_depth)],
-            hovertemplate="%{x|%d.%m.%Y}<br>%{text}<extra>" + safe_html(CENTER_NAME) + "</extra>"), row=row, col=1)
-    # Derinlik ekseni referansın derinlik aralığına odaklanır (uzak bölgelerin çok derin
-    # depremleri ekseni sıkıştırmasın); yakınlaştırıp uzaklaştırmak serbest.
-    _rd = res.ref_depth[~np.isnan(res.ref_depth)]
-    _dmax = (float(_rd.max()) if len(_rd) else 30.0) + 3 * float(ddepth) + 5
-    fig.update_yaxes(range=[_dmax, 0], row=2, col=1)
-    fig.update_layout(height=560, margin=dict(t=40, b=10, l=10, r=10), paper_bgcolor="rgba(0,0,0,0)",
-                      plot_bgcolor="rgba(0,0,0,0)", font=dict(color=TEXT),
-                      legend=dict(orientation="h", y=-0.1), hovermode="closest")
-    st.plotly_chart(fig, width="stretch", key="es_chart")
-    st.caption(f"◆ {CENTER_NAME} depremleri (gün gün). Renkli dolu noktalar: seçilen bölgede **eşi bulunan** "
-               "depremler; soluk noktalar o bölgenin eşleşmeyen depremleri; ince çizgiler eşleşen çiftleri birleştirir.")
+    regs = disc.regions
     if not regs:
-        st.info("Bu ayarlarla en az 2 depremi eşleşen bölge bulunamadı. Toleransları genişlet ya da aralığı uzat.")
+        st.info(f"**Sonuç: çakışan bölge yok.** {CENTER_NAME}'ın {disc.n_ref} depreminden en az 2'si aynı bölgede "
+                "eşleşmedi. Toleransları genişletmeyi deneyebilirsin.")
         return
+    labels_k = [_kanit(r, t) for r, t in zip(regs, tests)]
+    order = sorted(range(len(regs)), key=lambda i: (_KANIT_SIRA[labels_k[i]], -regs[i].overlap))
+    regs, tests, labels_k = [regs[i] for i in order], [tests[i] for i in order], [labels_k[i] for i in order]
+    strong = [r for r, k in zip(regs, labels_k) if k == "Güçlü"]
+    neigh = [r for r, k in zip(regs, labels_k) if k == "Komşu bölge"]
+    faded = [r for r, k in zip(regs, labels_k) if k == "Sürmedi"]
+    top = max(regs, key=lambda r: r.overlap)
 
-    best = regs[0]
-    fixed = collections.Counter(np.round(res.ref_depth[~np.isnan(res.ref_depth)], 1)).most_common(1)
-    msg = (f"**En çok çakışan bölge: {best.name}, %{best.overlap:.0f}.** {CENTER_NAME}'ın {res.n_ref} depreminden "
-           f"{best.paired}'i bu bölgedeki {best.n_events} depremden biriyle birebir eşleşti "
-           f"({pencere.lower()}, ±{dmag:.1f} M, ±{ddepth:.1f} km). ")
-    if best.overlap >= 50 and best.z >= 3:
-        st.success(msg + "Bu yüksek ve tesadüf beklentisinin belirgin üstünde; ataçlayıp sonraki günlerde "
-                   "sürüp sürmediğine bakmaya değer.")
+    # ── Tek cümlelik sonuç ──
+    d_split = _utc_from_ts(t_split).strftime("%d.%m.%Y")
+    how = (f"İlk dönemde ({_utc_from_ts(t0):%d.%m.%Y} – {d_split}) bulundu, son dönemde ({d_split} – "
+           f"{_utc_from_ts(t1):%d.%m.%Y}) yeniden sınandı." if has_test else "")
+    if strong:
+        st.success(f"### Sonuç: {len(strong)} uzak bölge anlamlı biçimde çakışıyor\n"
+                   + ", ".join(f"**{r.name}** (%{r.overlap:.0f}, {r.distance_km:,.0f} km)".replace(",", ".")
+                               for r in strong[:5])
+                   + f". {how} Çakışma tesadüf beklentisinin belirgin üstünde ve sonraki dönemde de sürdü. "
+                   "Bu bir neden-sonuç kanıtı değildir; ataçlayıp izlemeye değer.")
+    elif neigh:
+        st.info("### Sonuç: yalnız komşu bölgeler çakışıyor\n"
+                + ", ".join(f"**{r.name}** (%{r.overlap:.0f}, {r.distance_km:.0f} km)" for r in neigh[:4])
+                + f". {how} Bu beklenen bir durumdur: yakın bölgeler aynı fay sistemini ve aynı kayıt ağını "
+                "paylaşır. **Uzak bir bölgeyle anlamlı çakışma yok.**")
     else:
-        st.info(msg + f"Eşleşme {best.matched} farklı güne yayılıyor; tesadüfen de yaklaşık {best.expected:.1f} gün beklenirdi. "
-                + ("Nokta kümeleri birbirine yakın değil." if best.overlap < 50 else
-                   "Çakışma yüksek ama tesadüf beklentisinden belirgin ayrışmıyor."))
-    if fixed and fixed[0][1] >= max(3, 0.4 * res.n_ref):
-        st.caption(f"⚠️ {CENTER_NAME} depremlerinin {fixed[0][1]}'inde derinlik tam {fixed[0][0]:g} km yazıyor. Bu ölçüm "
-                   "değil: ağ derinliği hesaplayamadığında varsayılan bir değer atar. Aynı varsayılanı kullanan "
-                   "başka bölgelerle derinlik \"eşleşmesi\" bu yüzden yapay olabilir.")
+        extra = (f" {len(faded)} bölge ilk dönemde dikkat çekiciydi ama son dönemde sürmedi; bu tesadüfün "
+                 "tipik davranışıdır." if faded else "")
+        st.info(f"### Sonuç: anlamlı çakışan bölge yok\n"
+                f"En yüksek çakışma **%{top.overlap:.0f}** ({top.name}): {CENTER_NAME}'ın {disc.n_ref} depreminden "
+                f"{top.paired}'i eşleşti; tesadüfen de {top.expected:.1f} gün beklenirdi.{extra}")
+    k = st.columns(4)
+    k[0].metric(f"{CENTER_NAME}: deprem", disc.n_ref, help="İlk (keşif) dönemindeki deprem sayısı.")
+    k[1].metric("Eşleşme bulunan bölge", f"{disc.scanned:,}".replace(",", "."))
+    k[2].metric("En yüksek çakışma", f"%{top.overlap:.0f}")
+    k[3].metric("Anlamlı uzak bölge", len(strong))
 
-    with st.form("es_link_form", border=False):
-        rows = [{"Ataçla": False, "Bölge": r.name or f"{r.lat:.1f}, {r.lon:.1f}",
-                 "Çakışma %": round(r.overlap), "Birebir eşleşen": r.paired,
-                 f"{CENTER_NAME} depremi": res.n_ref, "Bölgedeki deprem": r.n_events,
-                 "Eşleşen gün": r.matched, "Tesadüfen beklenen gün": round(r.expected, 1),
-                 "Fazlalık (z)": round(r.z, 1), "Uzaklık (km)": round(r.distance_km)}
-                for r in regs]
-        ed = st.data_editor(pd.DataFrame(rows), hide_index=True, width="stretch", key=f"es_ed_{ukey}",
+    # ── Tek tablo ──
+    def _t(v, fmt):
+        return None if v is None or (isinstance(v, float) and math.isnan(v)) else fmt(v)
+
+    ukey = f"{kat}_{n_days}_{min_mag}_{tol}_{dmag}_{ddepth}_{measured}_{radius_km}_{CENTER_NAME}"
+    with st.form("bul_link_form", border=False):
+        rows = []
+        for r, t, lab in zip(regs, tests, labels_k):
+            row = {"Ataçla": False, "Bölge": r.name or f"{r.lat:.1f}, {r.lon:.1f}", "Kanıt": lab,
+                   "Uzaklık (km)": round(r.distance_km), "Çakışma %": round(r.overlap),
+                   "Eşleşen gün": r.matched, "Beklenen gün": round(r.expected, 1), "Fazlalık (z)": round(r.z, 1)}
+            if has_test:
+                row["Sonraki dönem: çakışma %"] = _t(t.overlap if t else None, round)
+                row["Sonraki dönem: z"] = _t(t.z if t else None, lambda v: round(v, 1))
+            row["Bölgedeki deprem"] = r.n_events
+            rows.append(row)
+        ed = st.data_editor(pd.DataFrame(rows), hide_index=True, width="stretch", key=f"bul_ed_{ukey}",
                             disabled=[c_ for c_ in rows[0] if c_ != "Ataçla"])
-        st.caption(
-            "**Nasıl okunur?** *Çakışma %*: iki bölgenin nokta kümeleri ne kadar üst üste (birebir eşleşen ÷ "
-            "iki bölgedeki toplam farklı nokta; %100 = aynı). Liste buna göre sıralıdır. *Eşleşen gün*: eşleşme "
-            f"görülen farklı gün sayısı (bir artçı fırtınası tek gün sayılır). *Tesadüfen beklenen gün*: {CENTER_NAME} "
-            "takvimi gün gün kaydırılınca çıkan ortalama. *Fazlalık (z)*: gözlenenin beklenenden ne kadar "
-            "ayrıştığı (3 ve üstü dikkat çekici). Aralık uzadıkça tesadüfi çakışmalar elenir.")
-        g_name = st.text_input("Grup adı", value=f"{CENTER_NAME} deprem eşleşmeleri", key="es_group_name")
-        submitted = st.form_submit_button(f"📎 İşaretlenenleri {CENTER_NAME} ile ataçla")
+        f1, f2 = st.columns([2, 1])
+        g_name = f1.text_input("Grup adı", value=f"{CENTER_NAME} çakışan bölgeler", key="bul_group_name",
+                               label_visibility="collapsed")
+        submitted = f2.form_submit_button(f"📎 İşaretlenenleri {CENTER_NAME} ile ataçla")
+    with st.expander("Bu tablo nasıl okunur?"):
+        st.markdown(
+            f"- **Çakışma %**: {CENTER_NAME} ile bölgenin nokta kümeleri (gün, büyüklük, derinlik) ne kadar üst üste. "
+            "Birebir eşleşen nokta ÷ iki bölgedeki toplam farklı nokta; %100 = aynı.\n"
+            f"- **Eşleşen / beklenen gün**: eşleşme görülen farklı gün sayısı ve {CENTER_NAME} takvimi gün gün "
+            "kaydırıldığında tesadüfen çıkan ortalama. Çok deprem üreten bölgeler her şeyle tesadüfen eşleşir; "
+            "bu karşılaştırma onu ayıklar.\n"
+            "- **Fazlalık (z)**: gözlenenin beklenenden ne kadar ayrıştığı; 3 ve üstü dikkat çekici.\n"
+            "- **Sonraki dönem**: bölge, aralığın ilk üçte ikisinde bulundu; son üçte birinde aynı ölçüm "
+            "yeniden yapıldı. Gerçek bir ilişki sürer, tesadüf sürmez.\n"
+            "- **Kanıt**: *Güçlü* = ilk dönemde belirgin + sonraki dönemde sürdü + 1.000 km'den uzak. "
+            "*Komşu bölge* = aynısı ama yakın (bölgesel etki). *Sürmedi* = ilk dönemde belirgin, sonra kayboldu. "
+            "*Yok* = tesadüf düzeyinde.")
     if submitted:
         picked = [regs[i] for i, flag in enumerate(ed["Ataçla"].tolist()) if flag]
         if not picked:
@@ -18017,187 +17921,90 @@ def _render_deprem_eslestir(radius_km):
                          "lon": round(r.lon, 4), "yaricap_km": radius_km} for r in picked]
             st.session_state.setdefault("linked_groups", []).append({
                 "ad": g_name.strip() or f"{CENTER_NAME} grubu",
-                "olusturma": utc_now_naive().strftime("%Y-%m-%d"),
-                "bolgeler": regions,
-                # izleme için aynı aylık seri korelasyonu kullanılır
-                "kor": {"kat": kat, "mag": float(min_mag), "adim": 30, "t0": float(max(cat_t0, t1 - 5 * 365.25 * 86400)),
-                        "r0": []},
+                "olusturma": utc_now_naive().strftime("%Y-%m-%d"), "bolgeler": regions,
+                "kor": {"kat": kat, "mag": float(min_mag), "adim": 30,
+                        "t0": float(max(cat_t0, t1 - 5 * 365.25 * 86400)), "r0": []},
             })
             st.session_state["_sim_flash"] = (f"\"{g_name}\" grubu oluşturuldu ({len(regions)} bölge). "
                                               "📎 Bağlı bölgeler sekmesinden izleyebilirsin.")
             st.rerun()
 
+    # ── Tek grafik: seçilen bölgenin noktaları merkezinkilerle üst üste ──
+    names = [f"{r.name} — {lab}, %{r.overlap:.0f}" for r, lab in zip(regs, labels_k)]
+    pick = st.selectbox("Grafikte göster", names, key=f"bul_pick_{ukey}")
+    r = regs[names.index(pick)]
+    src = _measured_catalog(kat, sig)[0] if measured else cat
+    pts = _sim.pair_points(src, CENTER_LAT, CENTER_LON, r.lat, r.lon, radius_km, t0=int(t0), t1=int(t1),
+                           min_mag=float(min_mag), tol_days=tol, dmag=float(dmag), ddepth=float(ddepth),
+                           require_depth=bool(measured))
+    ref_color, col = ("#ffffff" if DARK else "#10233a"), "#4fc3f7"
+    ax = np.array([_utc_from_ts(int(t)) for t in pts["a_t"]])
+    bx = np.array([_utc_from_ts(int(t)) for t in pts["b_t"]])
+    bm = np.zeros(len(bx), dtype=bool)
+    bm[pts["pair_b"]] = True
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.07,
+                        subplot_titles=("Büyüklük (M)", "Derinlik (km)"))
+    for row, ay, by in ((1, pts["a_mag"], pts["b_mag"]), (2, pts["a_depth"], pts["b_depth"])):
+        fig.add_trace(go.Scattergl(x=bx[~bm], y=by[~bm], mode="markers", showlegend=False, hoverinfo="skip",
+                                   marker=dict(size=5, color=col, opacity=0.2)), row=row, col=1)
+        lx, ly = [], []
+        for a_, b_ in list(zip(pts["pair_a"], pts["pair_b"]))[:600]:
+            lx += [ax[a_], bx[b_], None]
+            ly += [ay[a_], by[b_], None]
+        fig.add_trace(go.Scattergl(x=lx, y=ly, mode="lines", line=dict(color=col, width=0.8), opacity=0.5,
+                                   showlegend=False, hoverinfo="skip"), row=row, col=1)
+        fig.add_trace(go.Scattergl(
+            x=bx[bm], y=by[bm], mode="markers", name=f"{r.name}: eşleşen", showlegend=(row == 1),
+            marker=dict(size=9, color=col, line=dict(width=0.6, color="#000")),
+            text=[f"M{m_:.1f} · {fmt_depth(d_, 1)}" for m_, d_ in zip(pts["b_mag"][bm], pts["b_depth"][bm])],
+            hovertemplate="%{x|%d.%m.%Y}<br>%{text}<extra>" + safe_html(r.name) + "</extra>"), row=row, col=1)
+        fig.add_trace(go.Scattergl(
+            x=ax, y=ay, mode="markers", name=CENTER_NAME, showlegend=(row == 1),
+            marker=dict(size=8, color=ref_color, symbol="diamond", line=dict(width=0.7, color="#000")),
+            text=[f"M{m_:.1f} · {fmt_depth(d_, 1)}" for m_, d_ in zip(pts["a_mag"], pts["a_depth"])],
+            hovertemplate="%{x|%d.%m.%Y}<br>%{text}<extra>" + safe_html(CENTER_NAME) + "</extra>"), row=row, col=1)
+    if has_test:
+        fig.add_vline(x=_utc_from_ts(t_split), line=dict(color="#ffd54f", width=1.5, dash="dash"))
+        fig.add_annotation(x=_utc_from_ts(t_split), y=1.06, yref="paper", showarrow=False,
+                           text="◀ bulundu  |  sınandı ▶", font=dict(color="#ffd54f", size=11))
+    _rd = pts["a_depth"][~np.isnan(pts["a_depth"])]
+    fig.update_yaxes(range=[(float(_rd.max()) if len(_rd) else 30.0) + 3 * float(ddepth) + 5, 0], row=2, col=1)
+    fig.update_layout(height=540, margin=dict(t=46, b=10, l=10, r=10), paper_bgcolor="rgba(0,0,0,0)",
+                      plot_bgcolor="rgba(0,0,0,0)", font=dict(color=TEXT),
+                      legend=dict(orientation="h", y=-0.1), hovermode="closest")
+    st.plotly_chart(fig, width="stretch", key="bul_chart")
+    st.caption(f"◆ {CENTER_NAME} depremleri. Mavi dolu noktalar: {r.name} bölgesinde **eşi bulunan** depremler "
+               f"({len(pts['pair_a'])} çift, çizgiyle bağlı); soluk noktalar eşleşmeyenler. Kümeler gerçekten "
+               "çakışıyorsa elmasların çoğunun üstünde mavi bir nokta olur.")
+
+    if st.toggle("İkinci görüş: zaman grafiği yöntemiyle de bak", key="bul_second",
+                 help="Farklı bir ölçüm: bölgelerin dönem dönem deprem sayısı grafikleri ne kadar benziyor."):
+        _render_zaman_ortusmesi(radius_km)
+
 
 def _render_benzer_bolgeler():
     st.markdown('<div class="chart-title">🔗 Benzer Bölgeler ve Bağlı İzleme</div>', unsafe_allow_html=True)
-    st.info(_SIM_DISCLAIMER)
     cat, cells, mtime = _world_catalog()
     if cat is None:
         st.error("Dünya kataloğu dosyası bulunamadı (data/global_catalog_m45.csv.gz).")
         return
-    y0 = _utc_from_ts(int(cat.t.min())).year
-    y1 = _utc_from_ts(int(cat.t.max())).strftime("%d.%m.%Y")
     n_groups = len(_all_linked_groups())
     if st.session_state.get("_sim_flash"):
         st.success(st.session_state.pop("_sim_flash"))
-    c1, c2 = st.columns([2, 1])
+    c1, c2 = st.columns([3, 1])
     with c1:
-        st.markdown(f"**Referans bölge:** 📍 {safe_html(CENTER_NAME)} "
-                    f"({CENTER_LAT:.2f}, {CENTER_LON:.2f}) — merkezi kenar çubuğundaki "
-                    "**📍 Merkez** kutusundan değiştirebilirsin.")
-        st.caption(f"Katalog: USGS, M4.5 ve üzeri, {y0} – {y1}, "
-                   f"{f'{len(cat):,}'.replace(',', '.')} deprem, tüm dünya.")
+        st.markdown(
+            f"**Soru:** 📍 **{safe_html(CENTER_NAME)}** çevresindeki depremlerle **aynı günlerde, aynı büyüklük ve "
+            "derinlikte** deprem üreten başka bölgeler var mı? Tüm dünya taranır; bulunan bölgeler aralığın son "
+            "bölümünde yeniden sınanır. Merkezi kenar çubuğundaki **📍 Merkez** kutusundan değiştirebilirsin.")
     with c2:
         sim_r = st.number_input("Bölge yarıçapı (km)", min_value=50, max_value=1000,
                                 value=100, step=25, key="sim_radius",
                                 help="Her bölgenin dairesinin büyüklüğü. Aramanın menzili DEĞİL: "
-                                     "karşılaştırma her zaman tüm dünyayı kapsar (Amerika, Japonya "
-                                     "dahil). Küçük yarıçapta deprem sayısı az kalabilir.")
-    tab_ev, tab_time, tab_linked, tab_find, tab_pair = st.tabs([
-        "🎯 Deprem deprem eşleştir", "📈 Zaman örtüşmesi ara", f"📎 Bağlı bölgeler ({n_groups})",
-        "🔍 Profil benzerliği", "⚖️ İki bölgeyi karşılaştır"])
-
-    # ─── Deprem deprem eşleştirme: her depremin eşi dünyada nerede? ─────────
+                                     "karşılaştırma her zaman tüm dünyayı kapsar.")
+    tab_ev, tab_linked = st.tabs(["🎯 Benzer bölgeleri bul", f"📎 Bağlı bölgeler ({n_groups})"])
     with tab_ev:
-        _render_deprem_eslestir(int(sim_r))
-
-    # ─── Zaman örtüşmesi: etkinlik grafiği referansa en çok benzeyen bölgeler ──
-    with tab_time:
-        _render_zaman_ortusmesi(int(sim_r))
-
-    # ─── İki bölgeyi doğrudan karşılaştır ───────────────────────────────────
-    with tab_pair:
-        _render_iki_bolge(cat, int(sim_r))
-
-    # ─── Benzer bölgeleri bul ───────────────────────────────────────────────
-    with tab_find:
-        st.caption(f"📍 {CENTER_NAME} çevresindeki {int(sim_r)} km'lik bölgeye en çok benzeyen, aynı "
-                   "boydaki bölgeler **tüm dünyada** aranır (dünya 1°×1° hücrelere bölünüp taranır).")
-        if st.button("🔍 Benzer bölgeleri ara", type="primary", key="sim_search"):
-            st.session_state.sim_query = (CENTER_NAME, CENTER_LAT, CENTER_LON, int(sim_r))
-        q = st.session_state.get("sim_query")
-        if not q:
-            st.caption("Aramak için düğmeye bas. Tarama birkaç saniye sürer.")
-        else:
-            q_name, q_lat, q_lon, q_r = q
-            with st.spinner("Dünya taranıyor… (birkaç saniye)"):
-                ref, n_ref, by_prof, by_sync, scanned = _find_similar_cached(q_lat, q_lon, q_r, mtime)
-            if n_ref < 10:
-                st.warning(f"{q_name} çevresinde {q_r} km içinde yalnız {n_ref} deprem (M4.5+) var; "
-                           "karşılaştırma için en az 10 gerekir. Yarıçapı büyüt.")
-            else:
-                if n_ref < 30:
-                    st.caption(f"⚠️ Referans bölgede {n_ref} deprem var; örnek küçük, sonuçlar kaba.")
-                m = st.columns(5)
-                m[0].metric("Deprem (M4.5+)", n_ref)
-                m[1].metric("Yıllık ortalama", f"{ref.rate_per_year:.2f}")
-                m[2].metric("b-değeri", "—" if math.isnan(ref.b) else f"{ref.b:.2f}")
-                m[3].metric("En büyük", f"M{ref.max_mag:.1f}")
-                m[4].metric("Medyan derinlik", fmt_depth(ref.median_depth, 0))
-
-                def _base_row(c):
-                    return {
-                        "Ataçla": False,
-                        "Bölge": c.name or f"{c.lat:.1f}, {c.lon:.1f}",
-                        "Profil benzerliği": c.score,
-                        "Aynı gün": c.sync.days,
-                        "Deprem": c.profile.n,
-                        "Yıllık": round(c.profile.rate_per_year, 2),
-                        "b": None if math.isnan(c.profile.b) else round(c.profile.b, 2),
-                        "En büyük": c.profile.max_mag,
-                        "Medyan derinlik (km)": None if math.isnan(c.profile.median_depth)
-                                                else round(c.profile.median_depth),
-                        "Uzaklık (km)": round(c.distance_km),
-                    }
-
-                # Dünya haritası
-                fig = go.Figure()
-                for lst, color, label in ((by_prof, "#4fc3f7", "Profil benzeri"),
-                                          (by_sync, "#ffb74d", "Eşzamanlı")):
-                    if lst:
-                        fig.add_trace(go.Scattergeo(
-                            lat=[c.lat for c in lst], lon=[c.lon for c in lst], name=label,
-                            mode="markers", marker=dict(size=9, color=color, line=dict(width=1, color="#000")),
-                            text=[safe_html(c.name) for c in lst], hovertemplate="%{text}<extra></extra>"))
-                fig.add_trace(go.Scattergeo(lat=[q_lat], lon=[q_lon], name=safe_html(q_name), mode="markers",
-                                            marker=dict(size=15, color="#ffffff", symbol="star",
-                                                        line=dict(width=1, color="#000"))))
-                fig.update_geos(projection_type="natural earth", showcountries=True,
-                                landcolor="#1b2a3a" if DARK else "#e8eef4",
-                                oceancolor="#08121f" if DARK else "#cfe3f3", showocean=True,
-                                countrycolor="#3a5068" if DARK else "#9fb3c8", bgcolor="rgba(0,0,0,0)")
-                fig.update_layout(height=420, margin=dict(t=0, b=0, l=0, r=0),
-                                  paper_bgcolor="rgba(0,0,0,0)", font=dict(color=TEXT),
-                                  legend=dict(orientation="h", y=-0.02))
-                st.plotly_chart(fig, width="stretch", key="sim_world_map")
-
-                # Kutular form içinde: işaretlemek sayfayı yenilemez, yalnız düğme gönderir
-                with st.form("sim_link_form", border=False):
-                    t_prof, t_sync = st.tabs(["📐 Profil benzerliği", "📅 Eşzamanlılık (aynı günler)"])
-                    with t_prof:
-                        st.caption("Büyüklük dağılımı (%35), derinlik dağılımı (%35), yıllık sıklık (%20) "
-                                   "ve b-değeri (%10) karşılaştırılır. 100 = aynı profil.")
-                        ed_p = st.data_editor(pd.DataFrame([_base_row(c) for c in by_prof]),
-                                              hide_index=True, key=f"sim_ed_p_{q}",
-                                              disabled=[k for k in _base_row(by_prof[0]) if k != "Ataçla"]
-                                              if by_prof else True,
-                                              width="stretch")
-                    with t_sync:
-                        st.caption("Referans bölgedeki depremlerle **±1 gün** içinde, büyüklüğü **±0.3** ve "
-                                   "derinliği **±15 km** yakın deprem görülen farklı gün sayısı. Tesadüf "
-                                   "beklentisi, aday bölgenin takvimi 100 kez rastgele kaydırılarak ölçülür "
-                                   "(artçı dizileri yapay anlamlılık üretmesin diye).")
-                        rows = []
-                        for c in by_sync:
-                            r = _base_row(c)
-                            r["Tesadüfen beklenen"] = round(c.sync.expected, 1)
-                            r["p"] = round(c.sync.p_value, 3)
-                            r["Yorum"] = "zayıf işaret" if c.sync.p_value <= 0.01 else "tesadüf olabilir"
-                            rows.append(r)
-                        if rows:
-                            cols = ["Ataçla", "Bölge", "Aynı gün", "Tesadüfen beklenen", "p", "Yorum",
-                                    "Profil benzerliği", "Deprem", "Uzaklık (km)"]
-                            ed_s = st.data_editor(pd.DataFrame(rows)[cols], hide_index=True,
-                                                  key=f"sim_ed_s_{q}",
-                                                  disabled=[k for k in cols if k != "Ataçla"],
-                                                  width="stretch")
-                        else:
-                            ed_s = None
-                            st.caption("En az 2 ortak günü olan bölge bulunamadı.")
-                        st.caption(f"Not: {f'{scanned:,}'.replace(',', '.')} bölge tarandı. Bu kadar çok "
-                                   "karşılaştırmada p = 0.01 düzeyinde birkaç sonuç tesadüfen de çıkar; "
-                                   "\"zayıf işaret\" bir bağ olduğunu göstermez.")
-
-                    st.markdown("##### 📎 Seçilenleri referans bölgeyle ataçla")
-                    g_name = st.text_input("Grup adı", value=f"{q_name} benzerleri", key="sim_group_name")
-                    submitted = st.form_submit_button(f"📎 İşaretlenenleri {q_name} ile ataçla")
-                if submitted:
-                    picked = []
-                    for ed, lst in ((ed_p, by_prof), (ed_s, by_sync)):
-                        if ed is not None and len(lst):
-                            picked += [lst[i] for i, flag in enumerate(ed["Ataçla"].tolist()) if flag]
-                    if not picked:
-                        st.warning("Önce tablolardan en az bir bölgenin \"Ataçla\" kutusunu işaretle.")
-                    else:
-                        regions = [{"ad": q_name, "lat": round(q_lat, 4), "lon": round(q_lon, 4),
-                                    "yaricap_km": q_r}]
-                        seen = set()
-                        for c in picked:
-                            key = (round(c.lat, 2), round(c.lon, 2))
-                            if key not in seen:
-                                seen.add(key)
-                                regions.append({"ad": c.name or f"{c.lat:.1f}, {c.lon:.1f}",
-                                                "lat": round(c.lat, 4), "lon": round(c.lon, 4),
-                                                "yaricap_km": q_r})
-                        name = g_name.strip() or f"{q_name} grubu"
-                        st.session_state.setdefault("linked_groups", []).append({
-                            "ad": name,
-                            "olusturma": utc_now_naive().strftime("%Y-%m-%d"),
-                            "bolgeler": regions,
-                        })
-                        st.session_state["_sim_flash"] = (f"\"{name}\" grubu oluşturuldu ({len(regions)} "
-                                                          "bölge). 📎 Bağlı bölgeler sekmesinden izleyebilirsin.")
-                        st.rerun()
+        _render_bul(int(sim_r))
 
     # ─── Bağlı bölgeler ─────────────────────────────────────────────────────
     with tab_linked:
