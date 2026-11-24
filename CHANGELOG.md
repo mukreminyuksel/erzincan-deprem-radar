@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.00 - 2026-11-24 — Benzer Bölgeler: ölçütler veriye göre otomatik
+
+**Sorun (kullanıcı: "düzgün çalışmıyor, analizler düzgün olmadı"):** 6.171 günün üstünde sayfa işe yarar sonuç üretmiyordu. Küçük depremler için seçilen sıkı ölçütler (100 km, aynı gün, ±0,1 M, ±1 km, yalnız ölçülmüş derinlik) büyük ve seyrek depremlere de uygulanıyordu: 10.000 günde merkezde 4, 46.000 günde 2 deprem kalıyor, "yetersiz" uyarısı çıkıyordu.
+**Çözüm:** "Eşleşme ölçütlerini veriye göre otomatik seç" (varsayılan açık). Başlangıç ölçütleri veri türüne göre (EMSC: aynı gün, ±0,1 M, ±1 km; USGS M4.5+: ±1 gün, ±0,2 M, ±10 km; USGS M5.5+: ±3 gün, ±0,3 M). Merkezde keşif döneminde en az 30 deprem kalana dek önce derinlik şartı bırakılır, sonra yarıçap 300 ve 500 km'ye büyütülür; seçilen ölçütler ve nedeni ekrana yazılır. Elle ayar için kutu kapatılır.
+**Doğrulama (Erzincan):** 100 / 1.000 / 6.000 / 10.000 / 19.000 / 30.000 / 46.000 günün hepsinde analiz çıkıyor (merkezde 41–635 deprem). Sonuç hepsinde aynı: anlamlı çakışan uzak bölge yok; 6.000 günde yalnız komşu Orta Türkiye sınamada sürüyor.
+
 ## v1.99 - 2026-11-24 — Benzer Bölgeler: veri otomatik seçilir
 
 **Sorun (kullanıcı: "hâlâ 6171 gün sınırı var"):** 127 yıla gitmek için önce "Büyük depremler" verisini, sonra M5.5'i seçmek gerekiyordu; varsayılan EMSC verisi 2010'da başladığı için gün kutusu 6.171'de kalıyordu.

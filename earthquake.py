@@ -178,7 +178,7 @@ def geocode_place(query):
     except Exception:
         return []
 
-APP_VERSION = "1.99"
+APP_VERSION = "2.00"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -17851,46 +17851,82 @@ def _render_bul(radius_km):
         info += (f"  \n⚠️ En küçük büyüklük **M{min_mag:g}**'e yükseltildi: {why}. Daha küçük depremler için "
                  + ("54 yıldan (M4.5+)" if min_mag >= 5.5 else "17 yıldan (M2+)") + " kısa bir geçmiş seç.")
     c[2].markdown(info)
-    with st.expander("⚙️ İnce ayar (eşleşme ölçütleri)"):
-        e = st.columns(4)
-        pencere = e[0].selectbox("Zaman eşleşmesi", list(_ES_PENCERE), index=0, key="bul_pencere",
-                                 help="Bir depremin eşi sayılması için öbür depremin ne kadar yakın zamanda "
-                                      "olması gerektiği (UTC takvim günü).")
-        dmag = e[1].number_input("Büyüklük toleransı (± M)", min_value=0.0, max_value=1.0, value=0.1, step=0.1,
-                                 key="bul_dmag")
-        ddepth = e[2].number_input("Derinlik toleransı (± km)", min_value=0.2, max_value=50.0, value=1.0,
-                                   step=0.5, key="bul_ddepth")
-        no_depth = e[3].checkbox("Derinliğe bakma", value=False, key="bul_nodepth",
-                                 help="Yalnız gün ve büyüklük eşleşir. 1964 öncesine giden aralıklarda gerekli: "
-                                      "o yıllarda derinlikler ölçülmüyordu.")
-        measured = e[3].checkbox("Yalnız derinliği ölçülmüş depremler", value=True, key="bul_measured",
-                                 disabled=no_depth,
-                                 help="Ağlar derinliği hesaplayamadığında sabit bir değer yazar (ör. 5, 7, 10 km). "
-                                      "Bu depremler dahil edilirse aynı varsayılanı kullanan bölgeler yapay "
-                                      "olarak \"aynı derinlikte\" görünür.")
+    t_split = t0 + (t1 - t0) * 2 / 3 if n_days >= 90 else t1
+    auto = st.checkbox("Eşleşme ölçütlerini veriye göre otomatik seç (önerilir)", value=True, key="bul_auto",
+                       help="Küçük ve sık depremlerde sıkı ölçütler (aynı gün, ±0,1 M, ±1 km) kullanılır. Büyük ve "
+                            "seyrek depremlerde bu ölçütlerle geriye neredeyse hiç deprem kalmaz; o yüzden "
+                            "ölçütler gevşetilir ve gerekirse bölge yarıçapı büyütülür. Seçilen ayarlar aşağıda yazar.")
+    asked_radius = radius_km
+    if auto:
+        # Veri türüne göre başlangıç ölçütleri
+        if kat == "emsc":
+            tol, dmag, ddepth = 0, 0.1, 1.0
+        elif min_mag < 5.5:
+            tol, dmag, ddepth = 1, 0.2, 10.0
+        else:
+            tol, dmag, ddepth = 3, 0.3, 10.0
+        meas_cat = _measured_catalog(kat, sig)[0]
+
+        def _count(c_, r_km, need_depth):
+            m_ = (c_.t >= t0) & (c_.t < t_split) & (c_.mag >= min_mag)
+            if need_depth:
+                m_ &= ~np.isnan(c_.depth)
+            i_ = np.nonzero(m_)[0]
+            return int((_sim.haversine_km(CENTER_LAT, CENTER_LON, c_.lat[i_], c_.lon[i_]) <= r_km).sum())
+
+        # Merkezde en az 30 deprem kalana dek: önce derinlik şartını bırak, sonra yarıçapı büyüt
+        ladder = [(r_, d_) for r_ in sorted({radius_km, max(radius_km, 300), max(radius_km, 500)})
+                  for d_ in (True, False)]
+        counts = [(_count(meas_cat if d_ else cat, r_, d_), r_, d_) for r_, d_ in ladder]
+        ok = [x for x in counts if x[0] >= 30]
+        n_pick, radius_km, measured = ok[0] if ok else max(counts, key=lambda x: x[0])
+        no_depth = not measured
+        pencere = {v: k for k, v in _ES_PENCERE.items()}[tol]
+        parts = [f"**{radius_km} km** yarıçap", pencere.lower(), f"±{dmag:g} M"]
+        parts.append(f"±{ddepth:g} km (yalnız ölçülmüş derinlikler)" if measured else "derinlik karşılaştırılmıyor")
+        note = "🔧 Otomatik ölçütler: " + " · ".join(parts) + "."
+        why = []
+        if radius_km != asked_radius:
+            why.append(f"{asked_radius} km içinde yalnız {counts[1][0]} deprem vardı, yarıçap büyütüldü")
+        if no_depth:
+            why.append("derinliği ölçülmüş deprem sayısı yetersizdi" if t0 >= _TS_1964
+                       else "1964 öncesinde derinlik ölçülmüyordu")
+        if why:
+            note += " (" + "; ".join(why) + ")"
+        st.caption(note)
+    else:
+        with st.expander("⚙️ Eşleşme ölçütleri (elle)", expanded=True):
+            e = st.columns(4)
+            pencere = e[0].selectbox("Zaman eşleşmesi", list(_ES_PENCERE), index=0, key="bul_pencere",
+                                     help="Bir depremin eşi sayılması için öbür depremin ne kadar yakın zamanda "
+                                          "olması gerektiği (UTC takvim günü).")
+            dmag = e[1].number_input("Büyüklük toleransı (± M)", min_value=0.0, max_value=1.0, value=0.1,
+                                     step=0.1, key="bul_dmag")
+            ddepth = e[2].number_input("Derinlik toleransı (± km)", min_value=0.2, max_value=50.0, value=1.0,
+                                       step=0.5, key="bul_ddepth")
+            no_depth = e[3].checkbox("Derinliğe bakma", value=False, key="bul_nodepth",
+                                     help="Yalnız gün ve büyüklük eşleşir. 1964 öncesine giden aralıklarda "
+                                          "gerekli: o yıllarda derinlikler ölçülmüyordu.")
+            measured = e[3].checkbox("Yalnız derinliği ölçülmüş depremler", value=True, key="bul_measured",
+                                     disabled=no_depth,
+                                     help="Ağlar derinliği hesaplayamadığında sabit bir değer yazar (ör. 5, 7, "
+                                          "10 km). Bu depremler dahil edilirse aynı varsayılanı kullanan "
+                                          "bölgeler yapay olarak \"aynı derinlikte\" görünür.")
+        tol = _ES_PENCERE[pencere]
+        if measured and not no_depth:
+            st.caption("Derinliği varsayılan değerle yazılmış depremler çıkarıldı ("
+                       + ", ".join(f"{v:g}" for v in _measured_catalog(kat, sig)[1]) + " km"
+                       + ("; 1964 öncesinin tümü" if kat == "usgs" and t0 < _TS_1964 else "") + ").")
     if no_depth:
         measured, ddepth = False, 1e6
-    tol = _ES_PENCERE[pencere]
-    t_split = t0 + (t1 - t0) * 2 / 3 if n_days >= 90 else t1
     with st.spinner("Dünya taranıyor… (uzun aralıklarda 20 sn sürebilir)"):
         disc, tests = _discover_cached(kat, CENTER_LAT, CENTER_LON, radius_km, int(t0), int(t_split), int(t1),
                                        float(min_mag), tol, float(dmag), float(ddepth), bool(measured), sig)
     has_test = t_split < t1
-    if measured:
-        defaults = _measured_catalog(kat, sig)[1]
-        st.caption("Derinliği varsayılan değerle yazılmış depremler çıkarıldı ("
-                   + ", ".join(f"{v:g}" for v in defaults) + " km"
-                   + ("; 1964 öncesinin tümü" if kat == "usgs" and t0 < _TS_1964 else "")
-                   + "). İnce ayardan değiştirebilirsin.")
-        if kat == "usgs" and t0 < _TS_1964:
-            st.caption("⚠️ Aralık 1964 öncesine uzanıyor; o yılların depremleri derinlik ölçümü olmadığı için "
-                       "karşılaştırmaya girmiyor. Onları da katmak için ince ayardan **Derinliğe bakma**'yı işaretle.")
-    elif no_depth:
-        st.caption("Derinlik karşılaştırılmıyor: eşleşme yalnız gün ve büyüklüğe göre.")
     if disc.n_ref < 5:
-        st.warning(f"{CENTER_NAME} çevresinde {radius_km} km içinde bu ölçütlerle yalnız {disc.n_ref} deprem var; "
-                   "karşılaştırma için yetersiz. Yarıçapı ya da gün sayısını büyüt, büyüklük eşiğini düşür "
-                   "ya da \"yalnız derinliği ölçülmüş\" seçeneğini kapat.")
+        st.warning(f"{CENTER_NAME} çevresinde {radius_km} km içinde bu aralıkta yalnız {disc.n_ref} deprem "
+                   f"(M{min_mag:g}+) var; karşılaştırma için yetersiz. Daha kısa bir geçmiş seçersen daha küçük "
+                   "depremler de hesaba girer.")
         return
     regs = disc.regions
     if not regs:
