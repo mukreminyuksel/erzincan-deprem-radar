@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.99 - 2026-11-24 — Benzer Bölgeler: veri otomatik seçilir
+
+**Sorun (kullanıcı: "hâlâ 6171 gün sınırı var"):** 127 yıla gitmek için önce "Büyük depremler" verisini, sonra M5.5'i seçmek gerekiyordu; varsayılan EMSC verisi 2010'da başladığı için gün kutusu 6.171'de kalıyordu.
+**Çözüm:** "Veri" seçimi kaldırıldı. Gün kutusu her zaman 46.343 güne (1900) kadar açık; uygulama istenen geçmişe göre veriyi ve gereken en küçük büyüklüğü kendisi belirler (2010– M2+ EMSC; 1973– M4.5+ USGS; 1900– M5.5+ USGS) ve büyüklüğü yükselttiyse nedenini ekranda yazar.
+
 ## v1.98 - 2026-11-24 — Benzer Bölgeler: 1900'e kadar geçmiş (127 yıl)
 
 **Kullanıcı isteği: daha uzun geçmiş.** USGS dünya kataloğu 1990'dan 1900'e uzatıldı: 1973'ten bugüne M4.5+, 1900–1972 M5.5+ (ISC-GEM; toplam 308.986 deprem, 5,8 MB). "Kaç günlük geçmiş" artık M5.5+ için 46.343 güne (≈ 127 yıl), M4.5+ için 1973'e kadar gidiyor; sınır seçilen büyüklüğe göre otomatik.

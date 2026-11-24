@@ -178,7 +178,7 @@ def geocode_place(query):
     except Exception:
         return []
 
-APP_VERSION = "1.98"
+APP_VERSION = "1.99"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -17818,24 +17818,39 @@ def _kanit(region, test):
 
 
 def _render_bul(radius_km):
-    kats = [k for k in ("emsc", "usgs") if k == "usgs" or _emsc_sig()]
-    c = st.columns([2.2, 1, 1])
-    kat = c[0].radio("Veri", kats, format_func=lambda k: _KOR_KATALOGLAR[k][0], key="bul_kat")
+    # Veri otomatik seçilir: istenen geçmişe ve büyüklüğe göre.
+    #   2010'dan bugüne  → M2+   (EMSC)
+    #   1973'ten bugüne  → M4.5+ (USGS)
+    #   1900'den bugüne  → M5.5+ (USGS)
+    usgs_cat, _cells, _mt = _world_catalog()
+    now_ts = float(usgs_cat.t.max())
+    emsc_ok = bool(_emsc_sig())
+    emsc_t0 = float(_kor_catalog("emsc")[0].t.min()) if emsc_ok else float("inf")
+    max_days = int((now_ts - float(usgs_cat.t.min())) / 86400)
+    c = st.columns([1.2, 1, 2])
+    n_days = c[0].number_input("Kaç günlük geçmiş", min_value=30, max_value=max_days,
+                               value=1000, step=500, key="bul_days_all",
+                               help=f"En fazla {max_days:,} gün (≈ {max_days / 365.25:.0f} yıl, 1900'e kadar). "
+                                    "Aralık uzadıkça tesadüfi çakışmalar elenir.".replace(",", "."))
+    want_mag = c[1].number_input("En küçük büyüklük (M)", min_value=2.0 if emsc_ok else 4.5, max_value=7.5,
+                                 value=2.0 if emsc_ok else 4.5, step=0.5, key="bul_mag_all")
+    t1, t0 = now_ts, now_ts - n_days * 86400
+    if t0 < _TS_1973:
+        min_mag, kat, why = max(float(want_mag), 5.5), "usgs", "1973 öncesinde dünya geneli kayıt ancak M5.5 ve üstünde var"
+    elif t0 < emsc_t0 or want_mag >= 4.5:
+        min_mag, kat, why = max(float(want_mag), 4.5), "usgs", "2010 öncesinde küçük depremlerin dünya geneli kaydı yok"
+    else:
+        min_mag, kat, why = float(want_mag), "emsc", ""
     cat, sig = _kor_catalog(kat)
-    cat_t0, cat_t1 = float(cat.t.min()), float(cat.t.max())
-    floor = _KOR_KATALOGLAR[kat][1]
-    min_mag = c[2].number_input("En küçük büyüklük (M)", min_value=floor, max_value=7.5, value=floor,
-                                step=0.5, key=f"bul_mag_{kat}",
-                                help="USGS verisinde M5.5 ve üstünü seçersen 1900'e kadar geri gidebilirsin; "
-                                     "daha küçük eşikte veri 1973'te başlar.")
-    floor_ts = _kat_floor_ts(kat, cat, float(min_mag))
-    max_days = int((cat_t1 - floor_ts) / 86400)
-    n_days = c[1].number_input("Kaç günlük geçmiş", min_value=30, max_value=max_days,
-                               value=min(1000, max_days), step=100, key=f"bul_days_{kat}_{max_days // 1000}",
-                               help=f"En fazla {max_days:,} gün (≈ {max_days / 365.25:.0f} yıl; veri "
-                                    f"{_utc_from_ts(floor_ts):%Y} yılında başlıyor). Aralık uzadıkça tesadüfi "
-                                    "çakışmalar elenir.".replace(",", "."))
-    c[1].caption(f"≈ {n_days / 365.25:.1f} yıl · en fazla {max_days / 365.25:.0f} yıl")
+    cat_t0 = float(cat.t.min())
+    t1 = float(cat.t.max())
+    t0 = max(t1 - n_days * 86400, cat_t0)
+    src = "EMSC (M2+, 2010–)" if kat == "emsc" else "USGS (M4.5+ 1973–, M5.5+ 1900–)"
+    info = f"≈ **{n_days / 365.25:.1f} yıl** · {_utc_from_ts(t0):%d.%m.%Y} – {_utc_from_ts(t1):%d.%m.%Y} · **M{min_mag:g}+** · veri: {src}"
+    if min_mag > float(want_mag):
+        info += (f"  \n⚠️ En küçük büyüklük **M{min_mag:g}**'e yükseltildi: {why}. Daha küçük depremler için "
+                 + ("54 yıldan (M4.5+)" if min_mag >= 5.5 else "17 yıldan (M2+)") + " kısa bir geçmiş seç.")
+    c[2].markdown(info)
     with st.expander("⚙️ İnce ayar (eşleşme ölçütleri)"):
         e = st.columns(4)
         pencere = e[0].selectbox("Zaman eşleşmesi", list(_ES_PENCERE), index=0, key="bul_pencere",
@@ -17856,7 +17871,6 @@ def _render_bul(radius_km):
     if no_depth:
         measured, ddepth = False, 1e6
     tol = _ES_PENCERE[pencere]
-    t1, t0 = cat_t1, cat_t1 - n_days * 86400
     t_split = t0 + (t1 - t0) * 2 / 3 if n_days >= 90 else t1
     with st.spinner("Dünya taranıyor… (uzun aralıklarda 20 sn sürebilir)"):
         disc, tests = _discover_cached(kat, CENTER_LAT, CENTER_LON, radius_km, int(t0), int(t_split), int(t1),
