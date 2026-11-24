@@ -173,7 +173,7 @@ def geocode_place(query):
     except Exception:
         return []
 
-APP_VERSION = "1.92"
+APP_VERSION = "1.93"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -1600,8 +1600,32 @@ def fault_color(kayma):
     if "SOD" in k:          return "#ffaa44"
     return "#cccccc"
 
-@st.cache_resource(show_spinner=False)
-def load_fault_lines():
+def _data_sig(*rel_paths):
+    """Veri dosyalarının (değişiklik zamanı, boyut) imzası.
+
+    cache_resource anahtarı normalde yalnız fonksiyon koduna ve argümanlara bağlı;
+    Streamlit Cloud yeni commit'i çekince süreci yeniden başlatmadığı için veri
+    dosyası değişse bile eski içerik bellekte kalıyordu (v1.92: canlıda eski plaka
+    çizgileri). İmza argüman olarak verilince dosya değişir değişmez önbellek yenilenir.
+    """
+    base = os.path.dirname(os.path.abspath(__file__))
+    out = []
+    for rel in rel_paths:
+        try:
+            st_ = os.stat(os.path.join(base, rel))
+            out.append((rel, st_.st_mtime_ns, st_.st_size))
+        except OSError:
+            out.append((rel, 0, 0))
+    return tuple(out)
+
+
+FAULTS_SIG = _data_sig("turkey_faults.geojson")
+PLATES_SIG = _data_sig("tectonic_plates.geojson")
+RUPTURE_SIG = _data_sig("data/usgs_2023/kahramanmaras_2023_rupture.geojson")
+
+
+@st.cache_resource(show_spinner=False, max_entries=2)
+def load_fault_lines(sig=None):
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "turkey_faults.geojson")
     if not os.path.exists(path):
         return []
@@ -1640,11 +1664,11 @@ def load_fault_lines():
             })
     return lines
 
-FAULT_LINES = load_fault_lines()
+FAULT_LINES = load_fault_lines(FAULTS_SIG)
 
 
-@st.cache_resource(show_spinner=False)
-def load_rupture_2023():
+@st.cache_resource(show_spinner=False, max_entries=2)
+def load_rupture_2023(sig=None):
     """6 Şubat 2023 Kahramanmaraş yüzey kırıkları (USGS, WorldView, 1:1.500 ölçek).
 
     Kaynak: Reitman vd. 2024, USGS data release, doi:10.5066/P985I7U2 (kamu malı).
@@ -1674,7 +1698,7 @@ RUPTURE_2023_BBOX = (35.8, 38.6, 35.5, 39.6)   # enlem min/maks, boylam min/maks
 
 
 @st.cache_resource(show_spinner=False, max_entries=8)
-def fault_traces_for_view(margin_deg, lod_step=1, clat=ERZ_LAT, clon=ERZ_LON):
+def fault_traces_for_view(margin_deg, lod_step=1, clat=ERZ_LAT, clon=ERZ_LON, sig=None):
     """Görünür fayları renge göre gruplayıp numpy dizisi olarak döndürür.
 
     Plotly, Python listelerini eleman eleman doğrulayıp kopyalıyor; ~900 bin
@@ -1756,8 +1780,8 @@ def classify_boundary(plate_a, plate_b):
         return PB2002_BOUNDARY_TYPES[key]
     return ("unknown", "")
 
-@st.cache_resource(show_spinner=False)
-def load_tectonic_plates():
+@st.cache_resource(show_spinner=False, max_entries=2)
+def load_tectonic_plates(sig=None):
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tectonic_plates.geojson")
     if not os.path.exists(path):
         return []
@@ -1802,7 +1826,7 @@ def load_tectonic_plates():
             })
     return lines
 
-PLATE_LINES = load_tectonic_plates()
+PLATE_LINES = load_tectonic_plates(PLATES_SIG)
 
 # PB2002 (Bird 2003) sınır plaka kodları ↔ data/plate_velocities.json hız kodları
 # PB2002'de Anadolu "AT"; hız dosyasında "AN" — eşleme zorunlu.
@@ -2281,7 +2305,7 @@ def _render_canli_radar():
                 _lod_step, _lod_label = 8, "Sadece ana hatlar (1/8)"
 
             # Renge göre gruplanmış, önbellekli numpy dizileri (bkz. fault_traces_for_view)
-            _fault_traces, _fault_count = fault_traces_for_view(margin, _lod_step, CENTER_LAT, CENTER_LON)
+            _fault_traces, _fault_count = fault_traces_for_view(margin, _lod_step, CENTER_LAT, CENTER_LON, sig=FAULTS_SIG)
             for color, f_lats, f_lons, f_labels in _fault_traces:
                 # Gölge (siyah, alt katman)
                 fig_map.add_trace(go.Scattermap(
@@ -2303,7 +2327,7 @@ def _render_canli_radar():
             _rb = RUPTURE_2023_BBOX
             if (CENTER_LAT - margin <= _rb[1] and CENTER_LAT + margin >= _rb[0]
                     and CENTER_LON - margin * 1.4 <= _rb[3] and CENTER_LON + margin * 1.4 >= _rb[2]):
-                for _mw, (_rlat, _rlon) in sorted(load_rupture_2023().items(), reverse=True):
+                for _mw, (_rlat, _rlon) in sorted(load_rupture_2023(RUPTURE_SIG).items(), reverse=True):
                     _ad = "Pazarcık" if _mw and _mw >= 7.7 else "Elbistan"
                     fig_map.add_trace(go.Scattermap(
                         lat=_rlat, lon=_rlon, mode="lines",
@@ -2904,14 +2928,14 @@ if active_menu == "🧭 Fay Sistemleri":
     )
 
     @st.cache_data(ttl=900, show_spinner=False, max_entries=8)
-    def _cached_fault_proximity(coords_key: tuple) -> list:
+    def _cached_fault_proximity(coords_key: tuple, sig=None) -> list:
         out = []
         for la, lo in coords_key:
             nf = nearest_fault_vertex_distance(la, lo, FAULT_LINES)
             out.append((nf.get("fault_name"), nf.get("distance_km")))
         return out
 
-    _prox = _cached_fault_proximity(_proximity_key)
+    _prox = _cached_fault_proximity(_proximity_key, FAULTS_SIG)
     nearest_rows = [
         {
             "Zaman": ev["zaman_str"],
@@ -3940,7 +3964,7 @@ if active_menu == "🎓 Bilgi Havuzu":
 
             # Fay Hatları (Canlı Radardaki Altlık)
             if FAULT_LINES:
-                _fault_traces, _ = fault_traces_for_view(max(220 * 1.6, 250) / 111.0)
+                _fault_traces, _ = fault_traces_for_view(max(220 * 1.6, 250) / 111.0, sig=FAULTS_SIG)
                 for color, f_lats, f_lons, f_labels in _fault_traces:
                     fig_erz.add_trace(go.Scattermap(
                         lat=f_lats, lon=f_lons,
@@ -6218,7 +6242,8 @@ def _plaka_build_figure(mode_key: str, focus_lat: float, focus_lon: float,
                         city: str, plate_code: str = "AN",
                         active_idx: int = 0, show_coupling: bool = False,
                         reference_frame: str = "EU",
-                        visual_scale_override: float | None = None):
+                        visual_scale_override: float | None = None,
+                        data_sig=None):
     """20 frame Plotly animasyonu — uydu zemin, log-spaced zaman, trail, kuplaj."""
     mode      = _PLAKA_MODES[mode_key]
     stops     = mode["stops"]
@@ -6632,7 +6657,7 @@ def _render_plaka_simulasyon():
 
     fig = _plaka_build_figure(mode_key, focus_lat, focus_lon, city, plate_code,
                               active_idx=active_idx, show_coupling=show_coupling,
-                              reference_frame=ref_frame)
+                              reference_frame=ref_frame, data_sig=PLATES_SIG)
     st.plotly_chart(fig, width="stretch",
                     key=f"plaka_sim_{mode_key}_{city}_{years_total}_{plate_code}_{ref_frame}_{int(show_coupling)}")
 
@@ -7706,8 +7731,8 @@ KAF_MTA_MAPPING = {
     "S06": ["Saros", "Ganos", "Tekirdağ", "Kamil"],                        # 1912
 }
 
-@st.cache_resource(show_spinner=False)
-def _kaf_mta_polylines():
+@st.cache_resource(show_spinner=False, max_entries=2)
+def _kaf_mta_polylines(sig=None):
     """Her S0X grubu için MTA Diri Fay (AFAD) polyline'larını topla.
     id → {lats, lons, mid_lat, mid_lon, vertex_sayisi}"""
     out = {}
@@ -7909,7 +7934,7 @@ def _render_erzincan_arsivi():
     # Önceki kod 1939 kırığını GÜNEYDOĞUYA (Tunceli/Bingöl) düz çizgi olarak gösteriyordu.
     # Bu YANLIŞ — gerçek 1939 KAF Erzincan kırığı WSW-ENE yönlü (Niksar → Erzincan → Yedisu).
     # Düzeltme: MTA Diri Fay 2013 (AFAD) polyline'ı kullan — KAF_MTA_MAPPING["S01"] = 1939 zinciri.
-    _kaf_polys = _kaf_mta_polylines()
+    _kaf_polys = _kaf_mta_polylines(FAULTS_SIG)
 
     # 1939 — Niksar/Erbaa → Erzincan → Yedisu/Refahiye/Suşehri zinciri (~360 km, KAF boyunca)
     s01 = _kaf_polys.get("S01", {})
@@ -8472,7 +8497,7 @@ def _render_sismik_acik():
     # v1.43 — GEM Global Active Faults overlay (gerçek koordinatlar, taban katman)
     # Türkiye bbox'ında ~460 fay; segment çizgilerinden ÖNCE eklenmeli ki altta kalsın.
     _add_gem_fault_overlay(fig_map, color="#888888", width=1.0, opacity=0.45)
-    kaf_polylines = _kaf_mta_polylines()  # cache_resource → bir kez
+    kaf_polylines = _kaf_mta_polylines(FAULTS_SIG)  # cache_resource → bir kez
     for seg in KAF_SEGMENTLER:
         renk = _KAF_RISK_RENK[seg["risk"]]
         kalinlik = _KAF_RISK_KALINLIK[seg["risk"]]

@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.93 - 2026-11-24 — Canlıda eski veri kalması düzeltildi
+
+**Sorun (kullanıcı bildirimi):** Canlı sitede plaka sınırları localdeki gibi ayrıntılı değil, eski düz çizgilerdi. Neden: fay/plaka/kırık dosyalarını okuyan `cache_resource` fonksiyonlarının önbellek anahtarı yalnız fonksiyon koduna bağlıydı; Streamlit Cloud yeni commit'i çekince süreci yeniden başlatmadığı için veri dosyası değişse de bellekteki eski içerik kullanılıyordu (v1.90 fay adı temizliği de canlıda etkisiz kalmış olabilir).
+**Çözüm:** `_data_sig()` — dosyanın (değişiklik zamanı, boyut) imzası önbellek anahtarına eklendi: `load_fault_lines`, `load_tectonic_plates`, `load_rupture_2023`, `fault_traces_for_view`, `_kaf_mta_polylines`, `_plaka_build_figure`, `_cached_fault_proximity`. Veri dosyası değişince önbellek kendiliğinden yenilenir.
+
 ## v1.92 - 2026-11-24 — Karlıova üçlü kavşağı birleştirildi
 
 **Sorun (kullanıcı bildirimi: "Erzincan'daki plaka çizgisi farklı görünüyor"):** Erzincan'daki fark doğru bir düzeltmeydi (yeni AT-EU çizgisi KAF'ın Kargapazarı–Elmalı–Yedisu–Erzincan–Refahiye–Suşehri segmentlerini izliyor, Erzincan merkezine 4,8 km; eski kaba çizgi 27,3 km uzaktan geçiyordu). Ancak incelemede gerçek bir hata bulundu: üç sınır (AT-EU, AT-AR, EU-AR) uçları ayrı ayrı oturtulduğu için Karlıova'da kopmuştu (30–40 km boşluk).
