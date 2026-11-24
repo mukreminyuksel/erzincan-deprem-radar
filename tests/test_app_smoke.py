@@ -63,8 +63,8 @@ def test_center_and_large_radius(monkeypatch):
 
 
 @pytest.mark.smoke
-def test_long_period_includes_1939_erzincan(monkeypatch):
-    """110 yıllık M5+ sorgusunda 1939 Erzincan (M7.7–7.8) gelmeli.
+def test_long_period_includes_1939_and_1992_erzincan(monkeypatch):
+    """110 yıllık M5+ sorgusunda 1939 (M7.8) ve 1992 (M6.7) Erzincan depremleri gelmeli.
 
     v1.88 öncesi kaynaklar en yeni 1000 olayı aldığı için eski büyük depremler
     hiç görünmüyordu (kullanıcı bildirimi, 24.11.2026).
@@ -81,3 +81,4 @@ def test_long_period_includes_1939_erzincan(monkeypatch):
     cards = "".join(str(m.value) for m in at.markdown if "eq-card" in str(m.value)
                     and "eq-scroll-container" in str(m.value))
     assert "26.12.1939" in cards, "1939 Erzincan depremi listede yok"
+    assert "13.03.1992" in cards, "1992 Erzincan depremi listede yok"
