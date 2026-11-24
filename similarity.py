@@ -14,6 +14,7 @@ from __future__ import annotations
 import csv
 import gzip
 import math
+from array import array
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 
@@ -55,19 +56,44 @@ class Catalog:
 
 
 def load_catalog(path) -> Catalog:
-    t, lat, lon, depth, mag, place = [], [], [], [], [], []
+    """Sıkıştırılmış CSV kataloğu okur. Bellek için tipli diziler ve tekilleştirilmiş yer adları
+    kullanılır (1 milyon satırda Python listeleri yüzlerce MB tutuyordu)."""
+    t, lat, lon, depth, mag = array("q"), array("d"), array("d"), array("d"), array("d")
+    place, seen = [], {}
+    nan = float("nan")
     with gzip.open(path, "rt", encoding="utf-8", newline="") as f:
-        for row in csv.DictReader(f):
-            t.append(int(row["t"]))
-            lat.append(float(row["lat"]))
-            lon.append(float(row["lon"]))
-            depth.append(float(row["depth"]) if row["depth"] not in ("", "nan") else np.nan)
-            mag.append(float(row["mag"]))
-            place.append(row.get("place", ""))
-    order = np.argsort(np.asarray(t, dtype=np.int64), kind="stable")
-    return Catalog(np.asarray(t, dtype=np.int64)[order], np.asarray(lat)[order],
-                   np.asarray(lon)[order], np.asarray(depth, dtype=float)[order],
-                   np.asarray(mag)[order], [place[i] for i in order])
+        reader = csv.reader(f)
+        head = next(reader)
+        it, ila, ilo, idp, img = (head.index(k) for k in ("t", "lat", "lon", "depth", "mag"))
+        ipl = head.index("place") if "place" in head else None
+        for row in reader:
+            t.append(int(row[it]))
+            lat.append(float(row[ila]))
+            lon.append(float(row[ilo]))
+            d = row[idp]
+            depth.append(float(d) if d not in ("", "nan") else nan)
+            mag.append(float(row[img]))
+            name = row[ipl] if ipl is not None and len(row) > ipl else ""
+            place.append(seen.setdefault(name, name))
+    tt = np.frombuffer(t, dtype=np.int64) if len(t) else np.array([], dtype=np.int64)
+    order = np.argsort(tt, kind="stable")
+
+    def arr(a):
+        return (np.frombuffer(a, dtype=float) if len(a) else np.array([], dtype=float))[order]
+
+    return Catalog(tt[order], arr(lat), arr(lon), arr(depth), arr(mag), [place[i] for i in order])
+
+
+def load_catalogs(paths) -> Catalog:
+    """Birden çok katalog dosyasını (ör. yıl yıl) tek katalogda birleştirir, zamana göre sıralar."""
+    parts = [load_catalog(p) for p in sorted(paths)]
+    t = np.concatenate([c.t for c in parts])
+    order = np.argsort(t, kind="stable")
+    place = [x for c in parts for x in c.place]
+    return Catalog(t[order], np.concatenate([c.lat for c in parts])[order],
+                   np.concatenate([c.lon for c in parts])[order],
+                   np.concatenate([c.depth for c in parts])[order],
+                   np.concatenate([c.mag for c in parts])[order], [place[i] for i in order])
 
 
 def haversine_km(lat0, lon0, lats, lons):
@@ -356,3 +382,249 @@ def region_status(recent_t, recent_lat, recent_lon, recent_mag, lat, lon, radius
         last_event_t=float(times.max()) if n else float("nan"),
         ratio=(n / expected) if expected > 0 else float("nan"),
     )
+
+
+# ─── İki bölgeyi doğrudan karşılaştırma ──────────────────────────────────────
+@dataclass
+class Comparison:
+    n_a: int
+    n_b: int
+    profile_a: Profile
+    profile_b: Profile
+    score: float           # profil benzerliği 0–100 (bir tarafta <10 olay varsa NaN)
+    sync: Synchrony        # takvim kaydırma testiyle
+    distance_km: float
+    years: np.ndarray      # yıl ekseni
+    yearly_a: np.ndarray   # yıllık deprem sayıları
+    yearly_b: np.ndarray
+
+
+def compare_regions(cat: Catalog, lat_a, lon_a, lat_b, lon_b, radius_km, *,
+                    min_events=10, n_shifts=300) -> Comparison:
+    """Seçilen iki bölgeyi (aynı yarıçap) karşılaştırır: profil + eşzamanlılık + yıllık seri."""
+    span = cat.span_years
+    t_min, t_max = float(cat.t.min()), float(cat.t.max())
+    ia = region_index(cat, lat_a, lon_a, radius_km)
+    ib = region_index(cat, lat_b, lon_b, radius_km)
+    pa, pb = profile(cat, ia, span), profile(cat, ib, span)
+    enough = len(ia) >= min_events and len(ib) >= min_events
+    score = profile_similarity(pa, pb) if enough else float("nan")
+    sync = synchrony(cat, ia, ib, t_min, t_max, n_shifts=n_shifts if enough else 0)
+    y0 = int(np.datetime64(int(t_min), "s").astype("datetime64[Y]").astype(int)) + 1970
+    y1 = int(np.datetime64(int(t_max), "s").astype("datetime64[Y]").astype(int)) + 1970
+    years = np.arange(y0, y1 + 1)
+
+    def yearly(idx):
+        ys = cat.t[idx].astype("datetime64[s]").astype("datetime64[Y]").astype(int) + 1970
+        return np.array([(ys == y).sum() for y in years])
+
+    dist = float(haversine_km(lat_a, lon_a, np.array([lat_b]), np.array([lon_b]))[0])
+    return Comparison(len(ia), len(ib), pa, pb, score, sync, dist, years, yearly(ia), yearly(ib))
+
+
+# ─── Zaman örtüşmesi (etkinlik serisi korelasyonu) ───────────────────────────
+@dataclass
+class TimeMatch:
+    lat: float
+    lon: float
+    name: str
+    n: int                 # dönemdeki deprem sayısı
+    r: float               # aynı dönemler arası korelasyon (-1..1)
+    p_value: float         # zaman kaydırma testine göre tesadüf olasılığı
+    series: np.ndarray     # dönem başına deprem sayısı
+    distance_km: float
+    r_first: float = float("nan")        # dönemin ilk yarısında korelasyon
+    r_second: float = float("nan")       # ikinci yarısında (ikisi de yüksekse ilişki tutarlı)
+    best_lag: int = 0                    # en iyi örtüşmenin kayması (dönem; + = bu bölge önce)
+    r_best_lag: float = float("nan")
+    depth_overlap: float = float("nan")  # derinlik dağılımı örtüşmesi, %
+    mag_overlap: float = float("nan")    # büyüklük dağılımı örtüşmesi, %
+    depth_hist: np.ndarray = None        # DEPTH_FINE aralıklarında pay (toplam 1)
+    median_depth: float = float("nan")
+    ev_t: np.ndarray = None              # tek tek depremler (nokta grafikleri için)
+    ev_mag: np.ndarray = None
+    ev_depth: np.ndarray = None
+
+
+@dataclass
+class TimeSearch:
+    edges: np.ndarray
+    ref_series: np.ndarray
+    n_ref: int
+    matches: list
+    scanned: int
+    chance: tuple            # (tesadüfi en yüksek r medyanı, %95'i)
+    ref_depth_hist: np.ndarray = None
+    ref_median_depth: float = float("nan")
+    ref_ev_t: np.ndarray = None
+    ref_ev_mag: np.ndarray = None
+    ref_ev_depth: np.ndarray = None
+
+
+DEPTH_FINE = [0, 5, 10, 15, 20, 30, 40, 60, 100, 200, 700]
+
+
+def overlap_pct(h1, h2):
+    """İki dağılımın (toplamı 1) ortak alanı, yüzde. 100 = aynı dağılım."""
+    return float(100.0 * (1.0 - 0.5 * np.abs(np.asarray(h1) - np.asarray(h2)).sum()))
+
+
+def _half_r(a, b):
+    xa, xb = _norm_series(a), _norm_series(b)
+    return float("nan") if xa is None or xb is None or len(a) < 6 else float(xa @ xb)
+
+
+def _best_lag(a_counts, b_counts, max_lag=3):
+    """±max_lag dönem içinde en yüksek korelasyonu veren kayma. + ise b serisi önce davranıyor."""
+    a, b = _norm_series(a_counts), _norm_series(b_counts)
+    if a is None or b is None:
+        return 0, float("nan")
+    best = (0, float(a @ b))
+    for k in range(1, min(max_lag, len(a) - 6) + 1):
+        for lag, r in ((k, float(a[k:] @ b[:-k])), (-k, float(a[:-k] @ b[k:]))):
+            if r > best[1] + 1e-9:
+                best = (lag, r)
+    return best
+
+
+def _norm_series(counts):
+    """log1p + ortalama çıkar + birim norm. Tek bir artçı fırtınası korelasyonu ele geçirmesin diye log."""
+    x = np.log1p(np.asarray(counts, dtype=float))
+    x = x - x.mean()
+    n = np.linalg.norm(x)
+    return x / n if n > 0 else None
+
+
+def series_correlation(a_counts, b_counts):
+    """İki sayım serisinin korelasyonu ve kaydırma testi p-değeri. Dönüş: (r, p).
+
+    r: log1p sayımların Pearson korelasyonu (aynı dönemler).
+    p: b serisi zamanda dairesel kaydırılınca (en az 2 dönem) r kadar ya da daha yüksek
+       korelasyon veren kaydırmaların oranı. Serinin kendi iç yapısı (kümelenme)
+       korunduğu için dürüst bir tesadüf ölçüsüdür. Tüm kaydırmalar FFT ile tek seferde.
+    """
+    a, b = _norm_series(a_counts), _norm_series(b_counts)
+    if a is None or b is None or len(a) < 8:
+        return float("nan"), float("nan")
+    n = len(a)
+    cc = np.fft.irfft(np.fft.rfft(a) * np.conj(np.fft.rfft(b)), n)   # cc[k] = a ile k kaydırılmış b
+    r = float(cc[0])
+    guard = max(2, n // 20)
+    null = cc[guard: n - guard + 1]
+    if len(null) == 0:
+        return r, float("nan")
+    return r, float((1 + (null >= r - 1e-12).sum()) / (1 + len(null)))
+
+
+def find_time_correlated(cat: Catalog, ref_lat, ref_lon, radius_km, *, t0, t1, min_mag=MC,
+                         bin_days=30, min_events=10, min_active_bins=5, top_n=15):
+    """Etkinlik zaman serisi referansa en çok benzeyen bölgeleri dünyada arar.
+
+    Her bölge için [t0, t1) aralığında bin_days'lik dönemlerde deprem sayısı çıkarılır,
+    referans seriyle korelasyonu hesaplanır. Dönüş: (kenarlar, referans serisi,
+    referans olay sayısı, eşleşmeler [r'ye göre azalan], taranan aday sayısı,
+    (tesadüfi en yüksek r'nin medyanı, %95'i)).
+
+    Son değer: referans seri zamanda rastgele kaydırılıp tüm adaylarla yeniden
+    karşılaştırıldığında çıkan en yüksek korelasyon. Binlerce aday tarandığı için en
+    iyi sonuç tesadüfen de yüksek çıkar; gerçek sonuç ancak bu eşiği aşıyorsa dikkat çekicidir.
+    """
+    step = bin_days * 86400.0
+    edges = np.arange(float(t0), float(t1) + step, step)
+    sel = np.nonzero((cat.t >= edges[0]) & (cat.t < edges[-1]) & (cat.mag >= min_mag))[0]
+    sub = cat.subset(sel)
+    ref_idx = region_index(sub, ref_lat, ref_lon, radius_km)
+    ref_series, _ = np.histogram(sub.t[ref_idx], edges)
+    if len(ref_idx) < min_events or (ref_series > 0).sum() < min_active_bins:
+        return TimeSearch(edges, ref_series, len(ref_idx), [], 0, (float("nan"), float("nan")))
+    ref_dh = _hist(sub.depth[ref_idx], DEPTH_FINE)
+    mag_bins = list(np.arange(min_mag, 8.01, 0.5)) + [10.0]
+    ref_mh = _hist(sub.mag[ref_idx], mag_bins)
+    half = len(ref_series) // 2
+    cells = _cell_index(sub)
+    excl_km = sep_km = max(2 * radius_km, 300.0)
+    dlat_cells = int(math.ceil(radius_km / 111.0)) + 1
+    results = []
+    for (cla, clo) in cells:
+        c_lat, c_lon = cla + 0.5, clo + 0.5
+        d_ref = float(haversine_km(ref_lat, ref_lon, np.array([c_lat]), np.array([c_lon]))[0])
+        if d_ref < excl_km:
+            continue
+        coslat = max(math.cos(math.radians(c_lat)), 0.05)
+        dlon_cells = min(int(math.ceil(radius_km / (111.0 * coslat))) + 1, 180)
+        near = [cells[(a, ((b + 180) % 360) - 180)]
+                for a in range(cla - dlat_cells, cla + dlat_cells + 1)
+                for b in range(clo - dlon_cells, clo + dlon_cells + 1)
+                if (a, ((b + 180) % 360) - 180) in cells]
+        pool = np.concatenate(near)
+        if len(pool) < min_events:
+            continue
+        idx = pool[haversine_km(c_lat, c_lon, sub.lat[pool], sub.lon[pool]) <= radius_km]
+        if len(idx) < min_events:
+            continue
+        series, _ = np.histogram(sub.t[idx], edges)
+        if (series > 0).sum() < min_active_bins:
+            continue
+        r, p = series_correlation(ref_series, series)
+        if not math.isnan(r):
+            results.append((r, p, c_lat, c_lon, idx, series, d_ref))
+    chance = (float("nan"), float("nan"))
+    ref_n = _norm_series(ref_series)
+    if results and ref_n is not None:
+        M = np.array([_norm_series(x[5]) for x in results])
+        rng = np.random.default_rng(0)
+        guard = max(2, len(ref_n) // 20)
+        shifts = rng.integers(guard, len(ref_n) - guard + 1, 40)
+        maxima = [float((M @ np.roll(ref_n, int(k))).max()) for k in shifts]
+        chance = (float(np.median(maxima)), float(np.percentile(maxima, 95)))
+    results.sort(key=lambda x: -x[0])
+    chosen = []
+    for r, p, c_lat, c_lon, idx, series, d_ref in results:
+        if all(float(haversine_km(c_lat, c_lon, np.array([m.lat]), np.array([m.lon]))[0]) >= sep_km
+               for m in chosen):
+            dh = _hist(sub.depth[idx], DEPTH_FINE)
+            lag, r_lag = _best_lag(ref_series, series)
+            depths = sub.depth[idx]
+            chosen.append(TimeMatch(
+                c_lat, c_lon, region_name(sub, idx), len(idx), r, p, series, d_ref,
+                r_first=_half_r(ref_series[:half], series[:half]),
+                r_second=_half_r(ref_series[half:], series[half:]),
+                best_lag=lag, r_best_lag=r_lag,
+                depth_overlap=overlap_pct(ref_dh, dh) if dh.sum() and ref_dh.sum() else float("nan"),
+                mag_overlap=overlap_pct(ref_mh, _hist(sub.mag[idx], mag_bins)),
+                depth_hist=dh,
+                median_depth=float(np.nanmedian(depths)) if np.any(~np.isnan(depths)) else float("nan"),
+                ev_t=sub.t[idx], ev_mag=sub.mag[idx], ev_depth=depths))
+        if len(chosen) >= top_n:
+            break
+    ref_d = sub.depth[ref_idx]
+    return TimeSearch(edges, ref_series, len(ref_idx), chosen, len(results), chance, ref_dh,
+                      float(np.nanmedian(ref_d)) if np.any(~np.isnan(ref_d)) else float("nan"),
+                      sub.t[ref_idx], sub.mag[ref_idx], ref_d)
+
+
+def pair_series(cat: Catalog, lat_a, lon_a, lat_b, lon_b, radius_km, *, t0, t1, min_mag=MC, bin_days=30):
+    """İki bölgenin aynı kenarlarla etkinlik serileri: (kenarlar, a, b)."""
+    step = bin_days * 86400.0
+    edges = np.arange(float(t0), float(t1) + step, step)
+    sel = np.nonzero((cat.t >= edges[0]) & (cat.t < edges[-1]) & (cat.mag >= min_mag))[0]
+    t, la, lo = cat.t[sel], cat.lat[sel], cat.lon[sel]
+    a, _ = np.histogram(t[haversine_km(lat_a, lon_a, la, lo) <= radius_km], edges)
+    b, _ = np.histogram(t[haversine_km(lat_b, lon_b, la, lo) <= radius_km], edges)
+    return edges, a, b
+
+
+def correlation_before_after(edges, a, b, split_t, min_bins=6):
+    """Ataçlama anından önceki ve sonraki korelasyon. Yeterli dönem yoksa NaN.
+
+    Dönüş: (r_önce, dönem_önce, r_sonra, dönem_sonra)
+    """
+    k = int(np.searchsorted(edges[:-1], split_t, side="left"))
+
+    def _r(x, y):
+        if len(x) < min_bins:
+            return float("nan")
+        xn, yn = _norm_series(x), _norm_series(y)
+        return float("nan") if xn is None or yn is None else float(xn @ yn)
+
+    return _r(a[:k], b[:k]), k, _r(a[k:], b[k:]), len(a) - k

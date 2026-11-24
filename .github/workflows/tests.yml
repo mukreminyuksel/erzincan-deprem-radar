@@ -7,6 +7,7 @@ on:
     branches: [main]
     paths-ignore:
       - "data/global_catalog_m45.csv.gz"   # haftalık katalog commit'i testi tetiklemesin
+      - "data/emsc_m20/**"
   pull_request:
   workflow_dispatch: {}
 

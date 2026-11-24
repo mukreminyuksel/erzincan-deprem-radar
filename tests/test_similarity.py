@@ -124,3 +124,87 @@ def test_load_catalog_roundtrip(tmp_path):
     cat = sim.load_catalog(p)
     assert list(cat.t) == [10, 20] and cat.place == ["A", "B"]
     assert math.isnan(cat.depth[1])
+
+
+def test_compare_regions_twin_and_yearly_series():
+    cat = make_catalog(cluster(39.7, 39.5, 40, place="A") + cluster(35.9, -120.4, 40, place="B"))
+    c = sim.compare_regions(cat, 39.7, 39.5, 35.9, -120.4, 100, n_shifts=50)
+    assert c.n_a == 40 and c.n_b == 40
+    assert c.score == 100.0
+    assert c.distance_km > 10000
+    assert c.yearly_a.sum() == 40 and c.yearly_b.sum() == 40
+    assert len(c.years) == len(c.yearly_a)
+    assert c.sync.tested
+
+
+def test_compare_regions_too_few_events_gives_nan_score():
+    cat = make_catalog(cluster(0, 0, 3) + cluster(50, 50, 40))
+    c = sim.compare_regions(cat, 0, 0, 50, 50, 100)
+    assert math.isnan(c.score) and not c.sync.tested
+
+
+def _burst_catalog():
+    """A ve B aynı aylarda etkin (ortak ritim), C farklı aylarda; hepsi A'dan uzakta."""
+    rng = np.random.default_rng(3)
+    month = 30 * DAY
+    active = sorted(rng.choice(120, 30, replace=False))
+    other = sorted(rng.choice(120, 30, replace=False))
+    ev = []
+    for m in active:
+        for k in range(int(rng.integers(1, 5))):
+            ev.append((m * month + k * DAY, 0.0, 0.0, 10.0, 4.8, "A"))
+            ev.append((m * month + k * DAY + 3600, 40.0, 60.0, 10.0, 4.8, "B"))
+    for m in other:
+        for k in range(int(rng.integers(1, 5))):
+            ev.append((m * month + k * DAY, -30.0, -70.0, 10.0, 4.8, "C"))
+    return make_catalog(ev), 120 * month
+
+
+def test_series_correlation_identical_and_shifted():
+    rng = np.random.default_rng(0)
+    a = rng.poisson(1.0, 120)
+    r, p = sim.series_correlation(a, a)
+    assert r == pytest.approx(1.0) and p < 0.05
+    r2, p2 = sim.series_correlation(a, np.roll(a, 7))
+    assert r2 < 0.5 and p2 > 0.01
+    assert math.isnan(sim.series_correlation(np.zeros(50), a[:50])[0])
+
+
+def test_find_time_correlated_finds_synchronous_region():
+    cat, t1 = _burst_catalog()
+    res = sim.find_time_correlated(cat, 0, 0, 100, t0=0, t1=t1)
+    best = res.matches[0]
+    assert best.r > res.chance[1]            # gerçek ortak ritim tesadüf eşiğini aşar
+    assert res.n_ref >= 30 and res.scanned >= 2 and len(res.ref_series) == len(res.edges) - 1
+    assert best.name == "B" and best.r > 0.9 and best.p_value < 0.05
+    assert best.r_first > 0.8 and best.r_second > 0.8      # iki yarıda da tutarlı
+    assert best.best_lag == 0
+    assert best.depth_overlap == pytest.approx(100.0) and best.mag_overlap == pytest.approx(100.0)
+    c = [m for m in res.matches if m.name == "C"]
+    assert not c or c[0].r < 0.5
+
+
+def test_overlap_pct_and_best_lag():
+    assert sim.overlap_pct([0.5, 0.5, 0], [0.5, 0.5, 0]) == pytest.approx(100.0)
+    assert sim.overlap_pct([1, 0, 0], [0, 0, 1]) == pytest.approx(0.0)
+    rng = np.random.default_rng(5)
+    a = rng.poisson(2.0, 100)
+    lag, r = sim._best_lag(a, np.roll(a, -2))      # b, a'dan 2 dönem önce davranıyor
+    assert lag == 2 and r > 0.9
+
+
+def test_load_catalogs_merges_and_sorts(tmp_path):
+    for name, rows in (("a.csv.gz", "30,1,2,5.0,2.5,X\n"), ("b.csv.gz", "10,3,4,7.0,3.1,Y\n")):
+        with gzip.open(tmp_path / name, "wt", encoding="utf-8", newline="") as f:
+            f.write("t,lat,lon,depth,mag,place\n" + rows)
+    cat = sim.load_catalogs([tmp_path / "a.csv.gz", tmp_path / "b.csv.gz"])
+    assert list(cat.t) == [10, 30] and cat.place == ["Y", "X"]
+
+
+def test_correlation_before_after_split():
+    cat, t1 = _burst_catalog()
+    edges, a, b = sim.pair_series(cat, 0, 0, 40, 60, 100, t0=0, t1=t1)
+    rb, nb, ra, na = sim.correlation_before_after(edges, a, b, split_t=t1 / 2)
+    assert rb > 0.9 and ra > 0.9 and nb + na == len(a)
+    _rb, _nb, ra2, na2 = sim.correlation_before_after(edges, a, b, split_t=t1 - 60 * DAY)
+    assert math.isnan(ra2) and na2 < 6

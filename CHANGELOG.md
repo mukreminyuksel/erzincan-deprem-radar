@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.94 - 2026-11-24 — 📈 Zaman örtüşmesi (korelasyon) araması + hız
+
+**Zaman örtüşmesi (📊 Analiz & Modeller → 🔗 Benzer Bölgeler → 📈 Zaman örtüşmesi ara):** Seçili merkezin deprem etkinliği zaman grafiği çıkarılır; dünyada grafiği buna en çok benzeyen bölgeler bulunur (kullanıcı isteği).
+- Parametreler: veri (M4.5+ USGS 1990– / **M2+ EMSC 2010–**), en küçük büyüklük, zaman aralığı (son N yıl ya da tarih aralığı), grafik adımı (hafta/ay/3 ay/yıl), bölge yarıçapı.
+- Ölçütler: zaman örtüşmesi r (log1p sayım korelasyonu), **tesadüf eşiği** (referans seri kaydırılıp binlerce adayla yeniden taranınca çıkan en yüksek r'nin %95'i), ilk/ikinci yarı r (tutarlılık), kayma (±3 dönem), **derinlik örtüşmesi %**, büyüklük örtüşmesi %.
+- Grafikler (hepsi üst üste): dönem sayıları (kendi ölçeği / log seçenekli), **saçılım** (her nokta bir dönem; köşegen = örtüşme), **nokta zaman çizelgesi** (her nokta bir deprem; zaman–büyüklük / zaman–derinlik), birikimli eğri, derinlik dağılımı.
+- Ataçlama → 📎 Bağlı bölgeler: "ataçlanırken r" ve "ataçlandıktan beri r" (ilişki sürüyor mu).
+- İlk bulgu (Erzincan, 100 km, M3+, 10 yıl): en yüksek r = 0,40, tesadüf eşiği 0,40 — dikkat çekici bir örtüşme yok; panel bunu açıkça söyler.
+- Veri: `data/emsc_m20/YYYY.csv.gz` (1.146.158 deprem, 16 MB; `tools/build_emsc_catalog.py`, haftalık güncelleme son iki yılı yeniler). EMSC küçük deprem kapsamı bölgeye/yıla göre değişir; panelde uyarı var.
+**Bağlı bölgeler:** gruplar adres satırında saklanır (`sb_links`; yenilemede ve yer imiyle geri gelir); gruptaki bir bölgede eşik üstü deprem olursa **her sayfanın üstünde uyarı**. İki bölgeyi doğrudan karşılaştırma sekmesi eklendi.
+**Hız:** M4.5+ uzun dönem sorgularında 1990 sonrası depodaki katalogdan okunur: 12.000 km / 110 yıl 32 sn → 16 sn. Katalog yükleme tipli dizilerle (1,1 M satırda tepe bellek 309 → 206 MB).
+**Düzeltme:** `_load_world_catalog`/`_find_similar_cached` önbellek anahtarında mtime yok sayılıyordu (alt çizgili argüman).
+
 ## v1.93 - 2026-11-24 — Canlıda eski veri kalması düzeltildi
 
 **Sorun (kullanıcı bildirimi):** Canlı sitede plaka sınırları localdeki gibi ayrıntılı değil, eski düz çizgilerdi. Neden: fay/plaka/kırık dosyalarını okuyan `cache_resource` fonksiyonlarının önbellek anahtarı yalnız fonksiyon koduna bağlıydı; Streamlit Cloud yeni commit'i çekince süreci yeniden başlatmadığı için veri dosyası değişse de bellekteki eski içerik kullanılıyordu (v1.90 fay adı temizliği de canlıda etkisiz kalmış olabilir).

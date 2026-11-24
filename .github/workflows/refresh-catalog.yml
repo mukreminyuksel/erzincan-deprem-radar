@@ -1,4 +1,4 @@
-# "Benzer Bölgeler" panelinin kullandığı dünya kataloğunu (USGS M4.5+) haftada bir
+# "Benzer Bölgeler" panelinin kullandığı katalogları (USGS M4.5+, EMSC M2+) haftada bir
 # yeniler ve değiştiyse depoya commitler. Streamlit Cloud yeni commit'i görünce
 # uygulamayı kendisi günceller.
 name: Dünya kataloğunu güncelle
@@ -21,16 +21,18 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install "requests>=2.31"
-      - name: Kataloğu indir
+      - name: USGS kataloğunu indir (M4.5+)
         run: python tools/build_global_catalog.py
+      - name: EMSC kataloğunu güncelle (M2+, yalnız son iki yıl)
+        run: python tools/build_emsc_catalog.py
       - name: Değiştiyse commitle
         run: |
-          if git diff --quiet -- data/global_catalog_m45.csv.gz; then
-            echo "Katalog değişmedi."
+          git add data/global_catalog_m45.csv.gz data/emsc_m20
+          if git diff --cached --quiet; then
+            echo "Kataloglar değişmedi."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/global_catalog_m45.csv.gz
-          git commit -m "Dünya kataloğu güncellendi ($(date -u +%Y-%m-%d))"
+          git commit -m "Deprem katalogları güncellendi ($(date -u +%Y-%m-%d))"
           git push
