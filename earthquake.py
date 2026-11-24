@@ -166,7 +166,7 @@ def geocode_place(query):
     except Exception:
         return []
 
-APP_VERSION = "1.85"
+APP_VERSION = "1.86"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -507,39 +507,6 @@ def fetch_gfz(lat, lon, radius_km, min_mag, start_dt, end_dt):
     except Exception as e:
         return [], f"HATA: {str(e)[:50]}"
 
-def fetch_iris(lat, lon, radius_km, min_mag, start_dt, end_dt):
-    try:
-        start, end = to_utc_naive(start_dt), to_utc_naive(end_dt)
-        r = requests.get("https://service.iris.edu/fdsnws/event/1/query", params={
-            "format": "text", "latitude": lat, "longitude": lon,
-            "maxradius": radius_km / 111, "minmagnitude": min_mag,
-            "starttime": start.strftime("%Y-%m-%dT%H:%M:%S"),
-            "endtime": end.strftime("%Y-%m-%dT%H:%M:%S"),
-            "orderby": "time", "limit": 1000,
-        }, timeout=4.0)
-        r.raise_for_status()
-        rows = []
-        for line in r.text.strip().split("\n"):
-            if not line or line.startswith("#"):
-                continue
-            parts = line.split("|")
-            if len(parts) < 11:
-                continue
-            try:
-                rows.append({
-                    "zaman": parts[1][:19].replace("T", " "),
-                    "buyukluk": float(parts[10]) if parts[10] else None,
-                    "derinlik": abs(float(parts[4])) if parts[4] else None,
-                    "konum": parts[12].strip() if len(parts) > 12 else "",
-                    "lat": float(parts[2]), "lon": float(parts[3]),
-                    "kaynak": "IRIS",
-                })
-            except:
-                continue
-        return rows, f"OK ({len(rows)})"
-    except Exception as e:
-        return [], f"HATA: {str(e)[:50]}"
-
 def fetch_afad_html(lat, lon, radius_km, min_mag, start_dt, end_dt):
     """Son 100 depremi AFAD HTML tablosundan çeker — magnitude tipi (ML/MW) içerir."""
     try:
@@ -626,7 +593,6 @@ ALL_FETCHERS = {
     "AFAD-Web":  fetch_afad_html,
     "Kandilli":  fetch_kandilli,
     "GFZ":       fetch_gfz,
-    "IRIS":      fetch_iris,
     "INGV":      fetch_ingv,
 }
 
@@ -1024,7 +990,8 @@ def _sb_init_state_from_url():
         st.session_state.tema = qp["sb_tema"]
     # Aktif kaynaklar (CSV)
     if "sb_sources" in qp:
-        st.session_state.active_sources = [s for s in qp["sb_sources"].split(",") if s]
+        # IRIS olay servisi 2026'da kapandı (404 "retired"); eski adreslerdeki seçim elenir
+        st.session_state.active_sources = [s for s in qp["sb_sources"].split(",") if s and s != "IRIS"]
     # Özel gün sayısı
     if "sb_days" in qp:
         try: st.session_state.custom_days = int(qp["sb_days"])
@@ -1221,7 +1188,7 @@ with st.sidebar:
         show_plates = st.checkbox("Kıta / Plaka Sınırlarını Göster", key="sb_show_plates")
 
     # ─── 📡 VERİ KAYNAKLARI (expander — kapalı başla, 9 checkbox) ──────────
-    with st.expander("📡 Veri Kaynakları (9 ağ)", expanded=False):
+    with st.expander("📡 Veri Kaynakları (8 ağ)", expanded=False):
         SRC_LABELS = {
             "USGS-Fast": "USGS Fast Feed (1 dk)",
             "USGS":     "USGS (ABD)",
@@ -1230,7 +1197,6 @@ with st.sidebar:
             "AFAD-Web": "AFAD Web — son 100 + ML/MW tipi",
             "Kandilli": "Kandilli Rasathanesi",
             "GFZ":      "GFZ Potsdam",
-            "IRIS":     "IRIS/SAGE (ABD)",
             "INGV":     "INGV (İtalya/Akdeniz)",
         }
         if "active_sources" not in st.session_state:
@@ -1414,50 +1380,64 @@ _KATEGORI_IKONLARI = [_KATEGORILER[k]["icon"] for k in _KATEGORI_LISTESI]
 # güçlendirildi (kullanıcı bildirimi: "üst ve alt aynı gibi görünüyor").
 # Üst: BÜYÜK font + kalın + mavi seçim — ana navigasyon
 # Alt: KÜÇÜK font + ince + yeşil seçim + "indented" arka plan kutusu — ikincil
+_PILL_TEXT = "#f2f6fb" if DARK else "#10233a"
 _PILL_STYLE_USTE = {
-    "container": {"padding": "0!important", "background-color": "transparent",
-                  "margin-top": "0", "border-bottom": "2px solid rgba(25,118,210,0.35)"},
-    "icon": {"font-size": "1.05rem"},
+    # v1.86 — daha belirgin: büyük/kalın yazı, her sekme çerçeveli "düğme" gibi
+    "container": {"padding": "4px !important",
+                  "background-color": "rgba(25,118,210,0.10)" if DARK else "rgba(25,118,210,0.08)",
+                  "border": "1px solid rgba(25,118,210,0.45)",
+                  "border-radius": "12px", "margin-top": "0"},
+    "icon": {"font-size": "1.25rem", "color": _PILL_TEXT},
     "nav-link": {
-        "font-size": "0.92rem",
-        "font-weight": "500",
+        "font-size": "1.08rem",
+        "font-weight": "700",
+        "color": _PILL_TEXT,
         "text-align": "center",
-        "margin": "0 3px",
-        "padding": "9px 16px",
-        "border-radius": "10px 10px 0 0",
+        "margin": "3px",
+        "padding": "10px 16px",
+        "border-radius": "10px",
         "white-space": "nowrap",
+        "background-color": "rgba(255,255,255,0.06)" if DARK else "rgba(255,255,255,0.85)",
+        "border": "1px solid rgba(144,202,249,0.35)" if DARK else "1px solid rgba(25,118,210,0.30)",
+        "--hover-color": "rgba(25,118,210,0.35)",
     },
     "nav-link-selected": {
         "background-color": "#1976d2",
-        "font-weight": "700",
-        "border-bottom": "3px solid #ffd54f",  # altın çubuk: "burası ana seçili"
+        "color": "#ffffff",
+        "font-weight": "800",
+        "border": "2px solid #ffd54f",          # altın çerçeve: "burası ana seçili"
+        "box-shadow": "0 2px 10px rgba(25,118,210,0.55)",
     },
 }
 
 _PILL_STYLE_ALT = {
     "container": {
         "padding": "6px 10px !important",
-        "background-color": "rgba(67,160,71,0.08)",   # hafif yeşil tint = "alt menü kutusu"
-        "border-left": "3px solid #43a047",            # sol kenar yeşil = "├─ alt"
-        "border-radius": "0 8px 8px 8px",
+        "background-color": "rgba(67,160,71,0.12)",
+        "border-left": "4px solid #43a047",
+        "border-radius": "0 10px 10px 10px",
         "margin-top": "0",
         "margin-bottom": "6px",
     },
-    "icon": {"font-size": "0.78rem"},
+    "icon": {"font-size": "0.95rem", "color": _PILL_TEXT},
     "nav-link": {
-        "font-size": "0.72rem",
-        "font-weight": "400",
+        "font-size": "0.9rem",
+        "font-weight": "600",
+        "color": _PILL_TEXT,
         "text-align": "center",
-        "margin": "0 2px",
-        "padding": "4px 9px",
-        "border-radius": "5px",
+        "margin": "2px 3px",
+        "padding": "6px 12px",
+        "border-radius": "8px",
         "white-space": "nowrap",
-        "opacity": "0.88",
+        "background-color": "rgba(255,255,255,0.05)" if DARK else "rgba(255,255,255,0.8)",
+        "border": "1px solid rgba(129,199,132,0.35)",
+        "--hover-color": "rgba(67,160,71,0.30)",
     },
     "nav-link-selected": {
         "background-color": "#43a047",
-        "font-weight": "600",
-        "opacity": "1.0",
+        "color": "#ffffff",
+        "font-weight": "700",
+        "border": "1px solid #a5d6a7",
     },
 }
 
@@ -1474,7 +1454,7 @@ with st.container(key="sticky_nav"):
     )
     # Seçili kategori için küçük label — "├─" karakteri hiyerarşiyi görsel anlatır
     st.markdown(
-        f"<div style='font-size:0.72rem;opacity:0.65;margin:2px 0 -2px 12px;"
+        f"<div style='font-size:0.85rem;opacity:0.9;font-weight:600;margin:4px 0 0 12px;"
         f"color:#43a047;letter-spacing:0.3px'>├─ <b>{secili_kategori}</b> alt menüsü</div>",
         unsafe_allow_html=True,
     )
@@ -2044,8 +2024,8 @@ def _render_canli_radar():
         what=(
             "Harita üzerindeki her renkli daire, seçili zaman penceresinde (sidebar **Zaman Aralığı**) "
             "ve yarıçap içinde (sidebar **Yarıçap**) Erzincan referans noktasına göre kaydedilmiş bir "
-            "**deprem olayını** temsil eder. Veri 9 paralel kaynaktan (USGS, EMSC, AFAD API + Web, "
-            "Kandilli/KOERI, GFZ, IRIS, INGV, USGS-Fast) toplanır, tekilleştirilir ve haritada "
+            "**deprem olayını** temsil eder. Veri 8 paralel kaynaktan (USGS, EMSC, AFAD API + Web, "
+            "Kandilli/KOERI, GFZ, INGV, USGS-Fast) toplanır, tekilleştirilir ve haritada "
             "gösterilir. Amaç: zamansal-uzamsal sismik aktiviteyi tek bakışta görmek; ek olarak "
             "MTA Diri Fay Haritası 2013 ve PB2002 plaka sınırları tektonik bağlamı verir."
         ),
@@ -3008,8 +2988,8 @@ if active_menu == "📝 Raporlar":
         title="📖 Akademik Açıklama — Rapor Metodolojisi ve Atıf Disiplini",
         what=(
             "Bu panel, uygulamanın izlediği depremlerin **tekilleştirilmiş katalog** üzerinden özet bir metin "
-            "raporu üretir (olay sayısı, maksimum magnitüd, derinlik dağılımı, zaman aralığı). Rapor 9 paralel "
-            "kaynaktan (USGS, EMSC, AFAD, Kandilli/KOERI, GFZ, IRIS, INGV) toplanan, tekilleştirilmiş veriye "
+            "raporu üretir (olay sayısı, maksimum magnitüd, derinlik dağılımı, zaman aralığı). Rapor 8 paralel "
+            "kaynaktan (USGS, EMSC, AFAD, Kandilli/KOERI, GFZ, INGV) toplanan, tekilleştirilmiş veriye "
             "dayanır. **Akademik/rapor kullanımında atıf disiplini:** Bu rapor birincil kaynak değildir; "
             "resmi sismik kayıt için AFAD-Deprem Dairesi veya Kandilli Rasathanesi (KOERI) katalogları atıf "
             "alınmalıdır."
@@ -5415,7 +5395,7 @@ if active_menu == "⚙️ Sistem & Veri":
             font-size:0.88rem;
             color:{TEXT};
             line-height:1.45;">
-            📊 <b>Mini rehber:</b> Bu panel 9 paralel veri kaynağının (USGS, EMSC, AFAD, KOERI, GFZ, IRIS, INGV)
+            📊 <b>Mini rehber:</b> Bu panel 8 paralel veri kaynağının (USGS, EMSC, AFAD, KOERI, GFZ, INGV)
             sağlık durumunu, agregasyon ve tekilleştirme sürecini gösterir.
             <b>Veriler birincil kaynaklardan toplanır ama bu uygulama birincil kaynak DEĞİLDİR</b> — resmi kayıt
             için AFAD/Kandilli referanstır; kaynaklar arası magnitüd/konum farkı bilimsel belirsizliktir.
@@ -5426,8 +5406,8 @@ if active_menu == "⚙️ Sistem & Veri":
     render_academic_explanation(
         title="📖 Akademik Açıklama — Veri Mimarisi ve Çoklu-Kaynak Agregasyon",
         what=(
-            "Bu panel, uygulamanın **9 paralel deprem veri kaynağından** (USGS, EMSC, AFAD API+Web, "
-            "Kandilli/KOERI, GFZ-GEOFON, IRIS, INGV, USGS-Fast) nasıl veri topladığını, tekilleştirdiğini ve "
+            "Bu panel, uygulamanın **8 paralel deprem veri kaynağından** (USGS, EMSC, AFAD API+Web, "
+            "Kandilli/KOERI, GFZ-GEOFON, INGV, USGS-Fast) nasıl veri topladığını, tekilleştirdiğini ve "
             "sunduğunu gösterir. Kaynak sağlığı (canlı/erişilemez), kayıt sayıları ve ham veri tablosu burada. "
             "**Çoklu-kaynak yaklaşımının değeri:** bir kaynak çökse bile süreklilik + kaynaklar arası "
             "çapraz-doğrulama."
@@ -5472,7 +5452,7 @@ if active_menu == "⚙️ Sistem & Veri":
             "— *Magnitüd dönüşümü.*",
         ],
         disclaimer=(
-            "ℹ️ Bu uygulama **birincil veri kaynağı DEĞİLDİR**; 9 paralel ağdan toplanan veriyi tekilleştirip "
+            "ℹ️ Bu uygulama **birincil veri kaynağı DEĞİLDİR**; 8 paralel ağdan toplanan veriyi tekilleştirip "
             "sunar. Resmi kayıt ve atıf için **AFAD-Deprem Dairesi** ve **Kandilli/KOERI** birincil kaynaktır. "
             "Kaynaklar arası magnitüd/konum farkı bilimsel belirsizliktir (farklı ağ/yöntem). Gerçek zamanlı "
             "veride API gecikmesi olabilir."
@@ -17521,7 +17501,7 @@ st.markdown(f"""
 <div style="text-align:center;color:{SUBTEXT};font-size:0.7rem;
             margin-top:0.8rem;padding:0.5rem;background:{BG3};
             border-radius:8px;border:1px solid {BORDER}">
-  USGS · EMSC · AFAD · Kandilli · GFZ Potsdam · IRIS/SAGE &nbsp;|&nbsp;
+  USGS · EMSC · AFAD · Kandilli · GFZ Potsdam · INGV &nbsp;|&nbsp;
   Her {refresh_s} saniyede otomatik yenileme &nbsp;|&nbsp;
   Uydu haritasi: ESRI World Imagery &nbsp;|&nbsp;
   v {APP_VERSION} &nbsp;|&nbsp; {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}

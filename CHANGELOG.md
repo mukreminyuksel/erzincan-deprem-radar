@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.86 - 2026-11-24 — 🧭 Belirgin menüler + kaynak denetimi
+
+**Menüler:** Üst kategori ve alt panel menüleri büyütüldü ve kalınlaştırıldı; her sekme çerçeveli düğme gibi, seçili üst sekme mavi + altın çerçeve, seçili alt sekme yeşil.
+
+**Veri kaynakları denetimi (24.11.2026, 3'er istek):** USGS feed/FDSN, EMSC, AFAD API, AFAD-Web ve Kandilli 200 (0,1–0,4 sn); GFZ ve INGV 204 (çalışıyor, bölgede olay yok). **IRIS kaldırıldı:** olay servisi emekliye ayrıldı (404 "This service has been retired"); eski adreslerdeki IRIS seçimi elenir. Kandilli HTTPS yanıt vermiyor, HTTP kalıyor.
+Aday kaynaklar denendi (NOA, ISC, GeoNet, SCEDC, NCEDC, RESIF): Türkiye için AFAD + Kandilli + EMSC'nin üstüne katkıları yok (ISC gecikmeli bülten; Kaliforniya ağları zaten USGS ComCat'te). Eklenmedi.
+
 ## v1.85 - 2026-11-24 — 📱 Mobil kenar çubuğu
 
 **Sorun:** Telefonda soldaki menü ekranı kaplıyor ve kapanmıyordu. Neden: v1.45.7'de kenar çubuğu CSS ile "her zaman açık" yapılmış, kapatma düğmeleri gizlenmişti; ayrıca açma çentiği `stToolbar` içinde olduğu için o da gizleniyordu.
