@@ -54,3 +54,27 @@ def test_refined_plate_boundary_follows_mta_trace(plates, faults, code, zone):
 
 def test_original_pb2002_kept_for_reproducibility():
     assert (ROOT / "data" / "tectonic_plates_pb2002.geojson").exists()
+
+
+def test_karliova_triple_junction_is_connected(plates):
+    """AT-EU, AT-AR ve EU-AR Karlıova'da aynı noktada buluşmalı (v1.92'de kopukluk düzeltildi)."""
+    ends = {}
+    for code in ("AT-EU", "AT-AR", "EU-AR"):
+        pts = _points(plates[code]["geometry"])
+        ends[code] = {tuple(round(v, 4) for v in pts[0]), tuple(round(v, 4) for v in pts[-1])}
+    common = ends["AT-EU"] & ends["AT-AR"] & ends["EU-AR"]
+    assert len(common) == 1, ends
+    lon, lat = next(iter(common))
+    assert 40.8 < lon < 41.5 and 39.0 < lat < 39.6     # Karlıova çevresi
+
+
+def test_refined_boundaries_have_no_backtracking(plates):
+    for code in ("AT-EU", "AT-AR", "EU-AR"):
+        c = _points(plates[code]["geometry"])
+        for a, b, d in zip(c, c[1:], c[2:]):
+            cl = math.cos(math.radians(b[1]))
+            v1 = ((b[0] - a[0]) * cl, b[1] - a[1])
+            v2 = ((d[0] - b[0]) * cl, d[1] - b[1])
+            n1, n2 = math.hypot(*v1), math.hypot(*v2)
+            if n1 and n2:
+                assert (v1[0] * v2[0] + v1[1] * v2[1]) / (n1 * n2) > -0.5, (code, b)

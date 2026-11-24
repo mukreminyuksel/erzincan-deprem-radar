@@ -84,7 +84,7 @@ def _douglas_peucker(pts, tol_km):
     return _douglas_peucker(pts[: i + 1], tol_km)[:-1] + _douglas_peucker(pts[i:], tol_km)
 
 
-def snap_line(coords, zone_pts, prio_pts=None):
+def snap_line(coords, zone_pts, prio_pts=None, search_km=SEARCH_KM):
     """PB2002 çizgisini MTA zon noktalarına oturtur. (yeni koordinatlar, oturan oran)
 
     prio_pts verilirse (ör. 2023 yüzey kırığı) ve örneğe PRIORITY_SEARCH_KM içindeyse
@@ -105,7 +105,7 @@ def snap_line(coords, zone_pts, prio_pts=None):
             if (d_prio <= PRIORITY_SEARCH_KM).any():
                 pts = prio_pts
         d_line = _km(lon, lat, pts[:, 0], pts[:, 1])
-        cand = np.nonzero(d_line <= (PRIORITY_SEARCH_KM if pts is not zone_pts else SEARCH_KM))[0]
+        cand = np.nonzero(d_line <= (PRIORITY_SEARCH_KM if pts is not zone_pts else search_km))[0]
         if len(cand) == 0:
             out.append((lon, lat))
             along.append(i * STEP_KM)
@@ -149,6 +149,39 @@ def snap_line(coords, zone_pts, prio_pts=None):
     return _douglas_peucker(kept, SIMPLIFY_KM), snapped / len(samples)
 
 
+def find_junction(a_pts, b_pts, box):
+    """İki fay zonunun verilen kutu içinde birbirine en çok yaklaştığı yerin orta noktası."""
+    def inbox(P):
+        m = (P[:, 0] >= box[0]) & (P[:, 0] <= box[1]) & (P[:, 1] >= box[2]) & (P[:, 1] <= box[3])
+        return P[m]
+    A, B = inbox(a_pts), inbox(b_pts)
+    best = (1e9, None)
+    for x, y in A[:: max(1, len(A) // 3000)]:
+        d = _km(x, y, B[:, 0], B[:, 1])
+        j = int(d.argmin())
+        if d[j] < best[0]:
+            best = (float(d[j]), ((x + B[j, 0]) / 2, (y + B[j, 1]) / 2))
+    return best[1], best[0]
+
+
+def attach_to_junction(coords, junction, at_start, zone_pts=None):
+    """Çizginin bir ucunu kavşağa bağlar: kavşağa en yakın noktadan sonrasını keser, uca kavşağı koyar.
+
+    zone_pts verilirse kavşak ile kesilen nokta arasındaki bağlantı da fay izine oturtulur
+    (düz çizgi yerine); izin bulunmadığı kesim düz kalır."""
+    pts = coords if at_start else coords[::-1]
+    d = _km(junction[0], junction[1], np.array([p[0] for p in pts]), np.array([p[1] for p in pts]))
+    # yalnız uca yakın ilk %30'luk kısımda ara (çizginin ortasını kesme)
+    k = int(d[: max(2, len(pts) * 3 // 10)].argmin())
+    connector = [list(junction)]
+    if zone_pts is not None and d[k] > STEP_KM:
+        # bağlantıda yalnız 5 km içindeki izi kabul et (uzak kollara sapmasın)
+        snapped, _r = snap_line([list(junction), list(pts[k])], zone_pts, search_km=5.0)
+        connector = [list(junction)] + [list(p) for p in snapped[1:-1]]
+    out = connector + [list(p) for p in pts[k:]]
+    return out if at_start else out[::-1]
+
+
 def main():
     pb = json.loads(SRC.read_text(encoding="utf-8"))
     faults = json.loads(FAULTS.read_text(encoding="utf-8"))["features"]
@@ -165,11 +198,14 @@ def main():
             prio[code] = np.array([p[:2] for f in rup if f["properties"].get("deprem_mw") == mw
                                    for line in _lines(f["geometry"]) for p in line], dtype=float)
             print(f"{code}: öncelikli iz 2023 Mw {mw} yüzey kırığı — {len(prio[code])} nokta")
+    refined = {}   # code -> (feat, özgün ilk nokta, özgün son nokta)
     for feat in pb["features"]:
         name = feat["properties"].get("Name", "")
         code = name.replace("/", "-")
         if code not in ZONES or len(zone_pts[code]) == 0:
             continue
+        orig = _lines(feat["geometry"])
+        refined[code] = (feat, orig[0][0][:2], orig[-1][-1][:2])
         new_lines, ratios = [], []
         for line in _lines(feat["geometry"]):
             coords, ratio = snap_line(line, zone_pts[code], prio.get(code))
@@ -185,6 +221,35 @@ def main():
                                            if code in prio else ''))
         print(f"  {name}: {n_old} → {n_new} nokta, örneklerin %{100 * min(ratios):.0f}-"
               f"{100 * max(ratios):.0f}'i MTA izine oturdu")
+    # Karlıova üçlü kavşağı: AT-EU, AT-AR, EU-AR özgün veride aynı noktada buluşuyordu;
+    # uçlar ayrı ayrı oturtulunca kopuyordu. Üçü MTA'da KAF ile DAF'ın en çok yaklaştığı
+    # noktada (gerçek kavşak) yeniden birleştirilir.
+    triple = [c for c in ("AT-EU", "AT-AR", "EU-AR") if c in refined]
+    if len(triple) == 3:
+        ends = {}
+        for c in triple:
+            _f, a, b = refined[c]
+            ends[c] = (a, b)
+        # ortak özgün uç: üç çizgide 1 km içinde tekrar eden uç
+        cand = [p for c in triple for p in ends[c]]
+        shared = min(cand, key=lambda p: sum(min(float(_km(p[0], p[1], np.array([q[0]]), np.array([q[1]]))[0])
+                                                  for q in ends[c]) for c in triple))
+        junction, gap = find_junction(zone_pts["AT-EU"], zone_pts["AT-AR"],
+                                      (shared[0] - 0.8, shared[0] + 0.8, shared[1] - 0.6, shared[1] + 0.6))
+        print(f"Karlıova kavşağı: özgün {shared[1]:.3f}K {shared[0]:.3f}D → MTA kavşağı "
+              f"{junction[1]:.4f}K {junction[0]:.4f}D (KAF–DAF arası {gap * 1000:.0f} m)")
+        for c in triple:
+            feat, a, b = refined[c]
+            geom = feat["geometry"]
+            lines = _lines(geom)
+            da = float(_km(shared[0], shared[1], np.array([a[0]]), np.array([a[1]]))[0])
+            db = float(_km(shared[0], shared[1], np.array([b[0]]), np.array([b[1]]))[0])
+            if da <= 1.0:
+                lines[0] = [[round(x, 5), round(y, 5)] for x, y in attach_to_junction(lines[0], junction, True, zone_pts[c])]
+            if db <= 1.0:
+                lines[-1] = [[round(x, 5), round(y, 5)] for x, y in attach_to_junction(lines[-1], junction, False, zone_pts[c])]
+            feat["geometry"] = ({"type": "LineString", "coordinates": lines[0]} if len(lines) == 1
+                                else {"type": "MultiLineString", "coordinates": lines})
     OUT.write_text(json.dumps(pb, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     print(f"Yazıldı: {OUT} ({OUT.stat().st_size / 1024:.0f} KB)")
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.92 - 2026-11-24 — Karlıova üçlü kavşağı birleştirildi
+
+**Sorun (kullanıcı bildirimi: "Erzincan'daki plaka çizgisi farklı görünüyor"):** Erzincan'daki fark doğru bir düzeltmeydi (yeni AT-EU çizgisi KAF'ın Kargapazarı–Elmalı–Yedisu–Erzincan–Refahiye–Suşehri segmentlerini izliyor, Erzincan merkezine 4,8 km; eski kaba çizgi 27,3 km uzaktan geçiyordu). Ancak incelemede gerçek bir hata bulundu: üç sınır (AT-EU, AT-AR, EU-AR) uçları ayrı ayrı oturtulduğu için Karlıova'da kopmuştu (30–40 km boşluk).
+**Çözüm:** Kavşak, MTA'da KAF ile DAF izlerinin en çok yaklaştığı nokta olarak hesaplandı (39,308K 41,144D; izler 455 m'ye kadar yaklaşıyor) ve üç sınır orada birleştirildi; kavşağa bağlantı kesimi de fay izine oturtuldu (düz çizgi yerine 2 km adımlarla). Bitlis tarafında (Karlıova–Muş) MTA'da karşılık gelen zon olmadığı için PB2002 çizgisi korunur. Testler: kavşak bütünlüğü ve geri dönüş yokluğu.
+
 ## v1.91 - 2026-11-24 — 🎯 6 Şubat 2023 yüzey kırıkları (metre hassasiyeti)
 
 **Yeni katman:** USGS'in WorldView uydu görüntülerinden 1:1.500 ölçekte çizdiği 6 Şubat 2023 yüzey kırıkları (Reitman vd. 2024, doi:10.5066/P985I7U2, kamu malı) Canlı Radar haritasında: Mw 7.8 Pazarcık (turkuaz) ve Mw 7.5 Elbistan (mor). 2.262 çizgi, nokta aralığı medyan ~13 m. `data/usgs_2023/`, `tools/build_usgs_2023_ruptures.py`.
