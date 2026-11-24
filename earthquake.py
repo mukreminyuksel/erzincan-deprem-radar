@@ -178,7 +178,7 @@ def geocode_place(query):
     except Exception:
         return []
 
-APP_VERSION = "1.97"
+APP_VERSION = "1.98"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -556,7 +556,10 @@ def fetch_usgs(lat, lon, radius_km, min_mag, start_dt, end_dt):
         if min_mag >= 4.5:
             cat, _cells, _mt = _world_catalog()
         if cat is not None and len(cat):
-            c0, c1 = _utc_from_ts(int(cat.t.min())), _utc_from_ts(int(cat.t.max()))
+            # 1973 öncesi katalog yalnız M5.5+ (bkz. tools/build_global_catalog.py)
+            _c0 = max(float(cat.t.min()), datetime(1973, 1, 1, tzinfo=timezone.utc).timestamp()) \
+                if min_mag < 5.5 else float(cat.t.min())
+            c0, c1 = _utc_from_ts(int(_c0)), _utc_from_ts(int(cat.t.max()))
             ov0, ov1 = max(start, c0), min(end, c1)
             if (ov1 - ov0).days < 730:
                 cat = None                       # örtüşme kısa: doğrudan USGS daha güncel
@@ -17513,10 +17516,22 @@ def _kor_catalog(key):
 
 
 _KOR_KATALOGLAR = {
-    "usgs": ("Büyük depremler: M4.5+ (USGS, 1990–, dünya genelinde eksiksiz)", 4.5),
+    "usgs": ("Büyük depremler: M4.5+ 1973'ten, M5.5+ 1900'den (USGS)", 4.5),
     "emsc": ("Küçük depremler dahil: M2+ (EMSC, 2010–, kapsam bölgeye göre değişir)", 2.0),
 }
 _KOR_ADIMLAR = {"Haftalık": 7, "Aylık": 30, "3 aylık": 90, "Yıllık": 365}
+_TS_1973 = datetime(1973, 1, 1, tzinfo=timezone.utc).timestamp()
+_TS_1964 = datetime(1964, 1, 1, tzinfo=timezone.utc).timestamp()
+
+
+def _kat_floor_ts(kat, cat, min_mag):
+    """Seçilen büyüklük için kataloğun güvenle kullanılabileceği en eski an.
+
+    USGS dünya kataloğu 1973 öncesinde yalnız M5.5+ içerir; daha küçük eşikle 1973 öncesine
+    gidilirse eski yıllar yapay olarak "sakin" görünür.
+    """
+    t_min = float(cat.t.min())
+    return max(t_min, _TS_1973) if kat == "usgs" and min_mag < 5.5 else t_min
 
 
 @st.cache_resource(show_spinner=False, max_entries=16)
@@ -17560,6 +17575,11 @@ def _render_zaman_ortusmesi(radius_km):
             t1 = datetime(dr[1].year, dr[1].month, dr[1].day, tzinfo=timezone.utc).timestamp() + 86400
     adim = c[2].selectbox("Grafik adımı", list(_KOR_ADIMLAR), index=1 if kat == "emsc" else 2, key=f"kor_adim_{kat}")
     bin_days = _KOR_ADIMLAR[adim]
+    _floor = _kat_floor_ts(kat, cat, float(min_mag))
+    if t0 < _floor:
+        t0 = _floor
+        st.caption(f"M{min_mag} eşiğinde veri {_utc_from_ts(_floor):%Y} yılında başlıyor; aralık buna göre kısaltıldı. "
+                   "Daha eskiye gitmek için M5.5 ve üstünü seç.")
     if (t1 - t0) / (bin_days * 86400) < 12:
         st.warning("Seçilen aralıkta 12'den az dönem var; korelasyon güvenilir olmaz. Aralığı uzat ya da adımı küçült.")
         return
@@ -17764,7 +17784,11 @@ def _render_zaman_ortusmesi(radius_km):
 @functools.lru_cache(maxsize=2)
 def _measured_catalog(kat, sig):
     cat, _s = _kor_catalog(kat)
-    return _sim.with_measured_depths(cat), _sim.default_depths(cat)
+    measured = _sim.with_measured_depths(cat)
+    if kat == "usgs":
+        # 1964 öncesi (dünya standart sismograf ağından önce) derinlikler ölçüm değil, atamadır
+        measured.depth[measured.t < _TS_1964] = np.nan
+    return measured, _sim.default_depths(cat)
 
 
 @st.cache_resource(show_spinner=False, max_entries=16)
@@ -17799,13 +17823,19 @@ def _render_bul(radius_km):
     kat = c[0].radio("Veri", kats, format_func=lambda k: _KOR_KATALOGLAR[k][0], key="bul_kat")
     cat, sig = _kor_catalog(kat)
     cat_t0, cat_t1 = float(cat.t.min()), float(cat.t.max())
-    max_days = int((cat_t1 - cat_t0) / 86400)
     floor = _KOR_KATALOGLAR[kat][1]
+    min_mag = c[2].number_input("En küçük büyüklük (M)", min_value=floor, max_value=7.5, value=floor,
+                                step=0.5, key=f"bul_mag_{kat}",
+                                help="USGS verisinde M5.5 ve üstünü seçersen 1900'e kadar geri gidebilirsin; "
+                                     "daha küçük eşikte veri 1973'te başlar.")
+    floor_ts = _kat_floor_ts(kat, cat, float(min_mag))
+    max_days = int((cat_t1 - floor_ts) / 86400)
     n_days = c[1].number_input("Kaç günlük geçmiş", min_value=30, max_value=max_days,
-                               value=min(1000, max_days), step=100, key=f"bul_days_{kat}",
-                               help="Aralık uzadıkça tesadüfi çakışmalar elenir; kalan benzerlik daha anlamlıdır.")
-    min_mag = c[2].number_input("En küçük büyüklük (M)", min_value=floor, max_value=7.0, value=floor,
-                                step=0.5, key=f"bul_mag_{kat}")
+                               value=min(1000, max_days), step=100, key=f"bul_days_{kat}_{max_days // 1000}",
+                               help=f"En fazla {max_days:,} gün (≈ {max_days / 365.25:.0f} yıl; veri "
+                                    f"{_utc_from_ts(floor_ts):%Y} yılında başlıyor). Aralık uzadıkça tesadüfi "
+                                    "çakışmalar elenir.".replace(",", "."))
+    c[1].caption(f"≈ {n_days / 365.25:.1f} yıl · en fazla {max_days / 365.25:.0f} yıl")
     with st.expander("⚙️ İnce ayar (eşleşme ölçütleri)"):
         e = st.columns(4)
         pencere = e[0].selectbox("Zaman eşleşmesi", list(_ES_PENCERE), index=0, key="bul_pencere",
@@ -17815,10 +17845,16 @@ def _render_bul(radius_km):
                                  key="bul_dmag")
         ddepth = e[2].number_input("Derinlik toleransı (± km)", min_value=0.2, max_value=50.0, value=1.0,
                                    step=0.5, key="bul_ddepth")
+        no_depth = e[3].checkbox("Derinliğe bakma", value=False, key="bul_nodepth",
+                                 help="Yalnız gün ve büyüklük eşleşir. 1964 öncesine giden aralıklarda gerekli: "
+                                      "o yıllarda derinlikler ölçülmüyordu.")
         measured = e[3].checkbox("Yalnız derinliği ölçülmüş depremler", value=True, key="bul_measured",
+                                 disabled=no_depth,
                                  help="Ağlar derinliği hesaplayamadığında sabit bir değer yazar (ör. 5, 7, 10 km). "
                                       "Bu depremler dahil edilirse aynı varsayılanı kullanan bölgeler yapay "
                                       "olarak \"aynı derinlikte\" görünür.")
+    if no_depth:
+        measured, ddepth = False, 1e6
     tol = _ES_PENCERE[pencere]
     t1, t0 = cat_t1, cat_t1 - n_days * 86400
     t_split = t0 + (t1 - t0) * 2 / 3 if n_days >= 90 else t1
@@ -17829,7 +17865,14 @@ def _render_bul(radius_km):
     if measured:
         defaults = _measured_catalog(kat, sig)[1]
         st.caption("Derinliği varsayılan değerle yazılmış depremler çıkarıldı ("
-                   + ", ".join(f"{v:g}" for v in defaults) + " km). İnce ayardan değiştirebilirsin.")
+                   + ", ".join(f"{v:g}" for v in defaults) + " km"
+                   + ("; 1964 öncesinin tümü" if kat == "usgs" and t0 < _TS_1964 else "")
+                   + "). İnce ayardan değiştirebilirsin.")
+        if kat == "usgs" and t0 < _TS_1964:
+            st.caption("⚠️ Aralık 1964 öncesine uzanıyor; o yılların depremleri derinlik ölçümü olmadığı için "
+                       "karşılaştırmaya girmiyor. Onları da katmak için ince ayardan **Derinliğe bakma**'yı işaretle.")
+    elif no_depth:
+        st.caption("Derinlik karşılaştırılmıyor: eşleşme yalnız gün ve büyüklüğe göre.")
     if disc.n_ref < 5:
         st.warning(f"{CENTER_NAME} çevresinde {radius_km} km içinde bu ölçütlerle yalnız {disc.n_ref} deprem var; "
                    "karşılaştırma için yetersiz. Yarıçapı ya da gün sayısını büyüt, büyüklük eşiğini düşür "
@@ -17968,7 +18011,8 @@ def _render_bul(radius_km):
         fig.add_annotation(x=_utc_from_ts(t_split), y=1.06, yref="paper", showarrow=False,
                            text="◀ bulundu  |  sınandı ▶", font=dict(color="#ffd54f", size=11))
     _rd = pts["a_depth"][~np.isnan(pts["a_depth"])]
-    fig.update_yaxes(range=[(float(_rd.max()) if len(_rd) else 30.0) + 3 * float(ddepth) + 5, 0], row=2, col=1)
+    fig.update_yaxes(range=[(float(_rd.max()) if len(_rd) else 30.0) + 3 * min(float(ddepth), 10.0) + 5, 0],
+                     row=2, col=1)
     fig.update_layout(height=540, margin=dict(t=46, b=10, l=10, r=10), paper_bgcolor="rgba(0,0,0,0)",
                       plot_bgcolor="rgba(0,0,0,0)", font=dict(color=TEXT),
                       legend=dict(orientation="h", y=-0.1), hovermode="closest")
@@ -18026,13 +18070,15 @@ def _render_benzer_bolgeler():
         f_lat = [e[1] for e in feed]
         f_lon = [e[2] for e in feed]
         f_mag = [e[3] for e in feed]
-        span = cat.span_years
+        _t90 = datetime(1990, 1, 1, tzinfo=timezone.utc).timestamp()
+        _rate_cat = cat.subset(np.nonzero(cat.t >= _t90)[0]) if float(cat.t.min()) < _t90 else cat
+        span = _rate_cat.span_years
         for gi, (g, permanent) in enumerate(groups):
             regions = g.get("bolgeler", [])
             rows, triggers = [], []
             for reg in regions:
                 lat, lon, rad = float(reg["lat"]), float(reg["lon"]), float(reg.get("yaricap_km", 100))
-                rate = len(_sim.region_index(cat, lat, lon, rad)) / span
+                rate = len(_sim.region_index(_rate_cat, lat, lon, rad)) / span
                 stt = _sim.region_status(f_t, f_lat, f_lon, f_mag, lat, lon, rad, rate, days=30)
                 for (t, la, lo, mg, pl) in feed:
                     if mg >= thr and now_ts - t <= win * 86400 and \

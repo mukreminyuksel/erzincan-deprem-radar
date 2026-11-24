@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.98 - 2026-11-24 — Benzer Bölgeler: 1900'e kadar geçmiş (127 yıl)
+
+**Kullanıcı isteği: daha uzun geçmiş.** USGS dünya kataloğu 1990'dan 1900'e uzatıldı: 1973'ten bugüne M4.5+, 1900–1972 M5.5+ (ISC-GEM; toplam 308.986 deprem, 5,8 MB). "Kaç günlük geçmiş" artık M5.5+ için 46.343 güne (≈ 127 yıl), M4.5+ için 1973'e kadar gidiyor; sınır seçilen büyüklüğe göre otomatik.
+- **Derinliğe bakma** seçeneği: 1964 öncesi derinlikler ölçüm değil atama olduğu için uzun aralıklarda eşleşme yalnız gün + büyüklükle yapılabilir. "Yalnız ölçülmüş derinlik" açıkken 1964 öncesi tümüyle dışlanır ve ekranda belirtilir.
+- Katalog eşiği döneme göre değiştiği için: `fetch_usgs` yerel kataloğu M5.5 altında yalnız 1973 sonrası için kullanır; bağlı bölge "normalde beklenen" oranı 1990 sonrası üzerinden; zaman grafiği yöntemi aralığı büyüklüğe göre kısaltır.
+- **500 yıl neden yok:** 1900 öncesinde aletli kayıt yok (USGS'te 1500–1899 için 321 deprem; NOAA tarihsel veritabanında 1.985 yıkıcı deprem, %44'ünde büyüklük, %11'inde derinlik var). Gün + büyüklük + derinlik eşleştirmesi o veride yapılamaz.
+- Bulgu (Erzincan 300 km, 1900–2026, M5.5+, ±3 gün, ±0,2 M, derinliksiz): 47 deprem; keşifte en yüksek çakışma %2; hiçbir bölge sınamada sürmedi.
+
 ## v1.97 - 2026-11-24 — 🔗 Benzer Bölgeler: tek akış, kendi kendini sınayan arama
 
 **Yeniden tasarım (kullanıcı: "grafikler karman çorman; en gerçekçi tasarımı yap"):** beş sekme → iki (🎯 Benzer bölgeleri bul, 📎 Bağlı bölgeler). Tek ekran: soru → ayarlar → **tek cümlelik sonuç** → tek tablo → tek grafik.

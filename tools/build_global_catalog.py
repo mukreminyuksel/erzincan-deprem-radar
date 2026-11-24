@@ -1,4 +1,8 @@
-"""Dünya deprem kataloğunu (USGS, M4.5+, 1990'dan bugüne) indirip sıkıştırılmış CSV yazar.
+"""Dünya deprem kataloğunu (USGS; 1973'ten bugüne M4.5+, 1900–1972 M5.5+) indirip sıkıştırılmış CSV yazar.
+
+Büyüklük eşiği döneme göre değişir, çünkü dünya geneli kayıt 1973 öncesinde ancak M5.5
+ve üstünde eksiksize yakındır (ISC-GEM). 1964 öncesi derinliklerin çoğu ölçüm değil
+varsayılan değerdir (15, 25, 35 km).
 
 "Benzer Bölgeler" paneli bu dosyayı kullanır; uygulama her açılışta yüz binlerce
 kaydı indirmek zorunda kalmaz. GitHub Actions haftada bir çalıştırır
@@ -25,8 +29,10 @@ from pathlib import Path
 import requests
 
 USGS_URL = "https://earthquake.usgs.gov/fdsnws/event/1/query"
-START_YEAR = 1990
-MIN_MAG = 4.5
+START_YEAR = 1900
+MIN_MAG = 4.5            # 1973 ve sonrası
+EARLY_MIN_MAG = 5.5      # 1900–1972
+EARLY_END_YEAR = 1972
 _PLACE_PREFIX = re.compile(r"^\s*\d+(\.\d+)?\s*km\s+[NSEW]{1,3}\s+of\s+", re.I)
 
 
@@ -42,7 +48,8 @@ def fetch_year(year: int, end: datetime) -> list[tuple]:
     start = datetime(year, 1, 1, tzinfo=timezone.utc)
     stop = min(datetime(year + 1, 1, 1, tzinfo=timezone.utc), end)
     params = {
-        "format": "csv", "orderby": "time-asc", "minmagnitude": MIN_MAG,
+        "format": "csv", "orderby": "time-asc",
+        "minmagnitude": EARLY_MIN_MAG if year <= EARLY_END_YEAR else MIN_MAG,
         "starttime": start.strftime("%Y-%m-%dT%H:%M:%S"),
         "endtime": stop.strftime("%Y-%m-%dT%H:%M:%S"),
         "eventtype": "earthquake", "limit": 20000,
