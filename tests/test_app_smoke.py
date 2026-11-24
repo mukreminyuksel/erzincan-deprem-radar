@@ -60,3 +60,24 @@ def test_center_and_large_radius(monkeypatch):
     assert at.session_state["center"][0] == "Kyoto, Japonya"
     assert at.session_state["sb_radius"] == 2000
 
+
+
+@pytest.mark.smoke
+def test_long_period_includes_1939_erzincan(monkeypatch):
+    """110 yıllık M5+ sorgusunda 1939 Erzincan (M7.7–7.8) gelmeli.
+
+    v1.88 öncesi kaynaklar en yeni 1000 olayı aldığı için eski büyük depremler
+    hiç görünmüyordu (kullanıcı bildirimi, 24.11.2026).
+    """
+    from streamlit.testing.v1 import AppTest
+
+    monkeypatch.delenv("DR_TEST_PANEL", raising=False)
+    at = AppTest.from_file(str(APP), default_timeout=240)
+    at.query_params.update({"sb_radius": "300", "sb_min_mag": "5.0",
+                            "sb_zaman": "Özel gün sayısı", "sb_days": "40000"})
+    at.run()
+    at.radio(key="list_sort").set_value("En büyük önce").run()
+    assert not at.exception, [str(e.value)[:300] for e in at.exception]
+    cards = "".join(str(m.value) for m in at.markdown if "eq-card" in str(m.value)
+                    and "eq-scroll-container" in str(m.value))
+    assert "26.12.1939" in cards, "1939 Erzincan depremi listede yok"

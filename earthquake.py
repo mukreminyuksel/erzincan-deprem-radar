@@ -1,6 +1,8 @@
 from __future__ import annotations  # Python 3.9 uyumu — PEP 604 'X | None' syntax fix
 
 import concurrent.futures
+import csv
+import io
 import json
 import math
 import os
@@ -171,7 +173,7 @@ def geocode_place(query):
     except Exception:
         return []
 
-APP_VERSION = "1.87"
+APP_VERSION = "1.88"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -209,6 +211,13 @@ def mag_color(m):
     if m < 7.0: return "#D500F9"  # Parlak Mor
     if m < 8.0: return "#000000"  # Siyah
     return "#263238"  # Koyu Gri/Siyah (Mapbox sembol kısıtlaması nedeniyle sınır rengi vs UI'da halledilebilir)
+
+def mag_text_color(m):
+    """Yazı rengi: mag_color ile aynı, yalnız M7+ siyah/koyu gri koyu temada okunmadığı
+    için orada beyaz. Harita işaretleri mag_color'ı (siyah) kullanmaya devam eder."""
+    c = mag_color(m)
+    return "#ffffff" if DARK and c in ("#000000", "#263238") else c
+
 
 # v1.54 — Faz 0 Akademik Açıklama Helper (Codex + kullanıcı onaylı standart)
 # Belge: features/ACADEMIC_STANDARD.md (6 bölüm + kaynak disiplini)
@@ -340,24 +349,68 @@ def haversine(lat1, lon1, lat2, lon2):
 
 # ─── Veri cekiciler ─────────────────────────────────────────────────────────
 
+def _query_timeout(start_dt, end_dt):
+    """Sorgu süresine göre bekleme sınırı: kısa pencerede hızlı vazgeç, uzun dönemde bekle.
+
+    Önceden hepsi 4 sn idi; 110 yıllık sorgularda INGV gibi kaynaklar zaman aşımına düşüyordu.
+    """
+    try:
+        days = (to_utc_naive(end_dt) - to_utc_naive(start_dt)).days
+    except Exception:
+        return 4.0
+    return 4.0 if days <= 30 else (10.0 if days <= 365 else 20.0)
+
+
+USGS_MAX_ROWS = 20000   # USGS tek sorguda en fazla 20.000 kayıt verir
+
+
 def fetch_usgs(lat, lon, radius_km, min_mag, start_dt, end_dt):
+    """USGS ComCat (1900'den bugüne; ISC-GEM tarihsel depremler dahil).
+
+    v1.88: Önce /count ile kaç deprem olduğu sorulur. 20.000'e kadarsa hepsi
+    alınır; fazlaysa en büyük 20.000 alınır (orderby=magnitude) ve durum
+    "KISMİ" olarak işaretlenir. Önceden en yeni 1000 olay alındığı için uzun
+    dönem/geniş yarıçap sorgularında eski büyük depremler (ör. 1939 Erzincan
+    M7.7) hiç görünmüyordu. CSV biçimi GeoJSON'dan ~8 kat küçük.
+    """
     try:
         start, end = to_utc_naive(start_dt), to_utc_naive(end_dt)
-        r = requests.get("https://earthquake.usgs.gov/fdsnws/event/1/query", params={
-            "format": "geojson", "latitude": lat, "longitude": lon,
-            "maxradiuskm": radius_km, "minmagnitude": min_mag,
+        params = {
+            "latitude": lat, "longitude": lon,
+            "maxradiuskm": min(radius_km, 20001.6), "minmagnitude": min_mag,
             "starttime": start.strftime("%Y-%m-%dT%H:%M:%S"),
             "endtime": end.strftime("%Y-%m-%dT%H:%M:%S"),
-            "orderby": "time", "limit": 1000,
-        }, timeout=4.0)
+            "eventtype": "earthquake",
+        }
+        base = "https://earthquake.usgs.gov/fdsnws/event/1/"
+        rc = requests.get(base + "count", params={**params, "format": "text"}, timeout=10)
+        rc.raise_for_status()
+        total = int(rc.text.strip() or 0)
+        if total == 0:
+            return [], "OK (0)"
+        partial = total > USGS_MAX_ROWS
+        r = requests.get(base + "query", params={
+            **params, "format": "csv",
+            "orderby": "magnitude" if partial else "time",
+            "limit": USGS_MAX_ROWS,
+        }, timeout=10 + min(total, USGS_MAX_ROWS) / 400)   # 20.000 kayıt ≈ 60 sn sınır
         r.raise_for_status()
+        r.encoding = "utf-8"
         rows = []
-        for f in r.json().get("features", []):
-            p = f["properties"]; c = f["geometry"]["coordinates"]
-            t = _utc_from_ts(p["time"] / 1000).strftime("%Y-%m-%d %H:%M:%S")
-            rows.append({"zaman": t, "buyukluk": p.get("mag"),
-                         "derinlik": round(abs(c[2]), 1) if c[2] is not None else None,
-                         "konum": p.get("place", ""), "lat": c[1], "lon": c[0], "kaynak": "USGS"})
+        for rec in csv.DictReader(io.StringIO(r.text)):
+            try:
+                t = datetime.fromisoformat(rec["time"].replace("Z", "+00:00"))
+                depth = float(rec["depth"]) if rec.get("depth") else None
+                rows.append({"zaman": t.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
+                             "buyukluk": float(rec["mag"]),
+                             "derinlik": round(abs(depth), 1) if depth is not None else None,
+                             "konum": rec.get("place", ""),
+                             "lat": float(rec["latitude"]), "lon": float(rec["longitude"]),
+                             "kaynak": "USGS"})
+            except (KeyError, ValueError):
+                continue
+        if partial:
+            return rows, f"KISMİ: {total} depremden en büyük {len(rows)}"
         return rows, f"OK ({len(rows)})"
     except Exception as e:
         return [], f"HATA: {str(e)[:50]}"
@@ -390,7 +443,7 @@ def fetch_emsc(lat, lon, radius_km, min_mag, start_dt, end_dt):
             "start": start.strftime("%Y-%m-%dT%H:%M:%S"),
             "end": end.strftime("%Y-%m-%dT%H:%M:%S"),
             "orderby": "time", "limit": 1000,
-        }, timeout=4.0)
+        }, timeout=_query_timeout(start_dt, end_dt))
         r.raise_for_status()
         rows = []
         for f in r.json().get("features", []):
@@ -415,7 +468,7 @@ def fetch_afad(lat, lon, radius_km, min_mag, start_dt, end_dt):
             "minlon": lon - margin, "maxlon": lon + margin,
             "minmag": min_mag, "format": "json", "limit": 1000,
             "orderby": "timedesc",
-        }, headers={"User-Agent": "Mozilla/5.0"}, timeout=4.0)
+        }, headers={"User-Agent": "Mozilla/5.0"}, timeout=_query_timeout(start_dt, end_dt))
         r.raise_for_status()
         rows = []
         for d in r.json():
@@ -431,6 +484,9 @@ def fetch_afad(lat, lon, radius_km, min_mag, start_dt, end_dt):
                              "lat": dlat, "lon": dlon, "kaynak": "AFAD"})
             except:
                 continue
+        # 24.11.2026 ölçümü: AFAD apiv2 yalnız son ~2 haftayı döndürüyor (daha eskisi boş liste).
+        if (utc_now_naive() - start).days > 14:
+            return rows, f"OK ({len(rows)}) · AFAD API yalnız son ~2 haftayı veriyor"
         return rows, f"OK ({len(rows)})"
     except Exception as e:
         return [], f"HATA: {str(e)[:50]}"
@@ -488,7 +544,7 @@ def fetch_gfz(lat, lon, radius_km, min_mag, start_dt, end_dt):
             "starttime": start.strftime("%Y-%m-%dT%H:%M:%S"),
             "endtime": end.strftime("%Y-%m-%dT%H:%M:%S"),
             "orderby": "time", "limit": 1000,
-        }, timeout=4.0)
+        }, timeout=_query_timeout(start_dt, end_dt))
         r.raise_for_status()
         rows = []
         for line in r.text.strip().split("\n"):
@@ -566,7 +622,7 @@ def fetch_ingv(lat, lon, radius_km, min_mag, start_dt, end_dt):
             "starttime": start.strftime("%Y-%m-%dT%H:%M:%S"),
             "endtime": end.strftime("%Y-%m-%dT%H:%M:%S"),
             "orderby": "time", "limit": 1000,
-        }, timeout=4.0)
+        }, timeout=_query_timeout(start_dt, end_dt))
         r.raise_for_status()
         rows = []
         for line in r.text.strip().split("\n"):
@@ -1286,10 +1342,28 @@ with st.spinner(f"{len(active_sources)} kaynak paralel sorgulanıyor..."):
 # Kaynak pilleri
 src_html = ""
 for name, (status, cnt) in statuses.items():
-    ok = status.startswith("OK")
+    if status.startswith("ATLANDI"):
+        # Bilerek atlandı (ör. USGS-Fast yalnız son 30 gün): hata gibi görünmesin
+        src_html += (f'<span class="src-pill" style="opacity:0.55" title="{safe_html(status)}">'
+                     f'– {name} (bu süre için kullanılmıyor)</span>')
+        continue
+    ok = status.startswith("OK") or status.startswith("KISMİ")
     cls = "src-ok" if ok else "src-err"
-    src_html += f'<span class="src-pill {cls}">{"✓" if ok else "✗"} {name} {cnt}</span>'
+    mark = "◐" if status.startswith("KISMİ") else ("✓" if ok else "✗")
+    src_html += f'<span class="src-pill {cls}" title="{safe_html(status)}">{mark} {name} {cnt}</span>'
 st.markdown(src_html, unsafe_allow_html=True)
+_partial = [f"{n}: {stt[0].split(': ', 1)[1]}" for n, stt in statuses.items() if stt[0].startswith("KISMİ")]
+_capped = [n for n, (stt, c) in statuses.items() if stt.startswith("OK") and c >= 1000 and n != "USGS"]
+_short = [stt.split(" · ", 1)[1] for n, (stt, c) in statuses.items() if " · " in stt]
+if _short:
+    st.caption("ℹ️ " + "; ".join(_short) + ". Daha eski Türkiye depremleri USGS ve EMSC'den gelir.")
+if _partial or _capped:
+    st.info(
+        "ℹ️ Seçilen alan/süre çok geniş, kaynakların bir sınırı var. "
+        + ("; ".join(_partial) + " gösteriliyor (en büyükler önceliklidir). " if _partial else "")
+        + (f"{', '.join(_capped)} en yeni 1000 olayla sınırlı. " if _capped else "")
+        + "Tüm olaylar için yarıçapı, süreyi daraltabilir ya da en küçük büyüklüğü yükseltebilirsin."
+    )
 
 if df.empty:
     st.error("Hicbir kaynaktan veri alinamadi.")
@@ -1497,7 +1571,7 @@ boxes = [
     (c1, len(df),                        "#90caf9", "Toplam"),
     (c2, len(last24h),                   "#ffb74d", "Son 24 Saat"),
     (c3, len(last1h),                    "#a5d6a7", "Son 1 Saat"),
-    (c4, f"M{df['buyukluk'].max():.1f}", mag_color(df["buyukluk"].max()), "En Buyuk"),
+    (c4, f"M{df['buyukluk'].max():.1f}", mag_text_color(df["buyukluk"].max()), "En Buyuk"),
     (c5, len(big4),                      "#ef9a9a", "M4.0+"),
     (c6, df["kaynak"].nunique(),         "#ce93d8", "Aktif Kaynak"),
 ]
@@ -2399,6 +2473,8 @@ def _render_canli_radar():
             list_time = st.selectbox("Zaman",
                                      ["Tümü", "Son 1 Saat", "Son 6 Saat", "Son 24 Saat"],
                                      key="list_time")
+        list_sort = st.radio("Sıralama", ["En yeni önce", "En büyük önce", "En yakın önce"],
+                             horizontal=True, key="list_sort", label_visibility="collapsed")
 
         def render_scrollable(data, limit=300):
             if data.empty:
@@ -2406,7 +2482,7 @@ def _render_canli_radar():
                 return
             cards = ""
             for _, row in data.head(limit).iterrows():
-                c   = mag_color(row["buyukluk"])
+                c   = mag_text_color(row["buyukluk"])
                 e   = mag_emoji(row["buyukluk"])
                 loc = safe_html(str(row["konum"])[:44]) if row["konum"] else "—"
                 kaynak = safe_html(row["kaynak"])
@@ -2434,8 +2510,17 @@ def _render_canli_radar():
         elif list_time == "Son 24 Saat":
             df_list = df_list[df_list["zaman"] >= now_utc - timedelta(hours=24)]
 
-        st.caption(f"{len(df_list)} deprem gösteriliyor")
-        render_scrollable(df_list)
+        if list_sort == "En büyük önce":
+            df_list = df_list.sort_values(["buyukluk", "zaman"], ascending=[False, False])
+        elif list_sort == "En yakın önce":
+            df_list = df_list.sort_values(["uzaklik_km", "zaman"], ascending=[True, False])
+        _LIST_MAX = 300
+        if len(df_list) > _LIST_MAX:
+            st.caption(f"{len(df_list)} deprem · listede ilk {_LIST_MAX} ({list_sort.lower()}); "
+                       "hepsi haritada")
+        else:
+            st.caption(f"{len(df_list)} deprem gösteriliyor")
+        render_scrollable(df_list, limit=_LIST_MAX)
 
     # ════════════════════════════════════════════════════════════════
     # DERINLIK – ZAMAN – BUYUKLUK  (tam genislik)

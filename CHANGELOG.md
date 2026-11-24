@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.88 - 2026-11-24 — 📜 Uzun dönem sorgularında eski büyük depremler
+
+**Sorun (kullanıcı bildirimi):** 40.000 gün, M5+ sorgusunda 1939 Erzincan gibi eski depremler görünmüyordu. Neden: bütün kaynaklar *en yeni 1000 olayı* istiyordu (`orderby=time, limit=1000`) ve bekleme süresi 4 sn idi; geniş/uzun sorguda yalnız son günler geliyordu.
+**Çözüm:**
+- USGS (1900'den bugüne, ISC-GEM tarihsel depremler dahil): önce `/count`; ≤20.000 ise hepsi, fazlaysa **en büyük 20.000** (`orderby=magnitude`). CSV biçimi (GeoJSON'dan ~8 kat küçük). Kesilirse rozet "◐" ve ekranda açıklama.
+- Bekleme süresi sorgu uzunluğuna göre (≤30 gün 4 sn, ≤1 yıl 10 sn, daha uzun 20 sn); INGV uzun sorguda zaman aşımına düşüyordu.
+- Liste sıralaması: En yeni / **En büyük** / En yakın önce. Başlık "N deprem · listede ilk 300" diye doğru sayıyı söylüyor.
+- USGS-Fast 30 günden uzun sorguda bilerek atlanıyor; artık hata (✗) değil, soluk "kullanılmıyor" rozeti.
+- **AFAD API yalnız son ~2 haftayı döndürüyor** (24.11.2026 ölçümü: en eski kayıt 11.11.2026). Uzun sorguda ekranda not; eski Türkiye depremleri USGS + EMSC'den gelir.
+- Koyu temada M7+ yazısı (siyah) okunmuyordu → yazıda beyaz (harita işareti aynı).
+- Doğrulama: Erzincan 300 km, 40.000 gün, M5+ → 212 deprem, en üstte 26.12.1939 M7.8; regresyon testi eklendi.
+
 ## v1.87 - 2026-11-24 — 🧹 Bakım: geleceğe dayanıklılık + otomatik test
 
 **Menü vurgusu:** Panel içinde bir ayar değişince üst/alt menünün vurgusu ilk sekmeye dönüyordu (içerik doğru kalsa da). `default_index` artık son seçime bağlı.
