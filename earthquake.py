@@ -173,7 +173,7 @@ def geocode_place(query):
     except Exception:
         return []
 
-APP_VERSION = "1.90"
+APP_VERSION = "1.91"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -1643,6 +1643,36 @@ def load_fault_lines():
 FAULT_LINES = load_fault_lines()
 
 
+@st.cache_resource(show_spinner=False)
+def load_rupture_2023():
+    """6 Şubat 2023 Kahramanmaraş yüzey kırıkları (USGS, WorldView, 1:1.500 ölçek).
+
+    Kaynak: Reitman vd. 2024, USGS data release, doi:10.5066/P985I7U2 (kamu malı).
+    Dönüş: {Mw: (lat dizisi, lon dizisi)} — çizgiler NaN ile ayrılmış numpy dizileri.
+    Dosya yoksa boş sözlük.
+    """
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "data", "usgs_2023", "kahramanmaras_2023_rupture.geojson")
+    if not os.path.exists(path):
+        return {}
+    with open(path, encoding="utf-8") as f:
+        feats = json.load(f).get("features", [])
+    by_mw = {}
+    for feat in feats:
+        mw = (feat.get("properties") or {}).get("deprem_mw")
+        geom = feat.get("geometry") or {}
+        lines = [geom["coordinates"]] if geom.get("type") == "LineString" else geom.get("coordinates", [])
+        lats, lons = by_mw.setdefault(mw, ([], []))
+        for line in lines:
+            lats.extend([p[1] for p in line] + [np.nan])
+            lons.extend([p[0] for p in line] + [np.nan])
+    return {mw: (np.asarray(la, dtype=float), np.asarray(lo, dtype=float))
+            for mw, (la, lo) in by_mw.items()}
+
+
+RUPTURE_2023_BBOX = (35.8, 38.6, 35.5, 39.6)   # enlem min/maks, boylam min/maks
+
+
 @st.cache_resource(show_spinner=False, max_entries=8)
 def fault_traces_for_view(margin_deg, lod_step=1, clat=ERZ_LAT, clon=ERZ_LON):
     """Görünür fayları renge göre gruplayıp numpy dizisi olarak döndürür.
@@ -2267,6 +2297,23 @@ def _render_canli_radar():
                     text=f_labels,
                     hovertemplate="<b>%{text}</b><extra></extra>",
                 ))
+
+            # v1.91 — 6 Şubat 2023 yüzey kırıkları (USGS, 1:1.500; metre ölçeğinde hassas).
+            # Görünür alanla kesişiyorsa çizilir; MTA fay çizgilerinin üstünde, ince ve parlak.
+            _rb = RUPTURE_2023_BBOX
+            if (CENTER_LAT - margin <= _rb[1] and CENTER_LAT + margin >= _rb[0]
+                    and CENTER_LON - margin * 1.4 <= _rb[3] and CENTER_LON + margin * 1.4 >= _rb[2]):
+                for _mw, (_rlat, _rlon) in sorted(load_rupture_2023().items(), reverse=True):
+                    _ad = "Pazarcık" if _mw and _mw >= 7.7 else "Elbistan"
+                    fig_map.add_trace(go.Scattermap(
+                        lat=_rlat, lon=_rlon, mode="lines",
+                        name=f"6 Şubat 2023 yüzey kırığı (Mw {_mw}, USGS)",
+                        showlegend=True,
+                        line=dict(color="#00E5FF" if _mw and _mw >= 7.7 else "#B388FF", width=2.4),
+                        hovertemplate=(f"<b>6 Şubat 2023 yüzey kırığı — Mw {_mw} {_ad}</b><br>"
+                                       "USGS uydu kırık haritası (1:1.500), Reitman vd. 2024"
+                                       "<extra></extra>"),
+                    ))
 
             # v1.49 — LOD seviyesi göstergesi (Codex önerisi: kullanıcı detay seviyesini bilsin)
             st.caption(

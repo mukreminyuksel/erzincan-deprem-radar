@@ -16,3 +16,6 @@ earthquake_profiled.py
 
 # Claude Code kişisel ayarları (repo'ya girmesin)
 .claude/settings.local.json
+
+# USGS ham indirmeleri (işlenmiş hali data/usgs_2023/*.geojson)
+data/usgs_2023/_raw/

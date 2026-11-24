@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.91 - 2026-11-24 — 🎯 6 Şubat 2023 yüzey kırıkları (metre hassasiyeti)
+
+**Yeni katman:** USGS'in WorldView uydu görüntülerinden 1:1.500 ölçekte çizdiği 6 Şubat 2023 yüzey kırıkları (Reitman vd. 2024, doi:10.5066/P985I7U2, kamu malı) Canlı Radar haritasında: Mw 7.8 Pazarcık (turkuaz) ve Mw 7.5 Elbistan (mor). 2.262 çizgi, nokta aralığı medyan ~13 m. `data/usgs_2023/`, `tools/build_usgs_2023_ruptures.py`.
+**Doğruluk ölçümü:** Gerçek 2023 kırık noktalarının MTA 2013 haritasındaki en yakın faya uzaklığı medyan 165 m (%75'i 1,4 km, %90'ı 4,4 km içinde); GEM için medyan 1,0 km. 2013 haritası çoğu yerde iyi, bazı kesimlerde kilometrelerce sapıyor.
+**Plaka sınırı:** AT-AR (Anadolu–Arabistan) sınırının 2023'te kırılan kesimi doğrudan Mw 7.8 yüzey kırığına oturtuldu (kırığa uzaklık medyan 0,44 m); kalan kesim MTA izinde.
+**MTA 2026 haritası:** Kullanım koşulları yazılı izin olmadan çoğaltma/yayımlamayı yasakladığı için eklenmedi; izin başvurusu hazırlanıyor.
+
 ## v1.90 - 2026-11-24 — 🗺️ Plaka sınırları gerçek fay izinde, fay adları temiz
 
 **Fay konumu denetimi:** MTA Diri Fay Haritası 2013 (14.548 parça, ~80 m nokta aralığı) bağımsız iki ölçütle sınandı. (1) GEM Küresel Aktif Fay ile karşılaştırma: KAF'ta sistematik kayma yok (medyan vektör 28 m D, 77 m K). (2) USGS artçı dağılımı: 2023 Kahramanmaraş artçılarına MTA medyan 3,6 km, GEM 5,1 km; 1999 İzmit-Düzce'de MTA 2,2 km, GEM 3,6 km (M4 konum belirsizliği ~5 km düzeyinde). Sonuç: MTA tutarlı; konum değişikliği gerekmedi.

@@ -37,6 +37,11 @@ ZONES = {
     "AT-AR": "DOĞU ANADOLU FAY ZONU",
     "EU-AR": "GÜNEYDOĞU ANADOLU BİNDİRMESİ",
 }
+# Öncelikli iz: 6 Şubat 2023 Mw 7.8 yüzey kırığı (USGS, 1:1.500) DAF'ın 2023'te kırılan
+# kesimini metre ölçeğinde verir; o kesimde MTA yerine bu iz kullanılır.
+RUPTURE_2023 = ROOT / "data" / "usgs_2023" / "kahramanmaras_2023_rupture.geojson"
+PRIORITY = {"AT-AR": 7.8}
+PRIORITY_SEARCH_KM = 10.0
 STEP_KM = 2.0
 SEARCH_KM = 30.0
 SIMPLIFY_KM = 0.05
@@ -79,8 +84,11 @@ def _douglas_peucker(pts, tol_km):
     return _douglas_peucker(pts[: i + 1], tol_km)[:-1] + _douglas_peucker(pts[i:], tol_km)
 
 
-def snap_line(coords, zone_pts):
-    """PB2002 çizgisini MTA zon noktalarına oturtur. (yeni koordinatlar, oturan oran)"""
+def snap_line(coords, zone_pts, prio_pts=None):
+    """PB2002 çizgisini MTA zon noktalarına oturtur. (yeni koordinatlar, oturan oran)
+
+    prio_pts verilirse (ör. 2023 yüzey kırığı) ve örneğe PRIORITY_SEARCH_KM içindeyse
+    önce onlar kullanılır."""
     samples = _densify(coords, STEP_KM)
     out, along, snapped, prev = [], [], 0, None
     for i, (lon, lat) in enumerate(samples):
@@ -91,8 +99,13 @@ def snap_line(coords, zone_pts):
         tx, ty = (b[0] - a[0]) * cosl, (b[1] - a[1])
         tn = math.hypot(tx, ty) or 1.0
         tx, ty = tx / tn, ty / tn
-        d_line = _km(lon, lat, zone_pts[:, 0], zone_pts[:, 1])
-        cand = np.nonzero(d_line <= SEARCH_KM)[0]
+        pts = zone_pts
+        if prio_pts is not None and len(prio_pts):
+            d_prio = _km(lon, lat, prio_pts[:, 0], prio_pts[:, 1])
+            if (d_prio <= PRIORITY_SEARCH_KM).any():
+                pts = prio_pts
+        d_line = _km(lon, lat, pts[:, 0], pts[:, 1])
+        cand = np.nonzero(d_line <= (PRIORITY_SEARCH_KM if pts is not zone_pts else SEARCH_KM))[0]
         if len(cand) == 0:
             out.append((lon, lat))
             along.append(i * STEP_KM)
@@ -101,10 +114,10 @@ def snap_line(coords, zone_pts):
         cost = d_line[cand].copy()
         if prev is not None:
             # süreklilik: önceki seçilen noktaya ~STEP_KM uzaklıkta olanı tercih et
-            d_prev = _km(prev[0], prev[1], zone_pts[cand, 0], zone_pts[cand, 1])
+            d_prev = _km(prev[0], prev[1], pts[cand, 0], pts[cand, 1])
             cost = 0.3 * cost + np.abs(d_prev - STEP_KM)
         j = cand[int(cost.argmin())]
-        pt = (float(zone_pts[j, 0]), float(zone_pts[j, 1]))
+        pt = (float(pts[j, 0]), float(pts[j, 1]))
         out.append(pt)
         # sınır boyunca konum = örneğin konumu + seçilen noktanın teğet üzerindeki izdüşümü
         along.append(i * STEP_KM + ((pt[0] - lon) * cosl * 111.2 * tx + (pt[1] - lat) * 111.2 * ty))
@@ -145,6 +158,13 @@ def main():
                for line in _lines(f["geometry"]) for p in line]
         zone_pts[code] = np.array(pts, dtype=float)
         print(f"{code}: {zone} — {len(pts)} MTA noktası")
+    prio = {}
+    if RUPTURE_2023.exists():
+        rup = json.loads(RUPTURE_2023.read_text(encoding="utf-8"))["features"]
+        for code, mw in PRIORITY.items():
+            prio[code] = np.array([p[:2] for f in rup if f["properties"].get("deprem_mw") == mw
+                                   for line in _lines(f["geometry"]) for p in line], dtype=float)
+            print(f"{code}: öncelikli iz 2023 Mw {mw} yüzey kırığı — {len(prio[code])} nokta")
     for feat in pb["features"]:
         name = feat["properties"].get("Name", "")
         code = name.replace("/", "-")
@@ -152,7 +172,7 @@ def main():
             continue
         new_lines, ratios = [], []
         for line in _lines(feat["geometry"]):
-            coords, ratio = snap_line(line, zone_pts[code])
+            coords, ratio = snap_line(line, zone_pts[code], prio.get(code))
             new_lines.append([[round(x, 5), round(y, 5)] for x, y in coords])
             ratios.append(ratio)
         n_old = sum(len(x) for x in _lines(feat["geometry"]))
@@ -160,7 +180,9 @@ def main():
         feat["geometry"] = ({"type": "LineString", "coordinates": new_lines[0]} if len(new_lines) == 1
                             else {"type": "MultiLineString", "coordinates": new_lines})
         feat["properties"]["Source"] = (f'{feat["properties"].get("Source", "")}; Türkiye kesimi '
-                                        f'MTA Diri Fay Haritası 2013 ({ZONES[code]}) izine oturtuldu')
+                                        f'MTA Diri Fay Haritası 2013 ({ZONES[code]}) izine oturtuldu'
+                                        + ('; 2023 kırılan kesim USGS yüzey kırığına (doi:10.5066/P985I7U2)'
+                                           if code in prio else ''))
         print(f"  {name}: {n_old} → {n_new} nokta, örneklerin %{100 * min(ratios):.0f}-"
               f"{100 * max(ratios):.0f}'i MTA izine oturdu")
     OUT.write_text(json.dumps(pb, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
