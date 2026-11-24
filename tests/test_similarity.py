@@ -208,3 +208,41 @@ def test_correlation_before_after_split():
     assert rb > 0.9 and ra > 0.9 and nb + na == len(a)
     _rb, _nb, ra2, na2 = sim.correlation_before_after(edges, a, b, split_t=t1 - 60 * DAY)
     assert math.isnan(ra2) and na2 < 6
+
+
+def test_find_event_matches_detects_paired_region():
+    """A'nın her depreminin eşi B'de (aynı gün, aynı büyüklük/derinlik); C kalabalık ama ilgisiz."""
+    rng = np.random.default_rng(11)
+    days = np.sort(rng.choice(100, 12, replace=False))
+    ev = []
+    for k, d in enumerate(days):
+        m, dp = 3.0 + 0.2 * (k % 5), 8.0 + (k % 3)
+        ev.append((int(d) * DAY + 3600, 0.0, 0.0, dp, m, "A"))
+        ev.append((int(d) * DAY + 7200, 40.0, 60.0, dp + 1, m + 0.1, "B"))
+    for k in range(300):                                     # C: her gün birkaç deprem, farklı derinlik
+        ev.append((int(rng.integers(0, 100)) * DAY + 500 + k, -30.0, -70.0, 120.0, 3.0 + 0.1 * (k % 10), "C"))
+    cat = make_catalog(ev)
+    res = sim.find_event_matches(cat, 0, 0, 100, t0=0, t1=100 * DAY, min_mag=2.0, tol_days=0, dmag=0.3, ddepth=5)
+    assert res.n_ref == 12
+    best = res.regions[0]
+    assert best.name == "B" and best.matched == 12 and best.coverage == pytest.approx(100.0)
+    assert best.expected < 3 and best.p_value < 0.05 and best.z > 3
+    assert len(best.pair_ref) == 12 and set(best.pair_ref) == set(range(12))
+    assert all(r.name != "C" for r in res.regions)           # derinliği uymadığı için hiç eşleşmez
+
+
+def test_find_event_matches_busy_region_is_not_significant():
+    """Çok deprem üreten bölge çok eşleşir ama beklenen de yüksektir (z düşük)."""
+    rng = np.random.default_rng(12)
+    ev = [(int(d) * DAY + 100, 0.0, 0.0, 10.0, 3.0, "A") for d in rng.choice(100, 15, replace=False)]
+    ev += [(d * DAY + 50 * k, 40.0, 60.0, 10.0, 3.0, "Kalabalık") for d in range(100) for k in range(3)]
+    res = sim.find_event_matches(make_catalog(ev), 0, 0, 100, t0=0, t1=100 * DAY, min_mag=2.0,
+                                 tol_days=0, dmag=0.3, ddepth=5)
+    r = res.regions[0]
+    assert r.matched == 15 and r.expected == pytest.approx(15.0) and abs(r.z) < 0.5 and r.p_value > 0.5
+
+
+def test_find_event_matches_no_reference_events():
+    cat = make_catalog(cluster(50, 50, 20))
+    res = sim.find_event_matches(cat, 0, 0, 100, t0=0, t1=1000 * DAY, min_mag=2.0)
+    assert res.n_ref == 0 and res.regions == []

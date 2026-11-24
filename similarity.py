@@ -628,3 +628,161 @@ def correlation_before_after(edges, a, b, split_t, min_bins=6):
         return float("nan") if xn is None or yn is None else float(xn @ yn)
 
     return _r(a[:k], b[:k]), k, _r(a[k:], b[k:]), len(a) - k
+
+
+# ─── Deprem deprem eşleştirme ────────────────────────────────────────────────
+@dataclass
+class EventRegion:
+    lat: float
+    lon: float
+    name: str
+    n_events: int            # bölgedeki deprem sayısı (aynı aralık, aynı büyüklük eşiği)
+    matched: int             # eşi bulunan referans depremi sayısı
+    coverage: float          # matched / referans deprem sayısı, %
+    expected: float          # tesadüfen beklenen eşleşme sayısı (takvim kaydırma)
+    p_value: float
+    z: float                 # (gözlenen − beklenen) / sqrt(beklenen)
+    distance_km: float
+    ev_t: np.ndarray         # bölgedeki tüm depremler
+    ev_mag: np.ndarray
+    ev_depth: np.ndarray
+    pair_ref: np.ndarray     # eşleşen çiftler: referans deprem sırası
+    pair_ev: np.ndarray      # ... ve bölgedeki deprem sırası (ev_* dizilerine göre)
+
+
+@dataclass
+class EventMatchSearch:
+    n_ref: int
+    ref_t: np.ndarray
+    ref_mag: np.ndarray
+    ref_depth: np.ndarray
+    regions: list
+    scanned: int             # eşleşme içeren aday bölge sayısı
+    tested: int              # tesadüf testi yapılan bölge sayısı
+    span_days: int
+
+
+def _pairs(ref_day, ref_mag, ref_depth, ev_day, ev_mag, ev_depth, tol_days, dmag, ddepth):
+    """Zaman (gün), büyüklük ve derinlik toleransına uyan (referans, olay) çiftleri. ev_day sıralı olmalı."""
+    lo = np.searchsorted(ev_day, ref_day - tol_days, side="left")
+    hi = np.searchsorted(ev_day, ref_day + tol_days, side="right")
+    pi, pj = [], []
+    for i in np.nonzero(hi > lo)[0]:
+        sl = slice(lo[i], hi[i])
+        ok = (np.abs(ev_mag[sl] - ref_mag[i]) <= dmag + 1e-9) & (np.abs(ev_depth[sl] - ref_depth[i]) <= ddepth)
+        js = np.nonzero(ok)[0]
+        if len(js):
+            pi.append(np.full(len(js), i))
+            pj.append(js + lo[i])
+    if not pi:
+        return np.array([], dtype=int), np.array([], dtype=int)
+    return np.concatenate(pi), np.concatenate(pj)
+
+
+def _shift_null(ref_day, ref_mag, ref_depth, ev_day, ev_mag, ev_depth, tol_days, dmag, ddepth, day0, span):
+    """Referans takvimi 0..span-1 gün dairesel kaydırıldığında eşi bulunan referans depremi sayıları.
+
+    Dönüş: uzunluğu span olan dizi; [0] gözlenen değerdir. Tüm kaydırmalar tek geçişte hesaplanır:
+    büyüklük/derinliği uyan her çift için, o çifti eşleştiren kaydırmalar işaretlenir.
+    """
+    hits = np.zeros((len(ref_day), span), dtype=bool)
+    ks = np.arange(-tol_days, tol_days + 1)
+    for a in range(0, len(ref_day), 200):
+        sl = slice(a, a + 200)
+        ok = (np.abs(ev_mag[None, :] - ref_mag[sl, None]) <= dmag + 1e-9) & \
+             (np.abs(ev_depth[None, :] - ref_depth[sl, None]) <= ddepth)
+        ii, jj = np.nonzero(ok)
+        if len(ii) == 0:
+            continue
+        delta = (ev_day[jj] - ref_day[sl][ii]) % span          # bu kadar kaydırınca aynı güne gelir
+        s = (delta[:, None] + ks[None, :]) % span
+        hits[(ii + a)[:, None].repeat(len(ks), 1), s] = True
+    return hits.sum(axis=0)
+
+
+def find_event_matches(cat: Catalog, ref_lat, ref_lon, radius_km, *, t0, t1, min_mag, tol_days=1,
+                       dmag=0.3, ddepth=10.0, top_n=15, n_tested=80, min_matched=2) -> EventMatchSearch:
+    """Referans bölgenin her depremi için, dünyada yakın zamanda (±tol_days gün) benzer büyüklük
+    (±dmag) ve derinlikte (±ddepth km) deprem olan bölgeleri bulur.
+
+    Bir bölgenin puanı: eşi o bölgede bulunan *farklı* referans depremi sayısı. Çok deprem üreten
+    bir bölge her şeyle tesadüfen eşleşir; bu yüzden her aday için beklenen değer, referans
+    takvimi gün gün kaydırılarak ölçülür ve bölgeler gözlenen−beklenen farkına (z) göre sıralanır.
+    """
+    sel = np.nonzero((cat.t >= t0) & (cat.t < t1) & (cat.mag >= min_mag))[0]
+    sub = cat.subset(sel)
+    day = (sub.t // 86400).astype(np.int64)
+    day0 = int(t0 // 86400)
+    span = max(int(math.ceil((t1 - t0) / 86400)), 2 * tol_days + 2)
+    d_ref = haversine_km(ref_lat, ref_lon, sub.lat, sub.lon)
+    ref_idx = np.nonzero(d_ref <= radius_km)[0]
+    out = EventMatchSearch(len(ref_idx), sub.t[ref_idx], sub.mag[ref_idx], sub.depth[ref_idx], [], 0, 0, span)
+    if len(ref_idx) == 0:
+        return out
+    excl_km = sep_km = max(2 * radius_km, 300.0)
+    w = np.nonzero(d_ref > excl_km)[0]                      # dünya (referans çevresi hariç), zamana göre sıralı
+    if len(w) == 0:
+        return out
+    r_day, r_mag, r_dep = day[ref_idx], sub.mag[ref_idx], sub.depth[ref_idx]
+    pi, pj = _pairs(r_day, r_mag, r_dep, day[w], sub.mag[w], sub.depth[w], tol_days, dmag, ddepth)
+    if len(pi) == 0:
+        return out
+    # hücre dizini (1°×1°): tüm dünya olayları ve eşleşen olaylar
+    cla, clo = np.floor(sub.lat[w]).astype(int), np.floor(sub.lon[w]).astype(int)
+    cells = defaultdict(list)
+    for k, key in enumerate(zip(cla, clo)):
+        cells[key].append(k)
+    cells = {k: np.asarray(v) for k, v in cells.items()}
+    refs_of = defaultdict(set)                               # w içi olay sırası -> eşleştiği referanslar
+    for i, j in zip(pi, pj):
+        refs_of[int(j)].add(int(i))
+    centers = {(int(cla[j]), int(clo[j])) for j in refs_of}
+    dlat_cells = int(math.ceil(radius_km / 111.0)) + 1
+    cands = []
+    for (a0, b0) in centers:
+        c_lat, c_lon = a0 + 0.5, b0 + 0.5
+        coslat = max(math.cos(math.radians(c_lat)), 0.05)
+        dlon_cells = min(int(math.ceil(radius_km / (111.0 * coslat))) + 1, 180)
+        pool = np.concatenate([cells[(a, ((b + 180) % 360) - 180)]
+                               for a in range(a0 - dlat_cells, a0 + dlat_cells + 1)
+                               for b in range(b0 - dlon_cells, b0 + dlon_cells + 1)
+                               if (a, ((b + 180) % 360) - 180) in cells])
+        reg = np.sort(pool[haversine_km(c_lat, c_lon, sub.lat[w][pool], sub.lon[w][pool]) <= radius_km])
+        matched = set()
+        for j in reg:
+            if int(j) in refs_of:
+                matched |= refs_of[int(j)]
+        if len(matched) >= min_matched:
+            cands.append((len(matched), c_lat, c_lon, reg))
+    out.scanned = len(cands)
+    cands.sort(key=lambda x: -x[0])
+    guard = 2 * tol_days + 1
+    tested = []
+    for score, c_lat, c_lon, reg in cands[:n_tested]:
+        gi = w[reg]
+        null = _shift_null(r_day, r_mag, r_dep, day[gi], sub.mag[gi], sub.depth[gi],
+                           tol_days, dmag, ddepth, day0, span)
+        body = null[guard: span - guard + 1] if span > 2 * guard + 2 else null[1:]
+        exp = float(body.mean()) if len(body) else float("nan")
+        p = float((1 + (body >= score).sum()) / (1 + len(body))) if len(body) else float("nan")
+        z = (score - exp) / math.sqrt(max(exp, 0.25))
+        tested.append((z, score, exp, p, c_lat, c_lon, reg))
+    out.tested = len(tested)
+    tested.sort(key=lambda x: (-x[0], -x[1]))
+    chosen = []
+    for z, score, exp, p, c_lat, c_lon, reg in tested:
+        if any(float(haversine_km(c_lat, c_lon, np.array([r.lat]), np.array([r.lon]))[0]) < sep_km
+               for r in chosen):
+            continue
+        gi = w[reg]
+        pos = {int(j): k for k, j in enumerate(reg)}
+        keep = [(int(i), pos[int(j)]) for i, j in zip(pi, pj) if int(j) in pos]
+        chosen.append(EventRegion(
+            c_lat, c_lon, region_name(sub, gi), len(gi), score, 100.0 * score / len(ref_idx), exp, p, z,
+            float(haversine_km(ref_lat, ref_lon, np.array([c_lat]), np.array([c_lon]))[0]),
+            sub.t[gi], sub.mag[gi], sub.depth[gi],
+            np.array([k[0] for k in keep], dtype=int), np.array([k[1] for k in keep], dtype=int)))
+        if len(chosen) >= top_n:
+            break
+    out.regions = chosen
+    return out

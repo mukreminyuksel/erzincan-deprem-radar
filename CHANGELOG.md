@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.95 - 2026-11-24 — 🎯 Deprem deprem eşleştirme
+
+**Yeni sekme (🔗 Benzer Bölgeler → 🎯 Deprem deprem eşleştir, kullanıcı isteği):** Seçili merkezin bir aralıktaki (varsayılan son 100 gün) her depremi için, yakın zamanda (aynı gün / 3 gün / hafta) dünyada benzer büyüklük (± tolerans) ve derinlikte (± km) deprem olan bölgeler bulunur. Puan: eşi o bölgede bulunan farklı referans depremi sayısı.
+- Çok deprem üreten bölgeler her şeyle tesadüfen eşleştiği için her aday için beklenen değer, referans takvimi gün gün kaydırılarak (tüm kaydırmalar tek geçişte) ölçülür; liste gözlenen−beklenen farkına (z) göre sıralanır.
+- Grafik: merkezin depremleri gün gün (zaman–büyüklük ve zaman–derinlik nokta grafikleri); seçilen bölgelerin eşleşen depremleri üst üste, eşleşen çiftler çizgiyle birleşik.
+- Parametreler: veri (EMSC M2+ / USGS M4.5+), son N gün ya da tarih aralığı, en küçük büyüklük, zaman eşleşmesi, büyüklük ve derinlik toleransı, bölge yarıçapı. Ataçlama aynı.
+- İlk bulgu (Erzincan 100 km, son 100 gün, M2+, ±1 gün, ±0,3 M, ±5 km): 59 deprem; en güçlü aday Güney İtalya 30 eşleşme, beklenen 19,8 (z = 2,3) — 80 bölge sınanınca tesadüfen de beklenecek düzeyde.
+- `similarity.find_event_matches` + 3 test.
+
 ## v1.94 - 2026-11-24 — 📈 Zaman örtüşmesi (korelasyon) araması + hız
 
 **Zaman örtüşmesi (📊 Analiz & Modeller → 🔗 Benzer Bölgeler → 📈 Zaman örtüşmesi ara):** Seçili merkezin deprem etkinliği zaman grafiği çıkarılır; dünyada grafiği buna en çok benzeyen bölgeler bulunur (kullanıcı isteği).
