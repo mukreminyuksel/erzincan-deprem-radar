@@ -173,7 +173,7 @@ def geocode_place(query):
     except Exception:
         return []
 
-APP_VERSION = "1.89"
+APP_VERSION = "1.90"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(

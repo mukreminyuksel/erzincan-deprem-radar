@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.90 - 2026-11-24 — 🗺️ Plaka sınırları gerçek fay izinde, fay adları temiz
+
+**Fay konumu denetimi:** MTA Diri Fay Haritası 2013 (14.548 parça, ~80 m nokta aralığı) bağımsız iki ölçütle sınandı. (1) GEM Küresel Aktif Fay ile karşılaştırma: KAF'ta sistematik kayma yok (medyan vektör 28 m D, 77 m K). (2) USGS artçı dağılımı: 2023 Kahramanmaraş artçılarına MTA medyan 3,6 km, GEM 5,1 km; 1999 İzmit-Düzce'de MTA 2,2 km, GEM 3,6 km (M4 konum belirsizliği ~5 km düzeyinde). Sonuç: MTA tutarlı; konum değişikliği gerekmedi.
+**Fay adları:** 2.574 metin alanındaki bozuk `\x9e` karakteri temizlendi ("DOĞ\x9eU ANADOLU" → "DOĞU ANADOLU"); aynı zon iki adla sayılıyordu. `tools/fix_fault_names.py`.
+**Plaka sınırları:** PB2002/McClusky (nokta aralığı ~46 km) Türkiye'deki üç sınırda MTA izine oturtuldu (`tools/refine_plate_boundaries.py`): AT-EU → Kuzey Anadolu Fay Zonu (25 → 478 nokta), AT-AR → Doğu Anadolu Fay Zonu (13 → 207), EU-AR → Güneydoğu Anadolu Bindirmesi (14 → 93; İran kesimi PB2002). Eski noktalar fay izinden medyan 4,8 / 5,9 / 27,3 km (en kötü 28 / 47 / 118 km) uzaktaydı; yeni noktalar izin üzerinde. Özgün dosya `data/tectonic_plates_pb2002.geojson` olarak saklandı. Testler: `tests/test_geodata.py`.
+
 ## v1.89 - 2026-11-24 — Geniş yarıçapta merkezin depremleri listede
 
 **Sorun (kullanıcı bildirimi):** 200 km'de 1939 ve 1992 Erzincan depremleri listede görünüyor, 10.000 km'de görünmüyordu. Veri tamamdı (USGS 51.331 depremden en büyük 20.000; ikisi de içinde) ama liste ilk 300 kaydı gösteriyor ve varsayılan "En yeni önce" sıralaması dünyanın öbür ucundaki son olaylarla doluyordu; "En büyük önce"de bile 1992 (M6.7) ilk 300'e giremiyordu.
