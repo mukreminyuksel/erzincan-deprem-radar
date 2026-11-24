@@ -82,3 +82,20 @@ def test_long_period_includes_1939_and_1992_erzincan(monkeypatch):
                     and "eq-scroll-container" in str(m.value))
     assert "26.12.1939" in cards, "1939 Erzincan depremi listede yok"
     assert "13.03.1992" in cards, "1992 Erzincan depremi listede yok"
+
+
+@pytest.mark.smoke
+def test_wide_radius_lists_center_events_first(monkeypatch):
+    """10.000 km'de varsayılan sıralama "En yakın önce": merkezin eski depremleri
+    listede görünmeli (kullanıcı bildirimi: 200 km'de görünüp 10.000 km'de görünmüyordu)."""
+    from streamlit.testing.v1 import AppTest
+
+    monkeypatch.delenv("DR_TEST_PANEL", raising=False)
+    at = AppTest.from_file(str(APP), default_timeout=300)
+    at.query_params.update({"sb_radius": "10000", "sb_min_mag": "5.0",
+                            "sb_zaman": "Özel gün sayısı", "sb_days": "40000"})
+    at.run()
+    assert not at.exception, [str(e.value)[:300] for e in at.exception]
+    assert at.radio(key="list_sort").value == "En yakın önce"
+    cards = "".join(str(m.value) for m in at.markdown if "eq-scroll-container" in str(m.value))
+    assert "26.12.1939" in cards and "13.03.1992" in cards

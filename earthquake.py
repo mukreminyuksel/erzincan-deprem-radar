@@ -173,7 +173,7 @@ def geocode_place(query):
     except Exception:
         return []
 
-APP_VERSION = "1.88"
+APP_VERSION = "1.89"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -2473,7 +2473,16 @@ def _render_canli_radar():
             list_time = st.selectbox("Zaman",
                                      ["Tümü", "Son 1 Saat", "Son 6 Saat", "Son 24 Saat"],
                                      key="list_time")
-        list_sort = st.radio("Sıralama", ["En yeni önce", "En büyük önce", "En yakın önce"],
+        # Geniş yarıçapta (600 km üstü) varsayılan "En yakın önce": aksi halde liste
+        # dünyanın öbür ucundaki son olaylarla dolup merkezin depremleri (ör. 1939 ve
+        # 1992 Erzincan) ilk 300'e giremiyordu. Kullanıcı seçimi korunur; yarıçap
+        # 600 km'yi aşınca/inince varsayılan bir kez yeniden ayarlanır.
+        _sort_opts = ["En yeni önce", "En büyük önce", "En yakın önce"]
+        _wide = radius_km > 600
+        if st.session_state.get("_list_sort_wide") != _wide:
+            st.session_state["_list_sort_wide"] = _wide
+            st.session_state["list_sort"] = "En yakın önce" if _wide else "En yeni önce"
+        list_sort = st.radio("Sıralama", _sort_opts,
                              horizontal=True, key="list_sort", label_visibility="collapsed")
 
         def render_scrollable(data, limit=300):
@@ -2516,8 +2525,9 @@ def _render_canli_radar():
             df_list = df_list.sort_values(["uzaklik_km", "zaman"], ascending=[True, False])
         _LIST_MAX = 300
         if len(df_list) > _LIST_MAX:
-            st.caption(f"{len(df_list)} deprem · listede ilk {_LIST_MAX} ({list_sort.lower()}); "
-                       "hepsi haritada")
+            st.caption(f"{len(df_list)} deprem · listede ilk {_LIST_MAX} ({list_sort.lower()}), "
+                       "hepsi haritada. Merkezin depremleri için \"En yakın önce\", en güçlüler "
+                       "için \"En büyük önce\" seç.")
         else:
             st.caption(f"{len(df_list)} deprem gösteriliyor")
         render_scrollable(df_list, limit=_LIST_MAX)

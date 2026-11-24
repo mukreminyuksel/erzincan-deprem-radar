@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.89 - 2026-11-24 — Geniş yarıçapta merkezin depremleri listede
+
+**Sorun (kullanıcı bildirimi):** 200 km'de 1939 ve 1992 Erzincan depremleri listede görünüyor, 10.000 km'de görünmüyordu. Veri tamamdı (USGS 51.331 depremden en büyük 20.000; ikisi de içinde) ama liste ilk 300 kaydı gösteriyor ve varsayılan "En yeni önce" sıralaması dünyanın öbür ucundaki son olaylarla doluyordu; "En büyük önce"de bile 1992 (M6.7) ilk 300'e giremiyordu.
+**Çözüm:** Yarıçap 600 km'yi aşınca liste varsayılan olarak "En yakın önce" sıralanır (merkezin depremleri en üstte); kullanıcı seçimi korunur. Liste kesildiğinde başlık sıralama seçeneklerini önerir. Regresyon testi: 10.000 km'de 1939 ve 1992 listede.
+
 ## v1.88 - 2026-11-24 — 📜 Uzun dönem sorgularında eski büyük depremler
 
 **Sorun (kullanıcı bildirimi):** 40.000 gün, M5+ sorgusunda 1939 Erzincan gibi eski depremler görünmüyordu. Neden: bütün kaynaklar *en yeni 1000 olayı* istiyordu (`orderby=time, limit=1000`) ve bekleme süresi 4 sn idi; geniş/uzun sorguda yalnız son günler geliyordu.
