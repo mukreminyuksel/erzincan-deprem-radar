@@ -1,6 +1,7 @@
 from __future__ import annotations  # Python 3.9 uyumu — PEP 604 'X | None' syntax fix
 
 import base64
+import collections
 import concurrent.futures
 import csv
 import functools
@@ -178,7 +179,7 @@ def geocode_place(query):
     except Exception:
         return []
 
-APP_VERSION = "1.95"
+APP_VERSION = "1.96"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -17862,9 +17863,10 @@ _ES_PENCERE = {"Aynı gün": 0, "3 gün (±1 gün)": 1, "Hafta (±3 gün)": 3}
 
 
 def _render_deprem_eslestir(radius_km):
-    st.caption(f"📍 {CENTER_NAME} çevresindeki her deprem için sorulur: **aynı günlerde, dünyanın başka neresinde "
-               "aynı büyüklük ve aynı derinlikte deprem oldu?** Eşleşmeler tekrar tekrar aynı bölgeden geliyorsa "
-               "o bölge listede öne çıkar. Bölge yarıçapını yukarıdaki kutudan değiştirebilirsin.")
+    st.caption(f"📍 {CENTER_NAME} çevresindeki depremler bir nokta kümesidir: her nokta (gün, büyüklük, derinlik). "
+               "Dünyanın her bölgesinin aynı günlerdeki nokta kümesi bununla üst üste konur; **aynı günlerde, "
+               "neredeyse aynı büyüklük ve derinlikte** olan noktalar çakışmış sayılır. Kümesi en çok çakışan "
+               "bölgeler listelenir. Bölge yarıçapını yukarıdaki kutudan değiştirebilirsin.")
     kats = [k for k in ("emsc", "usgs") if k == "usgs" or _emsc_sig()]
     kat = st.radio("Veri", kats, format_func=lambda k: _KOR_KATALOGLAR[k][0], key="es_kat")
     cat, sig = _kor_catalog(kat)
@@ -17875,11 +17877,11 @@ def _render_deprem_eslestir(radius_km):
     with c[0]:
         mode = st.radio("Zaman aralığı", ["Son N gün", "Tarih aralığı"], horizontal=True, key="es_mode")
         if mode == "Son N gün":
-            n_days = st.number_input("Kaç gün", min_value=14, max_value=int((cat_t1 - cat_t0) / 86400),
-                                     value=100, step=10, key=f"es_days_{kat}")
+            n_days = st.number_input("Kaç gün", min_value=7, max_value=int((cat_t1 - cat_t0) / 86400),
+                                     value=30, step=10, key=f"es_days_{kat}")
             t1, t0 = cat_t1, cat_t1 - n_days * 86400
         else:
-            dr = st.date_input("Başlangıç – bitiş", value=(d1 - timedelta(days=100), d1),
+            dr = st.date_input("Başlangıç – bitiş", value=(d1 - timedelta(days=30), d1),
                                min_value=d0, max_value=d1, key=f"es_dates_{kat}")
             if not isinstance(dr, (tuple, list)) or len(dr) != 2:
                 st.caption("Bitiş tarihini de seç.")
@@ -17888,15 +17890,15 @@ def _render_deprem_eslestir(radius_km):
             t1 = datetime(dr[1].year, dr[1].month, dr[1].day, tzinfo=timezone.utc).timestamp() + 86400
     min_mag = c[1].number_input("En küçük büyüklük (M)", min_value=floor, max_value=7.0, value=floor,
                                 step=0.5, key=f"es_mag_{kat}")
-    pencere = c[1].selectbox("Zaman eşleşmesi", list(_ES_PENCERE), index=1, key="es_pencere",
+    pencere = c[1].selectbox("Zaman eşleşmesi", list(_ES_PENCERE), index=0, key="es_pencere",
                              help="Bir depremin eşi sayılması için öbür depremin ne kadar yakın zamanda "
                                   "olması gerektiği (UTC takvim günü).")
-    dmag = c[2].number_input("Büyüklük toleransı (± M)", min_value=0.1, max_value=1.0, value=0.3, step=0.1,
-                             key="es_dmag")
-    ddepth = c[3].number_input("Derinlik toleransı (± km)", min_value=1.0, max_value=50.0, value=5.0, step=1.0,
-                               key="es_ddepth")
+    dmag = c[2].number_input("Büyüklük toleransı (± M)", min_value=0.0, max_value=1.0, value=0.1, step=0.1,
+                             key="es_dmag2", help="0 = tam aynı büyüklük.")
+    ddepth = c[3].number_input("Derinlik toleransı (± km)", min_value=0.2, max_value=50.0, value=1.0, step=0.5,
+                               key="es_ddepth2")
     tol = _ES_PENCERE[pencere]
-    if (t1 - t0) / 86400 < 4 * tol + 10:
+    if (t1 - t0) / 86400 < 4 * tol + 6:
         st.warning("Aralık bu zaman eşleşmesi için çok kısa; aralığı uzat.")
         return
     with st.spinner("Dünya taranıyor…"):
@@ -17915,12 +17917,13 @@ def _render_deprem_eslestir(radius_km):
     k[0].metric(f"{CENTER_NAME}: deprem", res.n_ref)
     k[1].metric("Eşleşme bulunan bölge", f"{res.scanned:,}".replace(",", "."))
     if regs:
-        k[2].metric("En güçlü aday", regs[0].name[:22] or "—",
-                    help="Gözlenen eşleşme sayısı tesadüf beklentisinin en çok üstünde olan bölge.")
-        k[3].metric("Eşleşen / beklenen", f"{regs[0].matched} / {regs[0].expected:.1f}")
-    labels = [f"{r.name or f'{r.lat:.1f}, {r.lon:.1f}'} ({r.matched}/{res.n_ref})" for r in regs]
+        k[2].metric("En çok çakışan bölge", regs[0].name[:22] or "—")
+        k[3].metric("Çakışma", f"%{regs[0].overlap:.0f}",
+                    help="Birebir eşleşen nokta sayısı ÷ iki bölgedeki toplam farklı nokta. "
+                         "%100 = iki nokta kümesi tamamen üst üste.")
+    labels = [f"{r.name or f'{r.lat:.1f}, {r.lon:.1f}'} (%{r.overlap:.0f})" for r in regs]
     ukey = f"{kat}_{int(t0)}_{int(t1)}_{min_mag}_{tol}_{dmag}_{ddepth}_{radius_km}_{CENTER_NAME}"
-    show = st.multiselect("Grafikte üst üste göster", labels, default=labels[:2], key=f"es_show_{ukey}")
+    show = st.multiselect("Grafikte üst üste göster", labels, default=labels[:1], key=f"es_show_{ukey}")
     sel = [regs[labels.index(lab)] for lab in show]
 
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.06,
@@ -17969,32 +17972,38 @@ def _render_deprem_eslestir(radius_km):
         st.info("Bu ayarlarla en az 2 depremi eşleşen bölge bulunamadı. Toleransları genişlet ya da aralığı uzat.")
         return
 
-    notable = [r for r in regs if r.z >= 3 and r.matched >= 3]
-    exp_fp = res.tested * 0.05
-    if notable:
-        st.success("**Beklenenden belirgin fazla eşleşme:** " + ", ".join(
-            f"{r.name} ({r.matched} eşleşme, beklenen {r.expected:.1f})" for r in notable[:5])
-            + ". Bu bir bağ kanıtı değildir; ataçlayıp sonraki dönemde eşleşmelerin sürüp sürmediğine bakmak "
-            "asıl sınamadır.")
+    best = regs[0]
+    fixed = collections.Counter(np.round(res.ref_depth[~np.isnan(res.ref_depth)], 1)).most_common(1)
+    msg = (f"**En çok çakışan bölge: {best.name}, %{best.overlap:.0f}.** {CENTER_NAME}'ın {res.n_ref} depreminden "
+           f"{best.paired}'i bu bölgedeki {best.n_events} depremden biriyle birebir eşleşti "
+           f"({pencere.lower()}, ±{dmag:.1f} M, ±{ddepth:.1f} km). ")
+    if best.overlap >= 50 and best.z >= 3:
+        st.success(msg + "Bu yüksek ve tesadüf beklentisinin belirgin üstünde; ataçlayıp sonraki günlerde "
+                   "sürüp sürmediğine bakmaya değer.")
     else:
-        st.info(f"Hiçbir bölgede eşleşme sayısı tesadüf beklentisini belirgin biçimde aşmıyor (en güçlü aday: "
-                f"{regs[0].name}, {regs[0].matched} eşleşme, beklenen {regs[0].expected:.1f}). "
-                f"{res.tested} bölge sınandığı için p < 0,05 düzeyinde yaklaşık {exp_fp:.0f} bölge tesadüfen de çıkar.")
+        st.info(msg + f"Eşleşme {best.matched} farklı güne yayılıyor; tesadüfen de yaklaşık {best.expected:.1f} gün beklenirdi. "
+                + ("Nokta kümeleri birbirine yakın değil." if best.overlap < 50 else
+                   "Çakışma yüksek ama tesadüf beklentisinden belirgin ayrışmıyor."))
+    if fixed and fixed[0][1] >= max(3, 0.4 * res.n_ref):
+        st.caption(f"⚠️ {CENTER_NAME} depremlerinin {fixed[0][1]}'inde derinlik tam {fixed[0][0]:g} km yazıyor. Bu ölçüm "
+                   "değil: ağ derinliği hesaplayamadığında varsayılan bir değer atar. Aynı varsayılanı kullanan "
+                   "başka bölgelerle derinlik \"eşleşmesi\" bu yüzden yapay olabilir.")
 
     with st.form("es_link_form", border=False):
         rows = [{"Ataçla": False, "Bölge": r.name or f"{r.lat:.1f}, {r.lon:.1f}",
-                 "Eşleşen deprem": r.matched, f"{CENTER_NAME} depremlerinin %'si": round(r.coverage),
-                 "Tesadüfen beklenen": round(r.expected, 1), "Fazlalık (z)": round(r.z, 1),
-                 "p": round(r.p_value, 3), "Bölgedeki deprem": r.n_events, "Uzaklık (km)": round(r.distance_km)}
+                 "Çakışma %": round(r.overlap), "Birebir eşleşen": r.paired,
+                 f"{CENTER_NAME} depremi": res.n_ref, "Bölgedeki deprem": r.n_events,
+                 "Eşleşen gün": r.matched, "Tesadüfen beklenen gün": round(r.expected, 1),
+                 "Fazlalık (z)": round(r.z, 1), "Uzaklık (km)": round(r.distance_km)}
                 for r in regs]
         ed = st.data_editor(pd.DataFrame(rows), hide_index=True, width="stretch", key=f"es_ed_{ukey}",
                             disabled=[c_ for c_ in rows[0] if c_ != "Ataçla"])
         st.caption(
-            f"**Nasıl okunur?** *Eşleşen deprem*: {CENTER_NAME}'daki depremlerden kaçının o bölgede eşi var "
-            f"({pencere.lower()}, ±{dmag:.1f} M, ±{ddepth:.0f} km). *Tesadüfen beklenen*: {CENTER_NAME} takvimi gün gün "
-            "kaydırılıp aynı sayım yapılınca çıkan ortalama; çok deprem üreten bölgeler her şeyle tesadüfen "
-            "eşleşir, bu sütun onu ayıklar. *Fazlalık (z)*: gözlenen ile beklenen arasındaki fark; 3 ve üstü "
-            "dikkat çekicidir. Liste fazlalığa göre sıralıdır.")
+            "**Nasıl okunur?** *Çakışma %*: iki bölgenin nokta kümeleri ne kadar üst üste (birebir eşleşen ÷ "
+            "iki bölgedeki toplam farklı nokta; %100 = aynı). Liste buna göre sıralıdır. *Eşleşen gün*: eşleşme "
+            f"görülen farklı gün sayısı (bir artçı fırtınası tek gün sayılır). *Tesadüfen beklenen gün*: {CENTER_NAME} "
+            "takvimi gün gün kaydırılınca çıkan ortalama. *Fazlalık (z)*: gözlenenin beklenenden ne kadar "
+            "ayrıştığı (3 ve üstü dikkat çekici). Aralık uzadıkça tesadüfi çakışmalar elenir.")
         g_name = st.text_input("Grup adı", value=f"{CENTER_NAME} deprem eşleşmeleri", key="es_group_name")
         submitted = st.form_submit_button(f"📎 İşaretlenenleri {CENTER_NAME} ile ataçla")
     if submitted:

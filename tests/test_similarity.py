@@ -228,6 +228,7 @@ def test_find_event_matches_detects_paired_region():
     assert best.name == "B" and best.matched == 12 and best.coverage == pytest.approx(100.0)
     assert best.expected < 3 and best.p_value < 0.05 and best.z > 3
     assert len(best.pair_ref) == 12 and set(best.pair_ref) == set(range(12))
+    assert best.paired == 12 and best.overlap == pytest.approx(100.0)   # iki nokta kümesi aynı
     assert all(r.name != "C" for r in res.regions)           # derinliği uymadığı için hiç eşleşmez
 
 
@@ -240,6 +241,8 @@ def test_find_event_matches_busy_region_is_not_significant():
                                  tol_days=0, dmag=0.3, ddepth=5)
     r = res.regions[0]
     assert r.matched == 15 and r.expected == pytest.approx(15.0) and abs(r.z) < 0.5 and r.p_value > 0.5
+    # 15 birebir çift, ama bölgede 300 deprem var: çakışma düşük (15 / (15 + 300 − 15))
+    assert r.paired == 15 and r.overlap == pytest.approx(5.0)
 
 
 def test_find_event_matches_no_reference_events():

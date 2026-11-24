@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.96 - 2026-11-24 — 🎯 Nokta kümesi çakışması (iki yönlü puan)
+
+**Deprem deprem eşleştirme, kullanıcı tarifine göre:** puan artık **çakışma %** = birebir eşleşen nokta ÷ iki bölgedeki toplam farklı nokta (gün, büyüklük, derinlik); %100 = kümeler aynı. Bölgede eşleşmeyen çok deprem varsa puan düşer (önceki puan tek yönlüydü). Birebir eşleşme en yakın çiftten başlar. Varsayılanlar: son 30 gün, aynı gün, ±0,1 M, ±1 km; aralık serbest (EMSC ~6.100 güne, USGS ~13.400 güne kadar).
+**Tesadüf testi farklı gün sayısıyla:** aynı güne yığılan artçılar tek sayılır (z şişmesi düzeltildi).
+**Uyarı:** merkezin depremlerinin çoğunda derinlik aynı varsayılan değerse (Erzincan son 30 gün: 18 depremin 12'si tam 7,0 km) ekranda belirtilir; derinlik eşleşmesi yapay olabilir.
+**Bulgu (Erzincan 100 km):** 30 günde en yüksek çakışma %8; 6.000 günde (M2+, aynı gün) en yüksek %3,2 ve yalnız komşu Türkiye bölgeleri (Batı/Orta Türkiye) tesadüf beklentisini belirgin aşıyor; uzak bölgelerde ayrışan yok.
+
 ## v1.95 - 2026-11-24 — 🎯 Deprem deprem eşleştirme
 
 **Yeni sekme (🔗 Benzer Bölgeler → 🎯 Deprem deprem eşleştir, kullanıcı isteği):** Seçili merkezin bir aralıktaki (varsayılan son 100 gün) her depremi için, yakın zamanda (aynı gün / 3 gün / hafta) dünyada benzer büyüklük (± tolerans) ve derinlikte (± km) deprem olan bölgeler bulunur. Puan: eşi o bölgede bulunan farklı referans depremi sayısı.

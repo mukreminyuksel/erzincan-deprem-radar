@@ -637,17 +637,19 @@ class EventRegion:
     lon: float
     name: str
     n_events: int            # bölgedeki deprem sayısı (aynı aralık, aynı büyüklük eşiği)
-    matched: int             # eşi bulunan referans depremi sayısı
-    coverage: float          # matched / referans deprem sayısı, %
-    expected: float          # tesadüfen beklenen eşleşme sayısı (takvim kaydırma)
+    matched: int             # eşi bulunan farklı referans günü sayısı
+    coverage: float          # birebir eşleşen / referans deprem sayısı, %
+    expected: float          # tesadüfen beklenen eşleşen gün sayısı (takvim kaydırma)
     p_value: float
     z: float                 # (gözlenen − beklenen) / sqrt(beklenen)
     distance_km: float
     ev_t: np.ndarray         # bölgedeki tüm depremler
     ev_mag: np.ndarray
     ev_depth: np.ndarray
-    pair_ref: np.ndarray     # eşleşen çiftler: referans deprem sırası
+    pair_ref: np.ndarray     # birebir eşleşen çiftler: referans deprem sırası
     pair_ev: np.ndarray      # ... ve bölgedeki deprem sırası (ev_* dizilerine göre)
+    paired: int = 0          # birebir eşleşen çift sayısı (her deprem en fazla bir eşle)
+    overlap: float = 0.0     # çakışma %: paired / (referans + bölge − paired); 100 = kümeler aynı
 
 
 @dataclass
@@ -679,8 +681,21 @@ def _pairs(ref_day, ref_mag, ref_depth, ev_day, ev_mag, ev_depth, tol_days, dmag
     return np.concatenate(pi), np.concatenate(pj)
 
 
+def _one_to_one(pi, pj, cost):
+    """Çiftlerden birebir eşleşme seçer: en yakın (maliyeti en düşük) çiftten başlayarak,
+    her referans ve her olay en fazla bir kez kullanılır. Dönüş: seçilen çiftlerin sıraları."""
+    used_i, used_j, keep = set(), set(), []
+    for k in np.argsort(cost, kind="stable"):
+        i, j = int(pi[k]), int(pj[k])
+        if i not in used_i and j not in used_j:
+            used_i.add(i)
+            used_j.add(j)
+            keep.append(k)
+    return np.asarray(keep, dtype=int)
+
+
 def _shift_null(ref_day, ref_mag, ref_depth, ev_day, ev_mag, ev_depth, tol_days, dmag, ddepth, day0, span):
-    """Referans takvimi 0..span-1 gün dairesel kaydırıldığında eşi bulunan referans depremi sayıları.
+    """Referans takvimi 0..span-1 gün dairesel kaydırıldığında, eşi bulunan referans *günü* sayıları.
 
     Dönüş: uzunluğu span olan dizi; [0] gözlenen değerdir. Tüm kaydırmalar tek geçişte hesaplanır:
     büyüklük/derinliği uyan her çift için, o çifti eşleştiren kaydırmalar işaretlenir.
@@ -697,7 +712,9 @@ def _shift_null(ref_day, ref_mag, ref_depth, ev_day, ev_mag, ev_depth, tol_days,
         delta = (ev_day[jj] - ref_day[sl][ii]) % span          # bu kadar kaydırınca aynı güne gelir
         s = (delta[:, None] + ks[None, :]) % span
         hits[(ii + a)[:, None].repeat(len(ks), 1), s] = True
-    return hits.sum(axis=0)
+    # aynı güne düşen referans depremleri tek sayılır (artçı fırtınası puanı şişirmesin)
+    _days, start = np.unique(ref_day, return_index=True)       # ref_day sıralı
+    return np.logical_or.reduceat(hits, start, axis=0).sum(axis=0)
 
 
 def find_event_matches(cat: Catalog, ref_lat, ref_lon, radius_km, *, t0, t1, min_mag, tol_days=1,
@@ -705,9 +722,11 @@ def find_event_matches(cat: Catalog, ref_lat, ref_lon, radius_km, *, t0, t1, min
     """Referans bölgenin her depremi için, dünyada yakın zamanda (±tol_days gün) benzer büyüklük
     (±dmag) ve derinlikte (±ddepth km) deprem olan bölgeleri bulur.
 
-    Bir bölgenin puanı: eşi o bölgede bulunan *farklı* referans depremi sayısı. Çok deprem üreten
-    bir bölge her şeyle tesadüfen eşleşir; bu yüzden her aday için beklenen değer, referans
-    takvimi gün gün kaydırılarak ölçülür ve bölgeler gözlenen−beklenen farkına (z) göre sıralanır.
+    Puan = çakışma %: iki bölgenin nokta kümeleri (gün, büyüklük, derinlik) ne kadar üst üste.
+    Birebir eşleşen çift sayısı ÷ (referans + bölge − eşleşen); %100 = kümeler aynı. İki yönlüdür:
+    bölgede eşleşmeyen çok deprem varsa puan düşer. Bölgeler çakışma %'sine göre sıralanır.
+    Ayrıca her aday için, eşi bulunan referans depremi sayısının tesadüf beklentisi referans
+    takvimi gün gün kaydırılarak ölçülür (expected, z, p).
     """
     sel = np.nonzero((cat.t >= t0) & (cat.t < t1) & (cat.mag >= min_mag))[0]
     sub = cat.subset(sel)
@@ -736,6 +755,12 @@ def find_event_matches(cat: Catalog, ref_lat, ref_lon, radius_km, *, t0, t1, min
     refs_of = defaultdict(set)                               # w içi olay sırası -> eşleştiği referanslar
     for i, j in zip(pi, pj):
         refs_of[int(j)].add(int(i))
+    # çift maliyeti: büyüklük, derinlik ve gün farkı (toleransa oranla); birebir eşleşmede en yakın önce
+    wd, wm, wz = day[w], sub.mag[w], sub.depth[w]
+    cost = (np.abs(wm[pj] - r_mag[pi]) / max(dmag, 1e-9) + np.abs(wz[pj] - r_dep[pi]) / max(ddepth, 1e-9)
+            + np.abs(wd[pj] - r_day[pi]) / (tol_days + 1.0))
+    order_j = np.argsort(pj, kind="stable")
+    pj_sorted = pj[order_j]
     centers = {(int(cla[j]), int(clo[j])) for j in refs_of}
     dlat_cells = int(math.ceil(radius_km / 111.0)) + 1
     cands = []
@@ -753,35 +778,44 @@ def find_event_matches(cat: Catalog, ref_lat, ref_lon, radius_km, *, t0, t1, min
             if int(j) in refs_of:
                 matched |= refs_of[int(j)]
         if len(matched) >= min_matched:
-            cands.append((len(matched), c_lat, c_lon, reg))
+            # bu bölgeye düşen çiftler → birebir eşleşme → çakışma %
+            lo = np.searchsorted(pj_sorted, reg, side="left")
+            hi = np.searchsorted(pj_sorted, reg, side="right")
+            ks = np.concatenate([order_j[a:b] for a, b in zip(lo, hi) if b > a])
+            sel_k = ks[_one_to_one(pi[ks], pj[ks], cost[ks])]
+            paired = len(sel_k)
+            overlap = 100.0 * paired / (len(ref_idx) + len(reg) - paired)
+            cands.append((overlap, len(matched), c_lat, c_lon, reg, sel_k))
     out.scanned = len(cands)
-    cands.sort(key=lambda x: -x[0])
+    cands.sort(key=lambda x: (-x[0], -x[1]))
     guard = 2 * tol_days + 1
     tested = []
-    for score, c_lat, c_lon, reg in cands[:n_tested]:
+    for overlap, score, c_lat, c_lon, reg, sel_k in cands[:n_tested]:
         gi = w[reg]
         null = _shift_null(r_day, r_mag, r_dep, day[gi], sub.mag[gi], sub.depth[gi],
                            tol_days, dmag, ddepth, day0, span)
         body = null[guard: span - guard + 1] if span > 2 * guard + 2 else null[1:]
+        score = int(null[0])                                   # eşi bulunan farklı referans günü
         exp = float(body.mean()) if len(body) else float("nan")
         p = float((1 + (body >= score).sum()) / (1 + len(body))) if len(body) else float("nan")
         z = (score - exp) / math.sqrt(max(exp, 0.25))
-        tested.append((z, score, exp, p, c_lat, c_lon, reg))
+        tested.append((overlap, z, score, exp, p, c_lat, c_lon, reg, sel_k))
     out.tested = len(tested)
     tested.sort(key=lambda x: (-x[0], -x[1]))
     chosen = []
-    for z, score, exp, p, c_lat, c_lon, reg in tested:
+    for overlap, z, score, exp, p, c_lat, c_lon, reg, sel_k in tested:
         if any(float(haversine_km(c_lat, c_lon, np.array([r.lat]), np.array([r.lon]))[0]) < sep_km
                for r in chosen):
             continue
         gi = w[reg]
         pos = {int(j): k for k, j in enumerate(reg)}
-        keep = [(int(i), pos[int(j)]) for i, j in zip(pi, pj) if int(j) in pos]
+        keep = [(int(pi[k]), pos[int(pj[k])]) for k in sel_k]
         chosen.append(EventRegion(
-            c_lat, c_lon, region_name(sub, gi), len(gi), score, 100.0 * score / len(ref_idx), exp, p, z,
+            c_lat, c_lon, region_name(sub, gi), len(gi), score, 100.0 * len(keep) / len(ref_idx), exp, p, z,
             float(haversine_km(ref_lat, ref_lon, np.array([c_lat]), np.array([c_lon]))[0]),
             sub.t[gi], sub.mag[gi], sub.depth[gi],
-            np.array([k[0] for k in keep], dtype=int), np.array([k[1] for k in keep], dtype=int)))
+            np.array([k[0] for k in keep], dtype=int), np.array([k[1] for k in keep], dtype=int),
+            paired=len(keep), overlap=overlap))
         if len(chosen) >= top_n:
             break
     out.regions = chosen
