@@ -166,14 +166,14 @@ def geocode_place(query):
     except Exception:
         return []
 
-APP_VERSION = "1.84"
+APP_VERSION = "1.85"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
     page_title=APP_TITLE,
     page_icon="🌍",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="auto",  # telefonda kapalı, masaüstünde açık başlar
 )
 
 # ─── Tema ───────────────────────────────────────────────────────────────────
@@ -770,7 +770,7 @@ st.markdown(f"""
     background: transparent !important;
     height: 0 !important;
   }}
-  [data-testid="stToolbar"],
+  /* stToolbar gizlenmez: kenar çubuğu açma çentiği (stExpandSidebarButton) onun içinde */
   [data-testid="stToolbarActions"],
   [data-testid="stMainMenu"],
   #MainMenu,
@@ -782,6 +782,8 @@ st.markdown(f"""
      Streamlit 1.50 yeni test-id'leri + aria-label selector'ler eklendi. */
   [data-testid="stSidebarCollapsedControl"],
   [data-testid="collapsedControl"],
+  [data-testid="stExpandSidebarButton"],
+  [data-testid="stSidebarCollapseButton"],
   [data-testid="stSidebarHeader"] button,
   button[kind="header"],
   button[kind="headerNoPadding"],
@@ -795,39 +797,43 @@ st.markdown(f"""
     z-index: 10001 !important;          /* sticky pill bar 9999 üstünde */
     pointer-events: auto !important;    /* tıklama eventleri pill bar yutmasın */
   }}
-  /* v1.45.7 — Sidebar HER ZAMAN açık, kullanıcı kapatamaz
-     Önceki tüm collapse/açma çözümleri (custom FAB, JS click) Streamlit
-     XSS koruması nedeniyle başarısız oldu. Pragmatik çözüm: sidebar'ın
-     kapanmasını CSS ile engelle, collapse butonunu da gizle. */
-  [data-testid="stSidebar"] {{
-    transform: none !important;
-    visibility: visible !important;
-    min-width: 244px !important;
-    max-width: 360px !important;
-    width: 244px !important;
-    margin-left: 0 !important;
-  }}
-  [data-testid="stSidebar"] > div:first-child {{
-    transform: none !important;
-    width: 244px !important;
-  }}
-  /* Collapse buton, header buton ve collapsedControl — TÜMÜNÜ gizle */
+  /* v1.85 — Mobil uyum: v1.45.7'deki "sidebar her zaman açık, kapatma düğmeleri
+     gizli" kuralı kaldırıldı (telefonda menü ekranı kaplıyor, kapanmıyordu).
+     Streamlit'in kendi düğmeleri kullanılır: kenar çubuğundaki "«" kapatır,
+     kapalıyken sol üstteki "»" çentiği açar. Çentik, yapışkan menü çubuğunun
+     (z-index 9999) üstünde ve sabit konumda tutulur. */
+  [data-testid="stExpandSidebarButton"],
   [data-testid="stSidebarCollapsedControl"],
-  [data-testid="collapsedControl"],
-  [data-testid="stSidebarHeader"] button,
-  [data-testid="stSidebarCollapseButton"],
-  button[kind="header"],
-  button[kind="headerNoPadding"],
-  button[aria-label="Open sidebar"],
-  button[aria-label="Close sidebar"],
-  button[aria-label*="kenar"],
-  button[aria-label*="enar çubuğu"] {{
-    display: none !important;
+  [data-testid="collapsedControl"] {{
+    position: fixed !important;
+    top: 8px !important;
+    left: 6px !important;
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    z-index: 10002 !important;
+    background: {"rgba(13,31,60,0.92)" if DARK else "rgba(255,255,255,0.95)"} !important;
+    border: 1px solid {BORDER} !important;
+    border-radius: 0 10px 10px 0 !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.35) !important;
   }}
-  /* Ana içeriği sidebar genişliği kadar sağa kaydır (Streamlit normalde otomatik
-     yapar ama collapse engellendiğinde garantili tutmak için) */
-  [data-testid="stMain"] {{
-    margin-left: 0 !important;
+  [data-testid="stSidebarCollapseButton"] {{
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }}
+  /* Telefonda kenar çubuğu ekranın en fazla %85'ini kaplasın */
+  @media (max-width: 768px) {{
+    [data-testid="stSidebar"] {{ max-width: 85vw !important; }}
+    /* Parmakla dokunmaya uygun boyut (en az 44 px) */
+    [data-testid="stExpandSidebarButton"],
+    [data-testid="stSidebarCollapseButton"] button,
+    [data-testid="stSidebarCollapseButton"] {{
+      min-width: 44px !important;
+      min-height: 44px !important;
+      align-items: center !important;
+      justify-content: center !important;
+    }}
   }}
 
   /* v1.45.4 — Plotly ModeBar (zoom/pan/reset/download) HER ZAMAN belirgin

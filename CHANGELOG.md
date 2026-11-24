@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.85 - 2026-11-24 — 📱 Mobil kenar çubuğu
+
+**Sorun:** Telefonda soldaki menü ekranı kaplıyor ve kapanmıyordu. Neden: v1.45.7'de kenar çubuğu CSS ile "her zaman açık" yapılmış, kapatma düğmeleri gizlenmişti; ayrıca açma çentiği `stToolbar` içinde olduğu için o da gizleniyordu.
+**Çözüm:** Zorla açık tutma kuralı kaldırıldı; Streamlit'in kendi düğmeleri kullanılıyor ("«" kapatır, sol üstteki "»" çentiği açar). Çentik sabit konumda, menü çubuğunun üstünde. `initial_sidebar_state="auto"`: telefonda kapalı, masaüstünde açık başlar (son tercih tarayıcıda hatırlanır). Telefonda düğmeler 44 px, kenar çubuğu en fazla ekranın %85'i.
+
 ## v1.84 - 2026-11-24 — 🔗 Benzer Bölgeler ve Bağlı İzleme
 
 **Yeni panel (📊 Analiz & Modeller → 🔗 Benzer Bölgeler):** Seçili merkez + yarıçap referans bölge alınır, dünyadaki aynı boy bölgelerle karşılaştırılır.
