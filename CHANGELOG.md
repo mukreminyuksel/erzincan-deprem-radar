@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.87 - 2026-11-24 — 🧹 Bakım: geleceğe dayanıklılık + otomatik test
+
+**Menü vurgusu:** Panel içinde bir ayar değişince üst/alt menünün vurgusu ilk sekmeye dönüyordu (içerik doğru kalsa da). `default_index` artık son seçime bağlı.
+
+**Kaldırılacak API'ler yenilendi:**
+- `use_container_width=True` → `width="stretch"` (114 yer; Streamlit bu parametreyi kaldırıyor).
+- Plotly Mapbox → MapLibre: `go.Scattermapbox` → `go.Scattermap` (71), `go.Densitymapbox` → `go.Densitymap` (3), `layout.mapbox` → `layout.map` (22). Plotly 7 Mapbox'ı tamamen kaldırdı. Yan etki: tarayıcı konsolundaki "Mapbox error / Unimplemented type" hataları kayboldu.
+- `datetime.utcnow()` / `utcfromtimestamp()` (Python 3.12+ kullanımdan kalktı) → saat dilimli eşdeğerler.
+
+**Sürümler sabitlendi:** `requirements.txt` tam sürümler (Streamlit 1.67.0, Plotly 6.9.0, NumPy 2.4.6 ...), Python 3.11 ve 3.14 için hazır paketle doğrulandı. `requirements-dev.txt` ruff + pytest sabit. Yerel `.venv` Python 3.9'dan buluttaki gibi 3.14.10'a taşındı.
+
+**Otomatik test:** `tests/test_app_smoke.py` — uygulamayı 36 panelin her biri için baştan sona çalıştırır + Kyoto/2000 km senaryosu (`pytest -m smoke`, ~45 sn). Panel seçimi testte `DR_TEST_PANEL` ortam değişkeniyle (menü iframe olduğu için). `.github/workflows/tests.yml` her push'ta lint + birim + duman testini Python 3.14'te çalıştırır.
+
+**Temizlik:** Kullanılmayan `deprem.py` (bulut doğrudan `earthquake.py`'yi çalıştırıyor) ve bulutta dikkate alınmayan `runtime.txt` kaldırıldı.
+
 ## v1.86 - 2026-11-24 — 🧭 Belirgin menüler + kaynak denetimi
 
 **Menüler:** Üst kategori ve alt panel menüleri büyütüldü ve kalınlaştırıldı; her sekme çerçeveli düğme gibi, seçili üst sekme mavi + altın çerçeve, seçili alt sekme yeşil.

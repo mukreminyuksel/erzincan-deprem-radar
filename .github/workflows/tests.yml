@@ -1,0 +1,33 @@
+# Her push ve elle tetiklemede: lint + birim testleri + bütün panelleri açan duman testi.
+# Python sürümü Streamlit Cloud ile aynı (3.14); paketler requirements.txt'ten sabit.
+name: Testler
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "data/global_catalog_m45.csv.gz"   # haftalık katalog commit'i testi tetiklemesin
+  pull_request:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - name: Lint (ruff)
+        run: ruff check .
+      - name: Birim testleri
+        run: pytest -q
+      - name: Duman testi (her panel, canlı veri)
+        run: pytest -q -m smoke

@@ -4,7 +4,7 @@ import concurrent.futures
 import json
 import math
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import ephem
 import numpy as np
@@ -86,6 +86,11 @@ except ImportError:
     def _render_bilim_notu(*args, **kwargs):  # type: ignore # no-op fallback
         return None
 
+def _utc_from_ts(ts):
+    """Unix zamanından saat dilimsiz UTC datetime (eski datetime.utcfromtimestamp yerine)."""
+    return datetime.fromtimestamp(ts, timezone.utc).replace(tzinfo=None)
+
+
 ERZ_LAT = 39.7333
 ERZ_LON = 39.4917
 
@@ -166,7 +171,7 @@ def geocode_place(query):
     except Exception:
         return []
 
-APP_VERSION = "1.86"
+APP_VERSION = "1.87"
 APP_TITLE = f"Erzincan Deprem Radari v{APP_VERSION}"
 
 st.set_page_config(
@@ -349,7 +354,7 @@ def fetch_usgs(lat, lon, radius_km, min_mag, start_dt, end_dt):
         rows = []
         for f in r.json().get("features", []):
             p = f["properties"]; c = f["geometry"]["coordinates"]
-            t = datetime.utcfromtimestamp(p["time"] / 1000).strftime("%Y-%m-%d %H:%M:%S")
+            t = _utc_from_ts(p["time"] / 1000).strftime("%Y-%m-%d %H:%M:%S")
             rows.append({"zaman": t, "buyukluk": p.get("mag"),
                          "derinlik": round(abs(c[2]), 1) if c[2] is not None else None,
                          "konum": p.get("place", ""), "lat": c[1], "lon": c[0], "kaynak": "USGS"})
@@ -1443,12 +1448,15 @@ _PILL_STYLE_ALT = {
 
 with st.container(key="sticky_nav"):
     # Üst: ana kategori pill bar (6 öğe — BÜYÜK, ana navigasyon)
+    # v1.87 — default_index son seçime bağlı: bileşen yeniden çizildiğinde
+    # (panel içindeki bir ayar değişince) vurgu ilk sekmeye dönmesin.
+    _ust_secim = st.session_state.get("ana_kategori")
     secili_kategori = option_menu(
         menu_title=None,
         options=_KATEGORI_LISTESI,
         icons=_KATEGORI_IKONLARI,
         orientation="horizontal",
-        default_index=0,
+        default_index=_KATEGORI_LISTESI.index(_ust_secim) if _ust_secim in _KATEGORI_LISTESI else 0,
         key="ana_kategori",
         styles=_PILL_STYLE_USTE,
     )
@@ -1463,16 +1471,25 @@ with st.container(key="sticky_nav"):
     _alt_paneller = _KATEGORILER[secili_kategori]["panels"]
     _alt_labels = [p[0] for p in _alt_paneller]
     _alt_icons  = [p[1] for p in _alt_paneller]
+    _alt_secim = st.session_state.get(f"alt_panel_{secili_kategori}")
     active_menu = option_menu(
         menu_title=None,
         options=_alt_labels,
         icons=_alt_icons,
         orientation="horizontal",
-        default_index=0,
+        default_index=_alt_labels.index(_alt_secim) if _alt_secim in _alt_labels else 0,
         # Her kategorinin kendi state'i — kategori değiştirince alt pill default'a döner
         key=f"alt_panel_{secili_kategori}",
         styles=_PILL_STYLE_ALT,
     )
+
+# Yalnız otomatik testler için: DR_TEST_PANEL ortam değişkeni verilen paneli açar
+# (menü bileşeni bir iframe olduğu için testten tıklanamıyor). Uygulamada kullanılmaz.
+_DR_TEST_PANEL = os.environ.get("DR_TEST_PANEL")
+if _DR_TEST_PANEL:
+    for _kat, _kdef in _KATEGORILER.items():
+        if _DR_TEST_PANEL in [p[0] for p in _kdef["panels"]]:
+            secili_kategori, active_menu = _kat, _DR_TEST_PANEL
 
 # ─── Metrikler ──────────────────────────────────────────────────────────────
 c1, c2, c3, c4, c5, c6 = st.columns(6)
@@ -1847,7 +1864,7 @@ def load_plate_velocities(ref_lat: float = ERZ_LAT, ref_lon: float = ERZ_LON,
         vel.setdefault("reference_frame", "NNR")
     return out
 
-def make_mapbox_layout(stil):
+def make_map_layout(stil):
     # Uydu: saf uydu + yer adlari katmani (labels below traces)
     if stil == "Uydu":
         return dict(
@@ -2126,14 +2143,14 @@ def _render_canli_radar():
                 f"Kaynak: {safe_html(r['kaynak'])}", axis=1)
 
             # Siyah dis hat (biraz daha buyuk, tamamen siyah)
-            fig_map.add_trace(go.Scattermapbox(
+            fig_map.add_trace(go.Scattermap(
                 lat=sub["lat"], lon=sub["lon"],
                 mode="markers", name=label, showlegend=False,
                 marker=dict(size=sizes + 3, color="rgba(0,0,0,0.75)"),
                 hoverinfo="skip",
             ))
             # Renkli ic daire
-            fig_map.add_trace(go.Scattermapbox(
+            fig_map.add_trace(go.Scattermap(
                 lat=sub["lat"], lon=sub["lon"],
                 mode="markers", name=label,
                 marker=dict(size=sizes, color=color, opacity=0.92),
@@ -2163,13 +2180,13 @@ def _render_canli_radar():
             _fault_traces, _fault_count = fault_traces_for_view(margin, _lod_step, CENTER_LAT, CENTER_LON)
             for color, f_lats, f_lons, f_labels in _fault_traces:
                 # Gölge (siyah, alt katman)
-                fig_map.add_trace(go.Scattermapbox(
+                fig_map.add_trace(go.Scattermap(
                     lat=f_lats, lon=f_lons, mode="lines",
                     showlegend=False, hoverinfo="skip",
                     line=dict(color="rgba(0,0,0,0.55)", width=3.5),
                 ))
                 # Renkli üst çizgi
-                fig_map.add_trace(go.Scattermapbox(
+                fig_map.add_trace(go.Scattermap(
                     lat=f_lats, lon=f_lons, mode="lines",
                     name="Fay hattı", showlegend=False,
                     line=dict(color=color, width=1.8),
@@ -2197,7 +2214,7 @@ def _render_canli_radar():
                 for plate in plates_in_type:
                     all_lats.extend(plate["lats"] + [None])
                     all_lons.extend(plate["lons"] + [None])
-            fig_map.add_trace(go.Scattermapbox(
+            fig_map.add_trace(go.Scattermap(
                 lat=all_lats, lon=all_lons, mode="lines",
                 showlegend=False, hoverinfo="skip",
                 line=dict(color="rgba(0,0,0,0.7)", width=5),
@@ -2220,7 +2237,7 @@ def _render_canli_radar():
                     t_lats.extend(plate["lats"] + [None])
                     t_lons.extend(plate["lons"] + [None])
                     t_labels.extend([plate["isim"]] * len(plate["lats"]) + [None])
-                fig_map.add_trace(go.Scattermapbox(
+                fig_map.add_trace(go.Scattermap(
                     lat=t_lats, lon=t_lons, mode="lines",
                     name=type_display[b_type], showlegend=True,
                     line=dict(color=style["color"], width=style["width"]),
@@ -2263,7 +2280,7 @@ def _render_canli_radar():
                 g_lats, g_lons = _sample_along_plates(plates_in_type, step_km)
                 if not g_lats:
                     continue
-                fig_map.add_trace(go.Scattermapbox(
+                fig_map.add_trace(go.Scattermap(
                     lat=g_lats, lon=g_lons,
                     mode="text",
                     text=[glyph_char] * len(g_lats),
@@ -2279,7 +2296,7 @@ def _render_canli_radar():
                 {"lat": 39.0, "lon": 37.0, "text": "← Anadolu Plakası", "isim": "Batıya kaçıyor (~21 mm/yıl)"},
                 {"lat": 40.5, "lon": 39.5, "text": "↓ Avrasya Plakası", "isim": "Güneye doğru direnç/baskı"},
             ]
-            fig_map.add_trace(go.Scattermapbox(
+            fig_map.add_trace(go.Scattermap(
                 lat=[p["lat"] for p in plate_motions],
                 lon=[p["lon"] for p in plate_motions],
                 mode="markers+text",
@@ -2296,7 +2313,7 @@ def _render_canli_radar():
 
         # Erzincan pin
         pin_color = "#ffffff" if (harita_stil in ["Uydu", "Uydu+Yol", "Koyu"]) else "#1a2a3a"
-        fig_map.add_trace(go.Scattermapbox(
+        fig_map.add_trace(go.Scattermap(
             lat=[CENTER_LAT], lon=[CENTER_LON], mode="markers+text",
             name=CENTER_NAME,
             marker=dict(size=16, color=pin_color, symbol="circle"),
@@ -2305,14 +2322,14 @@ def _render_canli_radar():
             hoverinfo="skip",
         ))
 
-        mapbox_cfg = make_mapbox_layout(harita_stil)
+        map_cfg = make_map_layout(harita_stil)
         # 600 km'ye kadar eski görünüm (zoom 6); daha büyük yarıçapta her 2 katında
         # bir kademe uzaklaş ki dairenin tamamı görünsün (2000 km ≈ 4.3, 20000 km → 1).
         _zoom = 6.0 if radius_km <= 600 else max(1.0, 6.0 - math.log2(radius_km / 600))
-        mapbox_cfg.update({"center": dict(lat=CENTER_LAT, lon=CENTER_LON), "zoom": _zoom})
+        map_cfg.update({"center": dict(lat=CENTER_LAT, lon=CENTER_LON), "zoom": _zoom})
 
         fig_map.update_layout(
-            mapbox=mapbox_cfg,
+            map=map_cfg,
             margin=dict(t=0, b=0, l=0, r=0),
             height=780,
             legend=dict(
@@ -2324,7 +2341,7 @@ def _render_canli_radar():
             ),
             paper_bgcolor=BG,
         )
-        st.plotly_chart(fig_map, use_container_width=True,
+        st.plotly_chart(fig_map, width="stretch",
                         config={"scrollZoom": True, "displayModeBar": True,
                                 "modeBarButtonsToRemove": ["toImage"],
                                 "displaylogo": False})
@@ -2538,7 +2555,7 @@ def _render_canli_radar():
         margin=dict(t=10, b=50, l=70, r=140),
         hovermode="closest",
     )
-    st.plotly_chart(fig_depth, use_container_width=True,
+    st.plotly_chart(fig_depth, width="stretch",
                     config={"displayModeBar": True, "displaylogo": False})
 
     # ════════════════════════════════════════════════════════════════
@@ -2638,7 +2655,7 @@ def _render_canli_radar():
         fig_act.update_layout(**common_layout)
         fig_act.update_yaxes(title_text="Kumulatif Sayi", gridcolor=GRID)
 
-    st.plotly_chart(fig_act, use_container_width=True,
+    st.plotly_chart(fig_act, width="stretch",
                     config={"displayModeBar": True, "displaylogo": False})
 
     # ─── Buyukluk + Derinlik dagilimi ───────────────────────────────────────────
@@ -2660,7 +2677,7 @@ def _render_canli_radar():
         fig_h1.update_traces(marker_line_width=0.5,
                               marker_line_color="rgba(255,255,255,0.2)")
         fig_h1.update_layout(**hist_layout)
-        st.plotly_chart(fig_h1, use_container_width=True,
+        st.plotly_chart(fig_h1, width="stretch",
                         config={"displayModeBar": True, "displaylogo": False})
 
     with col_h2:
@@ -2671,7 +2688,7 @@ def _render_canli_radar():
         fig_h2.update_traces(marker_line_width=0.5,
                               marker_line_color="rgba(255,255,255,0.2)")
         fig_h2.update_layout(**hist_layout)
-        st.plotly_chart(fig_h2, use_container_width=True,
+        st.plotly_chart(fig_h2, width="stretch",
                         config={"displayModeBar": True, "displaylogo": False})
 
 if active_menu == "🌍 Canlı Radar":
@@ -2689,7 +2706,7 @@ if active_menu == "⚙️ Sistem & Veri":
             "Mesaj": status,
         })
     status_df = pd.DataFrame(status_rows)
-    st.dataframe(status_df, use_container_width=True, hide_index=True)
+    st.dataframe(status_df, width="stretch", hide_index=True)
 
     src_counts = df.groupby("kaynak").size().sort_values(ascending=False).reset_index(name="kayıt")
     fig_health = px.bar(src_counts, x="kaynak", y="kayıt", color="kaynak")
@@ -2702,7 +2719,7 @@ if active_menu == "⚙️ Sistem & Veri":
         xaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT)),
         yaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT), title="Kayıt"),
     )
-    st.plotly_chart(fig_health, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+    st.plotly_chart(fig_health, width="stretch", config={"displayModeBar": True, "displaylogo": False})
 
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown('<div class="chart-title">📊 2. Veri Kalitesi Kontrolü</div>', unsafe_allow_html=True)
@@ -2727,7 +2744,7 @@ if active_menu == "⚙️ Sistem & Veri":
             "Tekilleştirme Sonrası Temsilci": final_count,
             "Durum": status,
         })
-    st.dataframe(pd.DataFrame(quality_rows), use_container_width=True, hide_index=True)
+    st.dataframe(pd.DataFrame(quality_rows), width="stretch", hide_index=True)
     st.info(
         "Veri analizleri tekilleştirilmiş katalog üzerinden yürütülür. "
         "Kaynak bazlı farklı büyüklük/konum raporları bilimsel belirsizliktir; kesin hüküm değil, ölçüm ve kataloglama farkı olarak ele alınmalıdır."
@@ -2775,7 +2792,7 @@ if active_menu == "🧭 Fay Sistemleri":
             xaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT)),
             yaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT), title="Olay"),
         )
-        st.plotly_chart(fig_fault, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+        st.plotly_chart(fig_fault, width="stretch", config={"displayModeBar": True, "displaylogo": False})
     with f2:
         top_faults = fault_df["Yakın Fay"].value_counts().head(10).reset_index()
         top_faults.columns = ["Fay", "Olay"]
@@ -2789,8 +2806,8 @@ if active_menu == "🧭 Fay Sistemleri":
             xaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT)),
             yaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT)),
         )
-        st.plotly_chart(fig_top_faults, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
-    st.dataframe(fault_df.head(100), use_container_width=True, hide_index=True)
+        st.plotly_chart(fig_top_faults, width="stretch", config={"displayModeBar": True, "displaylogo": False})
+    st.dataframe(fault_df.head(100), width="stretch", hide_index=True)
 
     # v1.70 — Sprint 7 Batch 2: Fay Sistemleri akademik standart
     st.markdown(
@@ -2939,7 +2956,7 @@ def _render_istatistik_top():
         xaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT)),
         yaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT), range=[0, 45]),
     )
-    st.plotly_chart(fig_score, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+    st.plotly_chart(fig_score, width="stretch", config={"displayModeBar": True, "displaylogo": False})
     st.info("Bu skor deprem tahmini değildir; sadece seçilen veri penceresindeki aktiviteyi özetleyen karar destek göstergesidir.")
 
 if active_menu == "📊 İstatistik & Analiz":
@@ -3272,7 +3289,7 @@ if active_menu == "🎓 Bilgi Havuzu":
                     )],
                 )],
             )
-            st.plotly_chart(fig_fault_demo, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+            st.plotly_chart(fig_fault_demo, width="stretch", config={"displayModeBar": True, "displaylogo": False})
 
             # v1.59 — Mini okuma rehberi (ACADEMIC_STANDARD §4.8)
             st.markdown(
@@ -3566,7 +3583,7 @@ if active_menu == "🎓 Bilgi Havuzu":
                     )]
                 )]
             )
-            st.plotly_chart(fig_wave2d, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+            st.plotly_chart(fig_wave2d, width="stretch", config={"displayModeBar": True, "displaylogo": False})
 
             st.markdown("---")
             # v1.52 — Ajan 6A (Codex önceliği 7): bilimsel atıf + terminoloji
@@ -3749,7 +3766,7 @@ if active_menu == "🎓 Bilgi Havuzu":
             event_lat = scenario["lat"]
             event_lon = scenario["lon"]
 
-            fig_erz.add_trace(go.Scattermapbox(
+            fig_erz.add_trace(go.Scattermap(
                 lat=[event_lat], lon=[event_lon],
                 mode="markers+text",
                 marker=dict(size=20, color="#FFD54F", symbol="star", allowoverlap=True),
@@ -3775,15 +3792,15 @@ if active_menu == "🎓 Bilgi Havuzu":
             s_lon, s_lat = create_circle_coords(event_lat, event_lon, s_rad)
             r_lon, r_lat = create_circle_coords(event_lat, event_lon, r_rad)
 
-            fig_erz.add_trace(go.Scattermapbox(lat=p_lat, lon=p_lon, mode="lines", line=dict(color="#29B6F6", width=3), name=f"P-Dalgası (r={p_rad:.0f}km)"))
-            fig_erz.add_trace(go.Scattermapbox(lat=s_lat, lon=s_lon, mode="lines", line=dict(color="#FFA726", width=4), name=f"S-Dalgası (r={s_rad:.0f}km)"))
-            fig_erz.add_trace(go.Scattermapbox(lat=r_lat, lon=r_lon, mode="lines", line=dict(color="#F44336", width=6), name=f"Rayleigh Dalgası (r={r_rad:.0f}km)"))
+            fig_erz.add_trace(go.Scattermap(lat=p_lat, lon=p_lon, mode="lines", line=dict(color="#29B6F6", width=3), name=f"P-Dalgası (r={p_rad:.0f}km)"))
+            fig_erz.add_trace(go.Scattermap(lat=s_lat, lon=s_lon, mode="lines", line=dict(color="#FFA726", width=4), name=f"S-Dalgası (r={s_rad:.0f}km)"))
+            fig_erz.add_trace(go.Scattermap(lat=r_lat, lon=r_lon, mode="lines", line=dict(color="#F44336", width=6), name=f"Rayleigh Dalgası (r={r_rad:.0f}km)"))
 
             # Fay Hatları (Canlı Radardaki Altlık)
             if FAULT_LINES:
                 _fault_traces, _ = fault_traces_for_view(max(220 * 1.6, 250) / 111.0)
                 for color, f_lats, f_lons, f_labels in _fault_traces:
-                    fig_erz.add_trace(go.Scattermapbox(
+                    fig_erz.add_trace(go.Scattermap(
                         lat=f_lats, lon=f_lons,
                         mode="lines",
                         line=dict(width=1.5, color=color),
@@ -3801,15 +3818,15 @@ if active_menu == "🎓 Bilgi Havuzu":
                 font=dict(color=TEXT),
                 height=650,
                 margin=dict(t=30, b=8, l=0, r=0),
-                mapbox=dict(
-                    **make_mapbox_layout("Uydu"),
+                map=dict(
+                    **make_map_layout("Uydu"),
                     center=dict(lat=ERZ_LAT, lon=ERZ_LON),
                     zoom=7.5,
                     pitch=0,
                 ),
                 legend=dict(font=dict(color=TEXT), bgcolor="rgba(0,0,0,0)", orientation="h", x=0, y=1.1),
             )
-            st.plotly_chart(fig_erz, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+            st.plotly_chart(fig_erz, width="stretch", config={"displayModeBar": True, "displaylogo": False})
 
             c1, c2, c3 = st.columns(3)
             c1.metric("Mekanizma", scenario["mechanism"])
@@ -3936,7 +3953,7 @@ def _ephem_features_one(zaman_ts: float, lat: float, lon: float) -> dict:
     obs = ephem.Observer()
     obs.lat = str(lat)
     obs.lon = str(lon)
-    obs.date = datetime.utcfromtimestamp(zaman_ts)  # naive UTC datetime
+    obs.date = _utc_from_ts(zaman_ts)  # naive UTC datetime
 
     moon = ephem.Moon(obs)
     sun = ephem.Sun(obs)
@@ -4018,10 +4035,10 @@ def _render_istatistik_bottom():
 
     col_btn1, col_btn2 = st.columns([3, 1])
     with col_btn1:
-        if st.button("🚀 Bilimsel Analizleri Çalıştır (Korelasyon, b-Değeri vb.)", use_container_width=True, type="primary"):
+        if st.button("🚀 Bilimsel Analizleri Çalıştır (Korelasyon, b-Değeri vb.)", width="stretch", type="primary"):
             st.session_state.run_analysis = True
     with col_btn2:
-        if st.button("🛑 Kapat", use_container_width=True):
+        if st.button("🛑 Kapat", width="stretch"):
             st.session_state.run_analysis = False
             st.rerun()
 
@@ -4079,7 +4096,7 @@ def _render_istatistik_bottom():
                 xaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT, size=9)),
                 yaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT, size=9)),
             )
-            st.plotly_chart(fig_src, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+            st.plotly_chart(fig_src, width="stretch", config={"displayModeBar": True, "displaylogo": False})
         with energy_col:
             st.markdown('<div class="chart-title">⚡ Kümülatif Enerji Salınımı</div>', unsafe_allow_html=True)
             fig_energy = go.Figure(go.Scatter(
@@ -4095,7 +4112,7 @@ def _render_istatistik_bottom():
                 xaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT, size=9)),
                 yaxis=dict(gridcolor=GRID, tickfont=dict(color=TEXT, size=9), title="Joule"),
             )
-            st.plotly_chart(fig_energy, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+            st.plotly_chart(fig_energy, width="stretch", config={"displayModeBar": True, "displaylogo": False})
             st.info("💡 **Basitçe:** Bu grafik, fay hattında biriken enerjinin zaman içindeki tablosudur. Eğrinin yatay ve düz ilerlediği dönemler fayın **'kilitlendiği' ve enerji biriktirdiği** (suskunluk) tehlikeli zamanları gösterir. Çizginin aniden dik bir şekilde yukarı fırladığı anlar ise büyük bir depremin patlayarak bu gerilimi boşalttığı rahatlama anlarıdır. Eğer uzun süredir çizgi düz ilerliyorsa, fay büyük bir olaya hazırlanıyor demektir.")
 
         # ════════════════════════════════════════════════════════════════
@@ -4209,7 +4226,7 @@ def _render_istatistik_bottom():
                         tuple(corr_matrix.columns.tolist()),
                         BG, BG2, TEXT,
                     )
-                    st.plotly_chart(fig_corr, use_container_width=True,
+                    st.plotly_chart(fig_corr, width="stretch",
                                     config={"displayModeBar": True, "displaylogo": False})
 
                 with col_sc:
@@ -4271,7 +4288,7 @@ def _render_istatistik_bottom():
                         legend=dict(font=dict(color=TEXT), bgcolor="rgba(0,0,0,0)"),
                         hovermode="closest",
                     )
-                    st.plotly_chart(fig_pre, use_container_width=True,
+                    st.plotly_chart(fig_pre, width="stretch",
                                     config={"displayModeBar": True, "displaylogo": False})
                     st.info("💡 **Basitçe:** Büyük bir deprem gelmeden günler veya haftalar önce, fay hattında çatırdamalar başlar ve küçük sarsıntılar oluşur. Buna **Öncü Deprem** (Foreshock) denir. Bu grafik, bölgedeki sarsıntıların sıradan rastgele titreşimler mi yoksa yaklaşan büyük bir ana depremin ayak sesleri mi (anormal kümelenme) olduğunu matematiksel olarak test eder.")
 
@@ -4403,7 +4420,7 @@ def _render_istatistik_bottom():
                         ),
                         legend=dict(font=dict(color=TEXT), bgcolor="rgba(0,0,0,0)"),
                     )
-                    st.plotly_chart(fig_b, use_container_width=True,
+                    st.plotly_chart(fig_b, width="stretch",
                                     config={"displayModeBar": True, "displaylogo": False})
                     st.info("💡 **Basitçe (b-Değeri):** **b-Değeri**, sismolojinin en önemli uyarıcılarından biridir. Küçük depremlerin büyük depremlere olan oranını gösterir. Mavi çizginin yokuş aşağı inmesi (değerin düşmesi), fay hattındaki **stresin (gerilimin) aşırı yükseldiğini** ve kayaların artık kopma noktasına yaklaştığını gösterir. b-değerinin aniden çakılması, büyük bir depremin habercisi olarak kabul edilir.")
                     st.caption(f"Pencere: {WINDOW} deprem | Mc ≈ M{Mc:.1f} | Veri noktası: {len(b_vals)}")
@@ -4460,7 +4477,7 @@ def _render_istatistik_bottom():
                     legend=dict(font=dict(color=TEXT), bgcolor="rgba(0,0,0,0)",
                                 orientation="h", x=0, y=1.08),
                 )
-                st.plotly_chart(fig_ben, use_container_width=True,
+                st.plotly_chart(fig_ben, width="stretch",
                                 config={"displayModeBar": True, "displaylogo": False})
                 st.info("💡 **Basitçe:** Yeraltındaki kayalar lastik gibi esneyebilir. **Benioff Zorlanması**, bu esnemenin miktarını ölçer. Grafik sürekli yukarı doğru tırmanıyorsa, tektonik plakalar birbirini itiyor ve yeraltındaki kayalar giderek daha fazla bükülüyor demektir. Eğrinin zirveye ulaştığı nokta, kayanın artık dayanamayıp kırıldığı (deprem) anı temsil eder.")
 
@@ -4517,7 +4534,7 @@ def _render_istatistik_bottom():
                                scaleanchor="x", scaleratio=1),
                     hovermode="closest",
                 )
-                st.plotly_chart(fig_mig, use_container_width=True,
+                st.plotly_chart(fig_mig, width="stretch",
                                 config={"displayModeBar": True, "displaylogo": False})
                 st.info("💡 **Basitçe:** Depremler bazen rastgele değil, tıpkı devrilen domino taşları gibi belli bir yöne doğru ilerler. Bu harita, sarsıntıların **doğuya mı, batıya mı** doğru kaydığını gösterir. Fay üzerindeki enerjinin bir noktadan başka bir noktaya transfer edilmesi (göç etmesi), yakında hangi şehrin veya fay segmentinin tehlikeye gireceğini anlamamızı sağlar.")
 
@@ -4571,7 +4588,7 @@ def _render_istatistik_bottom():
                                 x=0, y=1.08, orientation="h"),
                     hovermode="closest",
                 )
-                st.plotly_chart(fig_dep_mig, use_container_width=True,
+                st.plotly_chart(fig_dep_mig, width="stretch",
                                 config={"displayModeBar": True, "displaylogo": False})
                 st.info("💡 **Basitçe:** Depremlerin sadece haritada değil, **yeraltındaki derinliklerinde de bir hareketi** vardır. Sarsıntıların 20 km derinlikten başlayıp gün geçtikçe 5 km, 2 km gibi yüzeye doğru tırmanması, yeraltındaki kırılmanın (veya magmanın) yüzeye doğru bir yol bulmaya çalıştığını ve yakında yıkıcı bir sığ deprem üretebileceğini işaret eder.")
         else:
@@ -4674,7 +4691,7 @@ def _render_istatistik_bottom():
                             yaxis=dict(title=dict(text="Sayı", font=dict(color=TEXT)),
                                        gridcolor=GRID, tickfont=dict(color=TEXT)),
                         )
-                        st.plotly_chart(fig_eta_h, use_container_width=True,
+                        st.plotly_chart(fig_eta_h, width="stretch",
                                         config={"displayModeBar": True, "displaylogo": False})
 
                     with col_es:
@@ -4706,7 +4723,7 @@ def _render_istatistik_bottom():
                             legend=dict(font=dict(color=TEXT), bgcolor="rgba(0,0,0,0)",
                                         x=0, y=1.08, orientation="h"),
                         )
-                        st.plotly_chart(fig_eta_s, use_container_width=True,
+                        st.plotly_chart(fig_eta_s, width="stretch",
                                         config={"displayModeBar": True, "displaylogo": False})
                         st.info("💡 **Basitçe:** Tıpkı bir virüsün insanlara bulaşması gibi, depremler de birbirini tetikler (ETAS Modeli). Bu grafik, yaşanan sarsıntıların sadece eski bir depremin **zararsız artçıları mı**, yoksa yepyeni ve daha büyük bir depremi doğuracak **tehlikeli tetikleyiciler mi** olduğunu analiz eder. 'Bulaşıcılık' seviyesi yüksekse alarm zilleri çalmaya başlar.")
 
@@ -4921,7 +4938,7 @@ def _render_istatistik_bottom():
                                     x=0, y=1.06, orientation="h"),
                         hovermode="x unified",
                     )
-                    st.plotly_chart(fig_rtl, use_container_width=True,
+                    st.plotly_chart(fig_rtl, width="stretch",
                                     config={"displayModeBar": True, "displaylogo": False})
                     st.info("💡 **Basitçe:** Fay hatları büyük bir deprem üretmeden önce genellikle tamamen sessizleşir. **RTL Skoru**, bu fırtına öncesi sessizliği tespit eder. Grafikteki çizgi sıfırın altına (negatif bölgeye) inip uzun süre orada kalıyorsa, fay hattı tamamen **kilitlenmiş ve enerjisini hapsediyor** demektir. Bu kilit ne kadar uzun sürerse, kırılma o kadar şiddetli olur.")
 
@@ -5131,7 +5148,7 @@ def _render_istatistik_bottom():
                     legend=dict(font=dict(color=TEXT), bgcolor="rgba(0,0,0,0)",
                                 x=0, y=1.06, orientation="h"),
                 )
-                st.plotly_chart(fig_amr, use_container_width=True,
+                st.plotly_chart(fig_amr, width="stretch",
                                 config={"displayModeBar": True, "displaylogo": False})
                 st.info("💡 **Basitçe:** Büyük bir dal kırılmadan önce çatırdama sesleri nasıl giderek hızlanır ve artarsa, fay hatları da aynısını yapar. **AMR Analizi**, bu sismik çatırdamaların ritmini ölçer. Kırmızı çizgi giderek hızlanarak dikey bir duvara tırmanıyorsa (hızlanan enerji salınımı), fayın kritik bir kopma noktasına doğru hızla ilerlediğini anlarız.")
                 st.caption(
@@ -5350,7 +5367,7 @@ def _render_istatistik_bottom():
                                     x=0, y=1.06, orientation="h"),
                         hovermode="closest",
                     )
-                    st.plotly_chart(fig_bmap, use_container_width=True,
+                    st.plotly_chart(fig_bmap, width="stretch",
                                     config={"displayModeBar": True, "displaylogo": False})
                     st.info("💡 **Basitçe:** Bu harita, yeraltının bir nevi 'Tansiyon (Kan Basıncı) Haritası'dır. Haritadaki **kırmızı ve koyu sarı bölgeler**, kayaların en çok sıkıştığı, b-değerinin düştüğü ve büyük bir kırılma (deprem) ihtimalinin en yüksek olduğu stres noktalarını (Asperite) işaret eder. Açık mavi bölgeler ise enerjisini boşaltmış rahat bölgelerdir.")
 
@@ -5377,7 +5394,7 @@ if active_menu == "⚙️ Sistem & Veri":
     with st.expander(f"📋 Tum Depremler — {len(df)} Kayit"):
         show = df[["zaman_str","buyukluk","sinif","derinlik","uzaklik_km","konum","kaynak"]].copy()
         show.columns = ["Zaman","Buyukluk","Sinif","Derinlik (km)","Uzaklik (km)","Konum","Kaynak"]
-        st.dataframe(show, use_container_width=True, hide_index=True,
+        st.dataframe(show, width="stretch", hide_index=True,
                      column_config={"Buyukluk": st.column_config.NumberColumn(format="M%.1f")})
         st.download_button("Indir (CSV)",
                            data=show.to_csv(index=False).encode("utf-8-sig"),
@@ -5482,10 +5499,10 @@ def _render_astronomik():
 
     col_a1, col_a2 = st.columns([3, 1])
     with col_a1:
-        if st.button("🔭 Astronomik Hesaplamaları Çalıştır", use_container_width=True, type="primary"):
+        if st.button("🔭 Astronomik Hesaplamaları Çalıştır", width="stretch", type="primary"):
             st.session_state.run_astro = True
     with col_a2:
-        if st.button("🛑 Kapat", use_container_width=True, key="close_astro"):
+        if st.button("🛑 Kapat", width="stretch", key="close_astro"):
             st.session_state.run_astro = False
             st.rerun()
 
@@ -5505,7 +5522,7 @@ def _render_astronomik():
         now_obs = ephem.Observer()
         now_obs.lat = str(CENTER_LAT)
         now_obs.lon = str(CENTER_LON)
-        now_obs.date = datetime.utcnow()
+        now_obs.date = utc_now_naive()
 
         moon_now = ephem.Moon(now_obs)
         sun_now = ephem.Sun(now_obs)
@@ -5597,7 +5614,7 @@ def _render_astronomik():
                 fig_phase.add_vrect(x0=90, x1=100, fillcolor="rgba(255,180,80,0.10)", line_width=0,
                                    annotation_text="Spring (Dolunay)", annotation_position="top right",
                                    annotation_font_size=9)
-                st.plotly_chart(fig_phase, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+                st.plotly_chart(fig_phase, width="stretch", config={"displayModeBar": True, "displaylogo": False})
 
                 spring_eq = astro_df[(astro_df["ay_faz"] < 10) | (astro_df["ay_faz"] > 90)]
                 neap_eq = astro_df[(astro_df["ay_faz"] > 40) & (astro_df["ay_faz"] < 60)]
@@ -5644,7 +5661,7 @@ def _render_astronomik():
                 )
                 fig_ts.update_yaxes(title_text="Ay Çekim Proxy", secondary_y=False, gridcolor=GRID, color="#90caf9")
                 fig_ts.update_yaxes(title_text="Magnitude", secondary_y=True, gridcolor=GRID, color="#ff5252")
-                st.plotly_chart(fig_ts, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+                st.plotly_chart(fig_ts, width="stretch", config={"displayModeBar": True, "displaylogo": False})
 
                 # ───────────────────────────────────────────────────────────
                 # BİLEŞEN 4 — FFT Periyodogram (Deprem Sıklığı Frekans Analizi)
@@ -5698,7 +5715,7 @@ def _render_astronomik():
                             fig_fft.add_vline(x=period, line=dict(color=color, dash="dash", width=1),
                                              annotation_text=label, annotation_position="top",
                                              annotation_font=dict(color=color, size=9))
-                    st.plotly_chart(fig_fft, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+                    st.plotly_chart(fig_fft, width="stretch", config={"displayModeBar": True, "displaylogo": False})
                     st.caption("⚠️ Kısa veri pencerelerinde FFT gürültülüdür; 60+ gün verisi olduğunda daha güvenilir tepeler gözlemlenir.")
                 else:
                     st.info("FFT analizi için en az 10 günlük veri gerekli.")
@@ -5739,7 +5756,7 @@ def _render_astronomik():
                 )
                 fig_planet.update_yaxes(title_text="Gezegen Çekim Proxy", secondary_y=False, gridcolor=GRID, color="#ffb74d")
                 fig_planet.update_yaxes(title_text="Magnitude", secondary_y=True, gridcolor=GRID, color="#80deea")
-                st.plotly_chart(fig_planet, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+                st.plotly_chart(fig_planet, width="stretch", config={"displayModeBar": True, "displaylogo": False})
 
                 st.markdown("---")
                 st.info(
@@ -5995,12 +6012,12 @@ def _build_coupling_traces(years: int, vis_scale: float):
     d_lat, d_lon = _plaka_displacement_deg("AR", a_lat, a_lon, years)
     e_lat = a_lat + d_lat * vis_scale
     e_lon = a_lon + d_lon * vis_scale
-    traces.append(go.Scattermapbox(   # glow
+    traces.append(go.Scattermap(   # glow
         lat=[a_lat, e_lat], lon=[a_lon, e_lon],
         mode="lines", line=dict(color="rgba(255,23,68,0.35)", width=12),
         hoverinfo="skip", showlegend=False, name="",
     ))
-    traces.append(go.Scattermapbox(   # gövde
+    traces.append(go.Scattermap(   # gövde
         lat=[a_lat, e_lat], lon=[a_lon, e_lon],
         mode="lines", line=dict(color="#ff1744", width=4),
         name="🔴 Arabistan baskısı (AR→AN)",
@@ -6008,12 +6025,12 @@ def _build_coupling_traces(years: int, vis_scale: float):
                        "Arabistan'ın kuzey baskısı Anadolu'yu batıya iter — "
                        "KAF ve DAF bu kuvvetle aktif kalır.<extra></extra>"),
     ))
-    traces.append(go.Scattermapbox(   # arrowhead surrogate (uç daire)
+    traces.append(go.Scattermap(   # arrowhead surrogate (uç daire)
         lat=[e_lat], lon=[e_lon],
         mode="markers", marker=dict(size=18, color="#ff1744", opacity=0.95),
         hoverinfo="skip", showlegend=False, name="",
     ))
-    traces.append(go.Scattermapbox(   # sabit anchor label (yıl=0'da bile görünür)
+    traces.append(go.Scattermap(   # sabit anchor label (yıl=0'da bile görünür)
         lat=[a_lat], lon=[a_lon],
         mode="markers+text",
         marker=dict(size=8, color="#ff1744", opacity=0.85),
@@ -6026,12 +6043,12 @@ def _build_coupling_traces(years: int, vis_scale: float):
     a_lat, a_lon = _COUPLING_HELLENIC_ANCHOR
     e_lat = a_lat + _HELLENIC_RETREAT_DLAT_YR * years * vis_scale
     e_lon = a_lon + _HELLENIC_RETREAT_DLON_YR * years * vis_scale
-    traces.append(go.Scattermapbox(
+    traces.append(go.Scattermap(
         lat=[a_lat, e_lat], lon=[a_lon, e_lon],
         mode="lines", line=dict(color="rgba(33,150,243,0.35)", width=12),
         hoverinfo="skip", showlegend=False, name="",
     ))
-    traces.append(go.Scattermapbox(
+    traces.append(go.Scattermap(
         lat=[a_lat, e_lat], lon=[a_lon, e_lon],
         mode="lines", line=dict(color="#2196f3", width=4),
         name="🔵 Hellenik geri çekilme",
@@ -6039,12 +6056,12 @@ def _build_coupling_traces(years: int, vis_scale: float):
                        "Afrika dalan plaka geri çekilir; Ege/Anadolu "
                        "batıya yayılır (slab rollback).<extra></extra>"),
     ))
-    traces.append(go.Scattermapbox(
+    traces.append(go.Scattermap(
         lat=[e_lat], lon=[e_lon],
         mode="markers", marker=dict(size=18, color="#2196f3", opacity=0.95),
         hoverinfo="skip", showlegend=False, name="",
     ))
-    traces.append(go.Scattermapbox(
+    traces.append(go.Scattermap(
         lat=[a_lat], lon=[a_lon],
         mode="markers+text",
         marker=dict(size=8, color="#2196f3", opacity=0.85),
@@ -6083,12 +6100,12 @@ def _plaka_build_figure(mode_key: str, focus_lat: float, focus_lon: float,
         base_lats.extend(plate["lats"] + [None])
         base_lons.extend(plate["lons"] + [None])
     # Glow + ana çizgi → 2 trace
-    base_glow = go.Scattermapbox(
+    base_glow = go.Scattermap(
         lat=base_lats, lon=base_lons, mode="lines",
         line=dict(color="rgba(255,255,255,0.18)", width=4.5),
         name="", hoverinfo="skip", showlegend=False,
     )
-    base_line = go.Scattermapbox(
+    base_line = go.Scattermap(
         lat=base_lats, lon=base_lons, mode="lines",
         line=dict(color="rgba(220,225,240,0.55)", width=1.4),
         name="Bugünkü Plaka Sınırları", hoverinfo="skip",
@@ -6154,13 +6171,13 @@ def _plaka_build_figure(mode_key: str, focus_lat: float, focus_lon: float,
                 lats_t.extend([la + bd_lat for la in plate["lats"]] + [None])
                 lons_t.extend([lo + bd_lon for lo in plate["lons"]] + [None])
             # Geniş yarı-saydam glow
-            shifted_traces.append(go.Scattermapbox(
+            shifted_traces.append(go.Scattermap(
                 lat=lats_t, lon=lons_t, mode="lines",
                 line=dict(color=color, width=6),
                 opacity=0.28, hoverinfo="skip", showlegend=False, name="",
             ))
             # Parlak ana hat
-            shifted_traces.append(go.Scattermapbox(
+            shifted_traces.append(go.Scattermap(
                 lat=lats_t, lon=lons_t, mode="lines",
                 line=dict(color=color, width=2.2),
                 opacity=0.95, name={
@@ -6174,12 +6191,12 @@ def _plaka_build_figure(mode_key: str, focus_lat: float, focus_lon: float,
         # Erzincan trail — frame 0..i arası kümülatif yol
         trail_lats = [p[0] for p in trail_positions[:i+1]]
         trail_lons = [p[1] for p in trail_positions[:i+1]]
-        trail_glow = go.Scattermapbox(
+        trail_glow = go.Scattermap(
             lat=trail_lats, lon=trail_lons, mode="lines",
             line=dict(color="rgba(255,64,129,0.30)", width=10),
             hoverinfo="skip", showlegend=False, name="",
         )
-        trail_line = go.Scattermapbox(
+        trail_line = go.Scattermap(
             lat=trail_lats, lon=trail_lons, mode="lines+markers",
             line=dict(color="#ff4081", width=3),
             marker=dict(size=6, color="#ffd1dc", opacity=0.85),
@@ -6200,19 +6217,19 @@ def _plaka_build_figure(mode_key: str, focus_lat: float, focus_lon: float,
             disp_str = f"{real_disp/1000:.0f} km"
 
         # Sabit referans (bugünkü Erzincan)
-        ref_pin = go.Scattermapbox(
+        ref_pin = go.Scattermap(
             lat=[focus_lat], lon=[focus_lon],
             mode="markers", marker=dict(size=9, color="rgba(255,255,255,0.45)"),
             name=f"{city} (bugün)", hoverinfo="skip", showlegend=False,
         )
         # Parlak şu-anki pin (büyük halo + nokta)
-        pin_halo = go.Scattermapbox(
+        pin_halo = go.Scattermap(
             lat=[cur_lat], lon=[cur_lon],
             mode="markers",
             marker=dict(size=28, color="rgba(255,64,129,0.40)"),
             hoverinfo="skip", showlegend=False, name="",
         )
-        pin = go.Scattermapbox(
+        pin = go.Scattermap(
             lat=[cur_lat], lon=[cur_lon],
             mode="markers+text",
             marker=dict(size=15, color="#ff4081"),
@@ -6301,7 +6318,7 @@ def _plaka_build_figure(mode_key: str, focus_lat: float, focus_lon: float,
         data=list(initial),
         frames=frames,
         layout=go.Layout(
-            mapbox=dict(
+            map=dict(
                 style="white-bg",
                 layers=satellite_layers,
                 center=dict(lat=focus_lat, lon=focus_lon),
@@ -6474,7 +6491,7 @@ def _render_plaka_simulasyon():
     fig = _plaka_build_figure(mode_key, focus_lat, focus_lon, city, plate_code,
                               active_idx=active_idx, show_coupling=show_coupling,
                               reference_frame=ref_frame)
-    st.plotly_chart(fig, use_container_width=True,
+    st.plotly_chart(fig, width="stretch",
                     key=f"plaka_sim_{mode_key}_{city}_{years_total}_{plate_code}_{ref_frame}_{int(show_coupling)}")
 
     # Gerçek (görsel ölçekten bağımsız) kümülatif yer değiştirme
@@ -6982,7 +6999,7 @@ if active_menu == "🚨 Erken Uyarı":
             yaxis=dict(visible=False, range=[0, 1.4]),
             showlegend=False,
         )
-        st.plotly_chart(fig_tl, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+        st.plotly_chart(fig_tl, width="stretch", config={"displayModeBar": True, "displaylogo": False})
 
         # ────────────────────────────────────────────────────────────────────
         # Eğitimsel "Ne yapmalı?" kartı
@@ -7356,7 +7373,7 @@ def _render_artci_tahmin():
         margin=dict(t=50, b=50, l=60, r=20),
         showlegend=False,
     )
-    st.plotly_chart(fig_omori, use_container_width=True, key="rj_omori_curve")
+    st.plotly_chart(fig_omori, width="stretch", key="rj_omori_curve")
 
     # ── Büyüklük-olasılık tablosu ──────────────────────────────────────────
     st.markdown(
@@ -7376,7 +7393,7 @@ def _render_artci_tahmin():
             row[wl] = f"%{r['probability'] * 100:.1f}"
         tbl_rows.append(row)
     tbl_df = pd.DataFrame(tbl_rows)
-    st.dataframe(tbl_df, use_container_width=True, hide_index=True)
+    st.dataframe(tbl_df, width="stretch", hide_index=True)
 
     # ── Bilimsel kaynak kutusu ─────────────────────────────────────────────
     st.info(
@@ -7739,7 +7756,7 @@ def _render_erzincan_arsivi():
         margin=dict(t=20, b=40, l=50, r=20),
         showlegend=False,
     )
-    st.plotly_chart(fig_tl, use_container_width=True, key="erz_arsiv_timeline")
+    st.plotly_chart(fig_tl, width="stretch", key="erz_arsiv_timeline")
 
     # ── Bölüm C: Harita — kırık hatları ────────────────────────────────────
     st.markdown('<div class="chart-title">🗺️ Tarihi Kırık Hatları & Konumlar</div>',
@@ -7755,7 +7772,7 @@ def _render_erzincan_arsivi():
     # 1939 — Niksar/Erbaa → Erzincan → Yedisu/Refahiye/Suşehri zinciri (~360 km, KAF boyunca)
     s01 = _kaf_polys.get("S01", {})
     if s01.get("vertex_sayisi", 0) > 0:
-        fig_map.add_trace(go.Scattermapbox(
+        fig_map.add_trace(go.Scattermap(
             lon=s01["lons"], lat=s01["lats"],
             mode="lines",
             line=dict(width=5, color="#ff3333"),
@@ -7786,7 +7803,7 @@ def _render_erzincan_arsivi():
             accumulate_lats.extend(fault["lats"] + [None])
             accumulate_lons.extend(fault["lons"] + [None])
     if accumulate_lats:
-        fig_map.add_trace(go.Scattermapbox(
+        fig_map.add_trace(go.Scattermap(
             lon=accumulate_lons, lat=accumulate_lats,
             mode="lines",
             line=dict(width=4, color="#3399ff"),
@@ -7795,7 +7812,7 @@ def _render_erzincan_arsivi():
                           "(MTA Diri Fay 2013 / AFAD)<extra></extra>",
         ))
     # Depremler — boyut Mw ile orantılı
-    fig_map.add_trace(go.Scattermapbox(
+    fig_map.add_trace(go.Scattermap(
         lon=df_e["lon"], lat=df_e["lat"],
         mode="markers",
         marker=dict(size=df_e["mw"] * 4 + 4,
@@ -7806,7 +7823,7 @@ def _render_erzincan_arsivi():
         name="Tarihi depremler",
     ))
     # Erzincan merkez
-    fig_map.add_trace(go.Scattermapbox(
+    fig_map.add_trace(go.Scattermap(
         lon=[ERZ_LON], lat=[ERZ_LAT],
         mode="markers+text",
         marker=dict(size=14, color="#00ff66"),
@@ -7816,7 +7833,7 @@ def _render_erzincan_arsivi():
     ))
     fig_map.update_layout(
         height=480,
-        mapbox=dict(
+        map=dict(
             style="open-street-map",
             center=dict(lat=39.7, lon=40.6),
             zoom=6.3,
@@ -7826,7 +7843,7 @@ def _render_erzincan_arsivi():
                     font=dict(color="#fff", size=11),
                     x=0.01, y=0.99),
     )
-    st.plotly_chart(fig_map, use_container_width=True, key="erz_arsiv_map")
+    st.plotly_chart(fig_map, width="stretch", key="erz_arsiv_map")
     st.caption(
         "🛰️ **Not (v1.44.1):** Kırık çizgileri artık **MTA Diri Fay Haritası 2013 (AFAD resmi)** "
         "verisinden çekiliyor (`turkey_faults.geojson`). 1939 (~360 km) için Erzincan + Yedisu + "
@@ -8114,7 +8131,7 @@ def _add_gem_fault_overlay(fig, max_traces: int = 250,
     """
     Plotly figure'a GEM aktif fay çizgilerini overlay olarak ekle.
 
-    v1.60 — PERFORMANS OPTİMİZASYONU: Daha önce her fay için ayrı `go.Scattermapbox`
+    v1.60 — PERFORMANS OPTİMİZASYONU: Daha önce her fay için ayrı `go.Scattermap`
     trace ekleniyordu (250 trace). Plotly bunu ağır işliyordu → Sismik Açık /
     Coulomb panellerinde donma. Artık tüm faylar **tek bir trace** içinde
     `None` separator ile birleştirilir (Plotly idiomu). 10-50× hızlanma.
@@ -8134,7 +8151,7 @@ def _add_gem_fault_overlay(fig, max_traces: int = 250,
         merged_lats.append(None)
         merged_lons.extend(t["lons"])
         merged_lons.append(None)
-    fig.add_trace(go.Scattermapbox(
+    fig.add_trace(go.Scattermap(
         lat=merged_lats, lon=merged_lons,
         mode="lines",
         line=dict(color=color, width=width),
@@ -8224,7 +8241,7 @@ _KAF_RISK_ETIKET   = {"yuksek": "Yüksek", "orta": "Orta", "dusuk": "Düşük"}
 
 
 # ── GEM Aktif Fay Harita Helper — v1.43 ────────────────────────────────────
-# GEM Global Active Faults geojson features → Plotly go.Scattermapbox trace listesi.
+# GEM Global Active Faults geojson features → Plotly go.Scattermap trace listesi.
 # Kaynak: GEM Science Tools (CC BY 4.0); Styron & Pagani 2020 Earthq. Spectra 36.
 
 @st.cache_data(ttl=86400, show_spinner=False)
@@ -8237,7 +8254,7 @@ def _cached_gem_faults_turkey():
 
 def gem_fault_traces(faults, color="red", width=1.5, name="Aktif Fay (GEM)"):
     """
-    GEM GeoJSON features listesinden go.Scattermapbox trace listesi üretir.
+    GEM GeoJSON features listesinden go.Scattermap trace listesi üretir.
     Kaynak: Styron & Pagani 2020, Earthq. Spectra DOI:10.1177/8755293020944182 (CC BY 4.0)
     """
     traces = []
@@ -8259,7 +8276,7 @@ def gem_fault_traces(faults, color="red", width=1.5, name="Aktif Fay (GEM)"):
             lats = [c[1] for c in seg if c and len(c) >= 2]
             if len(lats) < 2:
                 continue
-            traces.append(go.Scattermapbox(
+            traces.append(go.Scattermap(
                 lon=lons, lat=lats, mode="lines",
                 line=dict(color=color, width=width),
                 name=fault_name,
@@ -8305,7 +8322,7 @@ def _render_sismik_acik():
 
     YIL_SIMDI = 2026
 
-    # ── HARİTA: Plotly Scattermapbox lines + etiketler ─────────────────────
+    # ── HARİTA: Plotly Scattermap lines + etiketler ─────────────────────
     # v1.41.1 — Her S0X segment için MTA Diri Fay (AFAD) polyline'ı kullanılır
     # (kullanıcı talebi). Kaba hardcoded 2-nokta düz çizgi yerine gerçek 100+
     # vertex multi-polyline geometri. MTA eşleşmesi yoksa hardcoded fallback.
@@ -8343,7 +8360,7 @@ def _render_sismik_acik():
             f"Kaynak: {seg['kaynak']}"
             "<extra></extra>"
         )
-        fig_map.add_trace(go.Scattermapbox(
+        fig_map.add_trace(go.Scattermap(
             lat=lat_render, lon=lon_render,
             mode="lines",
             line=dict(width=kalinlik, color=renk),
@@ -8352,7 +8369,7 @@ def _render_sismik_acik():
             showlegend=False,
         ))
         # Segment ortasına etiket
-        fig_map.add_trace(go.Scattermapbox(
+        fig_map.add_trace(go.Scattermap(
             lat=[mid_lat], lon=[mid_lon],
             mode="markers+text",
             marker=dict(size=9, color=renk),
@@ -8370,7 +8387,7 @@ def _render_sismik_acik():
 
     # Legend için 3 dummy trace (risk seviyeleri)
     for risk_key in ("yuksek", "orta", "dusuk"):
-        fig_map.add_trace(go.Scattermapbox(
+        fig_map.add_trace(go.Scattermap(
             lat=[None], lon=[None],
             mode="lines",
             line=dict(width=_KAF_RISK_KALINLIK[risk_key], color=_KAF_RISK_RENK[risk_key]),
@@ -8449,7 +8466,7 @@ def _render_sismik_acik():
         _h_sizes = [max(8, (mw - 5.5) * 9) for mw in _h_mws]
         # Marker rengi: Mw ≥ 7.5 koyu kırmızı, 7.0-7.5 turuncu, <7.0 sarı
         _h_colors = [_confidence_color(e["confidence"]) for e in _historic_events]
-        fig_map.add_trace(go.Scattermapbox(
+        fig_map.add_trace(go.Scattermap(
             lat=_h_lats, lon=_h_lons, mode="markers",
             marker=dict(size=_h_sizes, color=_h_colors,
                         opacity=0.85),
@@ -8458,7 +8475,7 @@ def _render_sismik_acik():
         ))
 
     fig_map.update_layout(
-        mapbox=dict(style="open-street-map", center=dict(lat=39.5, lon=33.0), zoom=5),
+        map=dict(style="open-street-map", center=dict(lat=39.5, lon=33.0), zoom=5),
         height=520,
         margin=dict(l=0, r=0, t=10, b=0),
         paper_bgcolor=BG2,
@@ -8467,7 +8484,7 @@ def _render_sismik_acik():
             bgcolor="rgba(0,0,0,0)", font=dict(color=TEXT, size=11),
         ),
     )
-    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+    st.plotly_chart(fig_map, width="stretch", config={"displayModeBar": True, "displaylogo": False})
     st.caption(
         "Fay overlay kaynağı: GEM Global Active Faults (CC BY 4.0; Styron & Pagani 2020, "
         "*Earthquake Spectra* [DOI:10.1177/8755293020944182](https://doi.org/10.1177/8755293020944182)) · "
@@ -8540,7 +8557,7 @@ def _render_sismik_acik():
         plot_bgcolor=BG2,
         bargap=0.35,
     )
-    st.plotly_chart(fig_gantt, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+    st.plotly_chart(fig_gantt, width="stretch", config={"displayModeBar": True, "displaylogo": False})
 
     # ── ÖZET TABLO ─────────────────────────────────────────────────────────
     st.markdown('<div class="chart-title">📋 Segment Özeti</div>', unsafe_allow_html=True)
@@ -8557,7 +8574,7 @@ def _render_sismik_acik():
         }
         for seg in KAF_SEGMENTLER
     ])
-    st.dataframe(df_tablo, use_container_width=True, hide_index=True)
+    st.dataframe(df_tablo, width="stretch", hide_index=True)
 
     # ── KAYNAK ─────────────────────────────────────────────────────────────
     st.caption(
@@ -8819,7 +8836,7 @@ def _shakemap_fetch_usgs_events(min_magnitude: float = 5.0, limit: int = 15):
                 continue
             ts = props.get("time")
             try:
-                tarih = datetime.utcfromtimestamp(ts / 1000).strftime("%Y-%m-%d %H:%M")
+                tarih = _utc_from_ts(ts / 1000).strftime("%Y-%m-%d %H:%M")
             except Exception:
                 tarih = "—"
             events.append({
@@ -8896,7 +8913,7 @@ def _render_shakemap():
         clat, clon = _shakemap_circle_coords(eq_lat, eq_lon, rad)
         renk = _SHAKEMAP_MMI_RENK[mmi_lvl]
         etiket = _SHAKEMAP_MMI_ETIKET[mmi_lvl]
-        fig_map.add_trace(go.Scattermapbox(
+        fig_map.add_trace(go.Scattermap(
             lat=clat, lon=clon,
             mode="lines",
             fill="toself",
@@ -8913,7 +8930,7 @@ def _render_shakemap():
         ))
 
     # Merkez üssü yıldızı
-    fig_map.add_trace(go.Scattermapbox(
+    fig_map.add_trace(go.Scattermap(
         lat=[eq_lat], lon=[eq_lon],
         mode="markers+text",
         marker=dict(size=18, color="#FFD700", symbol="star"),
@@ -8942,7 +8959,7 @@ def _render_shakemap():
         zoom = 8
 
     fig_map.update_layout(
-        mapbox=dict(
+        map=dict(
             style="open-street-map",
             center=dict(lat=eq_lat, lon=eq_lon),
             zoom=zoom,
@@ -8958,7 +8975,7 @@ def _render_shakemap():
             bordercolor=BORDER, borderwidth=1,
         ),
     )
-    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+    st.plotly_chart(fig_map, width="stretch", config={"displayModeBar": True, "displaylogo": False})
 
     # ── Bölüm C: Bilgi kartları (4 kolon) ──────────────────────────────────
     mmi_merkez = _shakemap_mmi_from_pga(400 if mw >= 7 else (92 if mw >= 6 else 9.2))
@@ -8990,7 +9007,7 @@ def _render_shakemap():
         {"MMI": "VIII",   "Sarsıntı": "Şiddetli",             "Beklenen Hasar": "Orta – Ağır", "PGA (g)": "0.1 – 0.3"},
         {"MMI": "IX+",    "Sarsıntı": "Yıkıcı",               "Beklenen Hasar": "Ağır – Çok ağır", "PGA (g)": "> 0.3"},
     ])
-    st.dataframe(df_mmi, use_container_width=True, hide_index=True)
+    st.dataframe(df_mmi, width="stretch", hide_index=True)
     st.caption("Kaynak: Wald et al. (1999), Earthquake Spectra 15(3), 557-564")
 
     # ── Bölüm E: Kaynaklar ve uyarı ────────────────────────────────────────
@@ -9332,7 +9349,7 @@ def _render_sismik_tehlike():
     df_psha["zone_label"] = df_psha["zone"].apply(_psha_zone_label)
 
     fig_map = go.Figure()
-    fig_map.add_trace(go.Scattermapbox(
+    fig_map.add_trace(go.Scattermap(
         lat=df_psha["lat"],
         lon=df_psha["lon"],
         mode="markers",
@@ -9373,12 +9390,12 @@ def _render_sismik_tehlike():
     ))
 
     fig_map.update_layout(
-        mapbox=dict(style="open-street-map", center=dict(lat=39.0, lon=35.0), zoom=5),
+        map=dict(style="open-street-map", center=dict(lat=39.0, lon=35.0), zoom=5),
         height=540,
         margin=dict(l=0, r=0, t=10, b=0),
         paper_bgcolor=BG2,
     )
-    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+    st.plotly_chart(fig_map, width="stretch", config={"displayModeBar": True, "displaylogo": False})
 
     # ── Bölüm C: 4 bilgi kartı ─────────────────────────────────────────────
     pga_max = df_psha["pga_rp"].max()
@@ -9409,14 +9426,14 @@ def _render_sismik_tehlike():
         {"Zone": "Zone-3", "Tanım": "Orta tehlike",       "PGA (475 yıl)": "0.20 – 0.30 g", "Renk": "🟡", "İl sayısı": int((df_psha["zone"] == 3).sum())},
         {"Zone": "Zone-4", "Tanım": "Düşük tehlike",      "PGA (475 yıl)": "< 0.20 g",      "Renk": "🟢", "İl sayısı": int((df_psha["zone"] == 4).sum())},
     ])
-    st.dataframe(df_zone_summary, use_container_width=True, hide_index=True)
+    st.dataframe(df_zone_summary, width="stretch", hide_index=True)
 
     # ── Bölüm E: İl bazlı tablo ────────────────────────────────────────────
     st.markdown('<div class="chart-title">🏙️ İl Bazlı PGA Değerleri</div>', unsafe_allow_html=True)
     df_view = df_psha[["city", "pga_rp", "zone_label", "note"]].copy()
     df_view.columns = ["İl", f"PGA ({rp_label}) g", "TBDY-2018 Zonu", "Tektonik Bağlam"]
     df_view = df_view.sort_values(f"PGA ({rp_label}) g", ascending=False).reset_index(drop=True)
-    st.dataframe(df_view, use_container_width=True, hide_index=True, height=320)
+    st.dataframe(df_view, width="stretch", hide_index=True, height=320)
 
     # ── Bölüm F: Kaynaklar ve uyarı ────────────────────────────────────────
     st.info(
@@ -9697,7 +9714,7 @@ def _render_odak_mekanizma():
             f"Kaynak: {ev['kaynak']}"
             "<extra></extra>"
         )
-        fig_map.add_trace(go.Scattermapbox(
+        fig_map.add_trace(go.Scattermap(
             lat=[ev["lat"]], lon=[ev["lon"]],
             mode="markers",
             marker=dict(size=size, color=renk, opacity=0.85),
@@ -9708,7 +9725,7 @@ def _render_odak_mekanizma():
 
     # Legend için 4 dummy trace
     for tip_key in ("ss-r", "ss-l", "normal", "ters"):
-        fig_map.add_trace(go.Scattermapbox(
+        fig_map.add_trace(go.Scattermap(
             lat=[None], lon=[None],
             mode="markers",
             marker=dict(size=12, color=_GCMT_TIP_RENK[tip_key]),
@@ -9716,7 +9733,7 @@ def _render_odak_mekanizma():
         ))
 
     fig_map.update_layout(
-        mapbox=dict(style="open-street-map", center=dict(lat=39.0, lon=35.0), zoom=5),
+        map=dict(style="open-street-map", center=dict(lat=39.0, lon=35.0), zoom=5),
         height=500,
         margin=dict(l=0, r=0, t=10, b=0),
         paper_bgcolor=BG2,
@@ -9725,7 +9742,7 @@ def _render_odak_mekanizma():
             bgcolor="rgba(0,0,0,0)", font=dict(color=TEXT, size=11),
         ),
     )
-    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+    st.plotly_chart(fig_map, width="stretch", config={"displayModeBar": True, "displaylogo": False})
 
     # ── Beach ball seçici ──────────────────────────────────────────────────
     st.markdown('<div class="chart-title">🎯 Olay Detayı — Beach Ball Diyagramı</div>', unsafe_allow_html=True)
@@ -9790,7 +9807,7 @@ def _render_odak_mekanizma():
             legend=dict(font=dict(color=TEXT, size=10)),
             title=dict(text=f"Beach Ball — {ev['yer']}", font=dict(color=TEXT, size=13)),
         )
-        st.plotly_chart(fig_bb, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+        st.plotly_chart(fig_bb, width="stretch", config={"displayModeBar": True, "displaylogo": False})
         st.caption("Siyah = sıkışma kadranı (P ekseni), beyaz = genişleme kadranı (T ekseni). Altın çizgi = fay strike yönü.")
 
     with col_info:
@@ -9819,7 +9836,7 @@ def _render_odak_mekanizma():
          "Fay Tipi": _GCMT_TIP_ETIKET[ev["tip"]]}
         for ev in _GCMT_EVENTS
     ])
-    st.dataframe(df_gcmt, use_container_width=True, hide_index=True)
+    st.dataframe(df_gcmt, width="stretch", hide_index=True)
 
     # ── Kaynak ────────────────────────────────────────────────────────────
     st.caption(
@@ -10212,7 +10229,7 @@ def _render_b_value_time_series():
         paper_bgcolor=BG2, plot_bgcolor=BG2,
         legend=dict(font=dict(color=TEXT, size=10), bgcolor="rgba(0,0,0,0.3)"),
     )
-    st.plotly_chart(fig_b, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+    st.plotly_chart(fig_b, width="stretch", config={"displayModeBar": True, "displaylogo": False})
 
     # v1.59 — Mini okuma rehberi (ACADEMIC_STANDARD §4.8)
     st.markdown(
@@ -10253,7 +10270,7 @@ def _render_b_value_time_series():
         paper_bgcolor=BG2, plot_bgcolor=BG2,
         showlegend=False,
     )
-    st.plotly_chart(fig_mc, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+    st.plotly_chart(fig_mc, width="stretch", config={"displayModeBar": True, "displaylogo": False})
 
     # ── Bilgi kartları ─────────────────────────────────────────────────────
     b_current = b_vals[-1] if b_vals else None
@@ -10287,7 +10304,7 @@ def _render_b_value_time_series():
         {"b aralığı": "1.1 < b ≤ 1.5", "Yorum": "Yüksek b — küçükler baskın", "Tektonik bağlam": "Volkanik bölgeler, jeotermal alanlar, ısı akısı yüksek"},
         {"b aralığı": "b > 1.5",       "Yorum": "Çok yüksek — anomali",  "Tektonik bağlam": "Ölçüm yanlısı (Mc hatası) veya nadir tektonik rejim"},
     ])
-    st.dataframe(df_interp, use_container_width=True, hide_index=True)
+    st.dataframe(df_interp, width="stretch", hide_index=True)
 
     st.caption(
         "📚 **Gutenberg & Richter (1944)** *BSSA* 34 (klasik bağıntı) | "
@@ -10434,12 +10451,12 @@ def _render_coulomb_stress():
         s["kaynak_lat"], s["kaynak_lon"], s["kaynak_mw"], s["kaynak_strike"]
     )
 
-    # ── Harita: CFS densitymapbox ─────────────────────────────────────────
+    # ── Harita: CFS densitymap ─────────────────────────────────────────
     z_max = float(np.max(np.abs(cfs)))
     fig_map = go.Figure()
     # v1.43 — GEM aktif fay overlay (CFS lobları hangi gerçek faylarla örtüşüyor görünür)
     _add_gem_fault_overlay(fig_map, color="#444444", width=0.8, opacity=0.4)
-    fig_map.add_trace(go.Densitymapbox(
+    fig_map.add_trace(go.Densitymap(
         lat=LAT.flatten(),
         lon=LON.flatten(),
         z=cfs.flatten(),
@@ -10470,14 +10487,14 @@ def _render_coulomb_stress():
     f_lon1 = s["kaynak_lon"] - half_len_deg * math.sin(s_rad) / math.cos(math.radians(s["kaynak_lat"]))
     f_lat2 = s["kaynak_lat"] + half_len_deg * math.cos(s_rad)
     f_lon2 = s["kaynak_lon"] + half_len_deg * math.sin(s_rad) / math.cos(math.radians(s["kaynak_lat"]))
-    fig_map.add_trace(go.Scattermapbox(
+    fig_map.add_trace(go.Scattermap(
         lat=[f_lat1, f_lat2], lon=[f_lon1, f_lon2],
         mode="lines",
         line=dict(width=5, color="#FFD700"),
         name=f"Kaynak fay (Mw {s['kaynak_mw']:.1f}, {s['kirik_uzunluk_km']} km)",
         hoverinfo="name",
     ))
-    fig_map.add_trace(go.Scattermapbox(
+    fig_map.add_trace(go.Scattermap(
         lat=[s["kaynak_lat"]], lon=[s["kaynak_lon"]],
         mode="markers+text",
         marker=dict(size=14, color="#FFD700", symbol="star"),
@@ -10489,7 +10506,7 @@ def _render_coulomb_stress():
     ))
 
     # Hedef segment
-    fig_map.add_trace(go.Scattermapbox(
+    fig_map.add_trace(go.Scattermap(
         lat=[s["lab_hedef_lat"]], lon=[s["lab_hedef_lon"]],
         mode="markers+text",
         marker=dict(size=18, color="#E24B4A", symbol="circle"),
@@ -10505,7 +10522,7 @@ def _render_coulomb_stress():
     # sebep oluyordu). Attribution chart altında caption ile veriliyor.
 
     fig_map.update_layout(
-        mapbox=dict(
+        map=dict(
             style="open-street-map",
             center=dict(lat=s["kaynak_lat"], lon=s["kaynak_lon"]),
             zoom=6,
@@ -10518,7 +10535,7 @@ def _render_coulomb_stress():
             bgcolor="rgba(0,0,0,0)", font=dict(color=TEXT, size=11),
         ),
     )
-    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+    st.plotly_chart(fig_map, width="stretch", config={"displayModeBar": True, "displaylogo": False})
     st.caption(
         "Fay overlay: GEM Global Active Faults (CC BY 4.0; Styron & Pagani 2020). "
         "Coulomb modeli: King-Stein-Lin 1994 BSSA · Okada 1992."
@@ -10563,7 +10580,7 @@ def _render_coulomb_stress():
         {"ΔCFS aralığı": "−0.1 ≤ ΔCFS ≤ +0.1",  "Yorum": "İhmal edilebilir",          "Örnek": "Uzak alan"},
         {"ΔCFS aralığı": "ΔCFS < −0.1 bar",     "Yorum": "Stres gölgeleme (gecikme)", "Örnek": "Komşu segmentlerin geçici dinginleşmesi"},
     ])
-    st.dataframe(df_cfs, use_container_width=True, hide_index=True)
+    st.dataframe(df_cfs, width="stretch", hide_index=True)
 
     st.caption(
         f"📚 **Senaryo referansı:** {s['ref']} | "
@@ -10882,7 +10899,7 @@ def _render_insar():
     )
 
     fig = go.Figure()
-    fig.add_trace(go.Densitymapbox(
+    fig.add_trace(go.Densitymap(
         lat=LAT.flatten(),
         lon=LON.flatten(),
         z=los.flatten(),
@@ -10914,14 +10931,14 @@ def _render_insar():
     f_lon1 = o["lon"] - half_l_deg * math.sin(s_rad) / cos_lat
     f_lat2 = o["lat"] + half_l_deg * math.cos(s_rad)
     f_lon2 = o["lon"] + half_l_deg * math.sin(s_rad) / cos_lat
-    fig.add_trace(go.Scattermapbox(
+    fig.add_trace(go.Scattermap(
         lat=[f_lat1, f_lat2], lon=[f_lon1, f_lon2],
         mode="lines",
         line=dict(width=5, color="#FFD700"),
         name=f"Yüzey kırığı ({o['rupture_km']} km)",
         hoverinfo="name",
     ))
-    fig.add_trace(go.Scattermapbox(
+    fig.add_trace(go.Scattermap(
         lat=[o["lat"]], lon=[o["lon"]],
         mode="markers+text",
         marker=dict(size=14, color="#FFD700", symbol="star"),
@@ -10933,7 +10950,7 @@ def _render_insar():
     ))
 
     fig.update_layout(
-        mapbox=dict(
+        map=dict(
             style="open-street-map",
             center=dict(lat=o["lat"], lon=o["lon"]),
             zoom=7,
@@ -10946,7 +10963,7 @@ def _render_insar():
             bgcolor="rgba(0,0,0,0)", font=dict(color=TEXT, size=11),
         ),
     )
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+    st.plotly_chart(fig, width="stretch", config={"displayModeBar": True, "displaylogo": False})
 
     # ── Bilgi kartları ─────────────────────────────────────────────────────
     fringe_count = int(o["max_los_m"] / 0.028)  # Sentinel-1 C-band yarı dalgaboyu ~2.8 cm
@@ -10986,7 +11003,7 @@ def _render_insar():
         {"Renk": "⚪ Beyaz",  "LOS": "0", "Yorum": "Deformasyon yok veya çok küçük"},
         {"Renk": "🟢 Fringe", "Renk değişimi": "1 tam fringe", "Yorum": "Yarım dalgaboyu yer değiştirme (~2.8 cm, C-bant)"},
     ])
-    st.dataframe(df_insar, use_container_width=True, hide_index=True)
+    st.dataframe(df_insar, width="stretch", hide_index=True)
 
     st.caption(
         f"📚 **Senaryo:** {o['kaynak']} | "
@@ -11278,14 +11295,14 @@ def _render_tarihsel_sismisite():
         return
 
     # ── Harita ─────────────────────────────────────────────────────────────
-    # v1.61 PERF — Önceki sürümde her olay için ayrı Scattermapbox trace ekleniyordu;
+    # v1.61 PERF — Önceki sürümde her olay için ayrı Scattermap trace ekleniyordu;
     # 100+ tarihsel olay → 100+ trace → harita yavaş render ediliyordu. Şimdi tek
     # trace + array marker (Plotly idiomu).
     fig_map = go.Figure()
     _sizes = [max(4.0, 8.0 + (mw - 6.5) * 5.0) for mw in df_filt["mw"].tolist()]
     _colors = [_confidence_color(c) for c in df_filt["confidence"].tolist()]
     _hovers = [_historical_hover(ev.to_dict()) for _, ev in df_filt.iterrows()]
-    fig_map.add_trace(go.Scattermapbox(
+    fig_map.add_trace(go.Scattermap(
         lat=df_filt["lat"].tolist(),
         lon=df_filt["lon"].tolist(),
         mode="markers",
@@ -11298,12 +11315,12 @@ def _render_tarihsel_sismisite():
     ))
 
     fig_map.update_layout(
-        mapbox=dict(style="open-street-map", center=dict(lat=39.0, lon=33.0), zoom=4.7),
+        map=dict(style="open-street-map", center=dict(lat=39.0, lon=33.0), zoom=4.7),
         height=540,
         margin=dict(l=0, r=0, t=10, b=0),
         paper_bgcolor=BG2,
     )
-    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+    st.plotly_chart(fig_map, width="stretch", config={"displayModeBar": True, "displaylogo": False})
 
     # ── Zaman çizelgesi (scatter) ──────────────────────────────────────────
     st.markdown('<div class="chart-title">⏳ Zaman Çizelgesi (yıl × Mw)</div>', unsafe_allow_html=True)
@@ -11339,7 +11356,7 @@ def _render_tarihsel_sismisite():
         margin=dict(l=10, r=10, t=10, b=40),
         paper_bgcolor=BG2, plot_bgcolor=BG2,
     )
-    st.plotly_chart(fig_time, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+    st.plotly_chart(fig_time, width="stretch", config={"displayModeBar": True, "displaylogo": False})
 
     # ── Bilgi kartları ─────────────────────────────────────────────────────
     biggest = df_filt.loc[df_filt["mw"].idxmax()]
@@ -11367,7 +11384,7 @@ def _render_tarihsel_sismisite():
     df_show = df_filt[["yil", "year_uncertainty", "yer", "mw", "mw_uncertainty", "confidence_label", "kaynak"]].copy()
     df_show.columns = ["Yıl (MS)", "±Yıl", "Yer", "Mw (tahmin)", "±Mw", "Güven", "Tarihsel kaynak"]
     df_show = df_show.sort_values("Yıl (MS)").reset_index(drop=True)
-    st.dataframe(df_show, use_container_width=True, hide_index=True, height=380)
+    st.dataframe(df_show, width="stretch", hide_index=True, height=380)
 
     st.caption(
         "📚 **Ana Kaynaklar:** Ambraseys (2009) Cambridge Univ. Press, ISBN 9780521872928 | "
@@ -11737,7 +11754,7 @@ def _render_sismik_dongu():
         paper_bgcolor=BG2, plot_bgcolor=BG2,
         legend=dict(font=dict(color=TEXT, size=10), bgcolor="rgba(0,0,0,0.3)"),
     )
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+    st.plotly_chart(fig, width="stretch", config={"displayModeBar": True, "displaylogo": False})
 
     # ── Bilgi kartları ─────────────────────────────────────────────────────
     c1, c2, c3, c4 = st.columns(4)
@@ -11764,7 +11781,7 @@ def _render_sismik_dongu():
                        "Kayma Açığı (m)", "% Maks",
                        "P30 yıl %", "P50 yıl %", "P100 yıl %", "Kaynak"]
     df_view = df_view.round({"slip_def_m": 2, "slip_pct": 0, "p30": 0, "p50": 0, "p100": 0})
-    st.dataframe(df_view, use_container_width=True, hide_index=True)
+    st.dataframe(df_view, width="stretch", hide_index=True)
 
     st.caption(
         "📚 **Reid (1910)** Carnegie Inst. (elastik rebound) | "
@@ -11998,7 +12015,7 @@ def _render_dinamik_tetikleme():
         if r_km > 9000:
             continue
         clat, clon = _shakemap_circle_coords(o["lat"], o["lon"], r_km, n=60)
-        fig.add_trace(go.Scattermapbox(
+        fig.add_trace(go.Scattermap(
             lat=clat, lon=clon,
             mode="lines",
             line=dict(width=1.8, color=renk),
@@ -12008,7 +12025,7 @@ def _render_dinamik_tetikleme():
         ))
 
     # Episentr
-    fig.add_trace(go.Scattermapbox(
+    fig.add_trace(go.Scattermap(
         lat=[o["lat"]], lon=[o["lon"]],
         mode="markers+text",
         marker=dict(size=18, color="#FFD700", symbol="star"),
@@ -12026,7 +12043,7 @@ def _render_dinamik_tetikleme():
         pass
 
     fig.update_layout(
-        mapbox=dict(style="open-street-map", center=dict(lat=o["lat"], lon=o["lon"]), zoom=2),
+        map=dict(style="open-street-map", center=dict(lat=o["lat"], lon=o["lon"]), zoom=2),
         height=520,
         margin=dict(l=0, r=0, t=10, b=0),
         paper_bgcolor=BG2,
@@ -12036,7 +12053,7 @@ def _render_dinamik_tetikleme():
             bordercolor=BORDER, borderwidth=1,
         ),
     )
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+    st.plotly_chart(fig, width="stretch", config={"displayModeBar": True, "displaylogo": False})
 
     # ── Bilgi kartları ─────────────────────────────────────────────────────
     n_gozlem = len(o["gozlem_yerleri"])
@@ -12066,7 +12083,7 @@ def _render_dinamik_tetikleme():
          "Kanıt": g["kanit"]}
         for g in o["gozlem_yerleri"]
     ])
-    st.dataframe(df_gozlem, use_container_width=True, hide_index=True)
+    st.dataframe(df_gozlem, width="stretch", hide_index=True)
 
     # ── Statik vs Dinamik tablosu ─────────────────────────────────────────
     st.markdown('<div class="chart-title">📊 Statik (F-47) vs Dinamik Tetikleme</div>', unsafe_allow_html=True)
@@ -12077,7 +12094,7 @@ def _render_dinamik_tetikleme():
         {"Özellik": "Mekanizma",           "Statik CFS (F-47)": "Okada 1992",        "Dinamik (F-52)": "Pore-pressure, rate-state friction"},
         {"Özellik": "Tipik gözlem",        "Statik CFS (F-47)": "Komşu fay artçısı", "Dinamik (F-52)": "Volkan/jeotermal mikrodeprem"},
     ])
-    st.dataframe(df_compare, use_container_width=True, hide_index=True)
+    st.dataframe(df_compare, width="stretch", hide_index=True)
 
     st.caption(
         f"📚 **Senaryo:** {o['kaynak']} | "
@@ -12315,7 +12332,7 @@ def _render_insar_zaman_serisi():
         paper_bgcolor=BG2, plot_bgcolor=BG2,
         legend=dict(font=dict(color=TEXT, size=10), bgcolor="rgba(0,0,0,0.3)"),
     )
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+    st.plotly_chart(fig, width="stretch", config={"displayModeBar": True, "displaylogo": False})
 
     post_pct = 100.0 * o["postseismic_total_m"] / o["coseismic_los_m"]
     c1, c2, c3, c4 = st.columns(4)
@@ -12355,7 +12372,7 @@ def _render_insar_zaman_serisi():
          "Hedef": "Tek piksel", "Hassasiyet": "5-10 mm",
          "Referans": "Wright et al. 2001 GRL"},
     ])
-    st.dataframe(df_methods, use_container_width=True, hide_index=True)
+    st.dataframe(df_methods, width="stretch", hide_index=True)
 
     st.caption(
         f"📚 **Senaryo:** {o['ref']} | "
@@ -12618,7 +12635,7 @@ def _render_fay_kilitlenme():
             f"Kaynak: {seg['ref']}"
             "<extra></extra>"
         )
-        fig_map.add_trace(go.Scattermapbox(
+        fig_map.add_trace(go.Scattermap(
             lat=[seg["lat1"], seg["lat2"]], lon=[seg["lon1"], seg["lon2"]],
             mode="lines",
             line=dict(width=kalinlik, color=seg["renk"]),
@@ -12628,7 +12645,7 @@ def _render_fay_kilitlenme():
         ))
         mid_lat = (seg["lat1"] + seg["lat2"]) / 2
         mid_lon = (seg["lon1"] + seg["lon2"]) / 2
-        fig_map.add_trace(go.Scattermapbox(
+        fig_map.add_trace(go.Scattermap(
             lat=[mid_lat], lon=[mid_lon],
             mode="markers+text",
             marker=dict(size=8, color=seg["renk"]),
@@ -12641,7 +12658,7 @@ def _render_fay_kilitlenme():
 
     # Legend dummy traces
     for phi_ref in (0.95, 0.75, 0.55, 0.35, 0.15):
-        fig_map.add_trace(go.Scattermapbox(
+        fig_map.add_trace(go.Scattermap(
             lat=[None], lon=[None],
             mode="lines",
             line=dict(width=2 + phi_ref * 8, color=_kilitlenme_renk(phi_ref)),
@@ -12649,7 +12666,7 @@ def _render_fay_kilitlenme():
         ))
 
     fig_map.update_layout(
-        mapbox=dict(style="open-street-map", center=dict(lat=39.5, lon=33.0), zoom=5),
+        map=dict(style="open-street-map", center=dict(lat=39.5, lon=33.0), zoom=5),
         height=520,
         margin=dict(l=0, r=0, t=10, b=0),
         paper_bgcolor=BG2,
@@ -12659,7 +12676,7 @@ def _render_fay_kilitlenme():
             bordercolor=BORDER, borderwidth=1,
         ),
     )
-    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+    st.plotly_chart(fig_map, width="stretch", config={"displayModeBar": True, "displaylogo": False})
 
     # ── Kilitlenme barchart ────────────────────────────────────────────────
     st.markdown('<div class="chart-title">📊 Segment Kilitlenme Karşılaştırması</div>',
@@ -12686,7 +12703,7 @@ def _render_fay_kilitlenme():
         paper_bgcolor=BG2, plot_bgcolor=BG2,
         showlegend=False,
     )
-    st.plotly_chart(fig_bar, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+    st.plotly_chart(fig_bar, width="stretch", config={"displayModeBar": True, "displaylogo": False})
 
     # ── Bilgi kartları ─────────────────────────────────────────────────────
     en_kilitli = df_k.loc[df_k["phi"].idxmax()]
@@ -12719,7 +12736,7 @@ def _render_fay_kilitlenme():
                        "Kayma Hızı (mm/yıl)", "Son Deprem (yıl)", "Geçen (yıl)",
                        "Birikmiş Açık (m)", "Kaynak"]
     df_show = df_show.round({"phi": 2, "accumulated_slip_m": 2}).sort_values("φ", ascending=False)
-    st.dataframe(df_show, use_container_width=True, hide_index=True)
+    st.dataframe(df_show, width="stretch", hide_index=True)
 
     st.caption(
         "📚 **Savage & Burford (1973)** *JGR* 78(5), 832-845 (backslip yöntemi) | "
@@ -12959,9 +12976,9 @@ def _render_moho_derinligi():
     df_m = pd.DataFrame(_MOHO_NOKTALAR)
     df_m["renk"] = df_m["moho_km"].apply(_moho_renk)
 
-    # ── Harita: Moho kontur (densitymapbox) ────────────────────────────────
+    # ── Harita: Moho kontur (densitymap) ────────────────────────────────
     fig_map = go.Figure()
-    fig_map.add_trace(go.Densitymapbox(
+    fig_map.add_trace(go.Densitymap(
         lat=df_m["lat"], lon=df_m["lon"], z=df_m["moho_km"],
         radius=70,
         colorscale=[
@@ -12985,7 +13002,7 @@ def _render_moho_derinligi():
     ))
 
     # Şehir noktaları
-    fig_map.add_trace(go.Scattermapbox(
+    fig_map.add_trace(go.Scattermap(
         lat=df_m["lat"], lon=df_m["lon"],
         mode="markers+text",
         marker=dict(size=10, color=df_m["renk"], opacity=0.95,
@@ -13001,12 +13018,12 @@ def _render_moho_derinligi():
     ))
 
     fig_map.update_layout(
-        mapbox=dict(style="open-street-map", center=dict(lat=39.0, lon=35.0), zoom=5),
+        map=dict(style="open-street-map", center=dict(lat=39.0, lon=35.0), zoom=5),
         height=540,
         margin=dict(l=0, r=0, t=10, b=0),
         paper_bgcolor=BG2,
     )
-    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+    st.plotly_chart(fig_map, width="stretch", config={"displayModeBar": True, "displaylogo": False})
 
     # ── W-E kesit profili ─────────────────────────────────────────────────
     st.markdown('<div class="chart-title">📈 W-E Kesit Profili — Boylama Göre Moho</div>',
@@ -13037,7 +13054,7 @@ def _render_moho_derinligi():
         paper_bgcolor=BG2, plot_bgcolor=BG2,
         showlegend=False,
     )
-    st.plotly_chart(fig_we, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+    st.plotly_chart(fig_we, width="stretch", config={"displayModeBar": True, "displaylogo": False})
 
     # ── Bilgi kartları ─────────────────────────────────────────────────────
     en_kalin = df_m.loc[df_m["moho_km"].idxmax()]
@@ -13077,7 +13094,7 @@ def _render_moho_derinligi():
          "Tektonik Rejim": "Kıbrıs yayı (subdüksiyon ön ülkesi)",
          "Yorum": "Geçişsel kabuk"},
     ])
-    st.dataframe(df_interp, use_container_width=True, hide_index=True)
+    st.dataframe(df_interp, width="stretch", hide_index=True)
 
     st.caption(
         "📚 **Mohorovičić (1910)** *Godišnje izvješće* 9 (Moho ilk tanım) | "
@@ -13305,7 +13322,7 @@ def _render_sks_splitting():
     # Fast axis ok'ları (her istasyon için bir line segment)
     for _, st_row in df_s.iterrows():
         lats, lons = _sks_arrow_endpoints(st_row["lat"], st_row["lon"], st_row["fast_az"], st_row["dt"])
-        fig_map.add_trace(go.Scattermapbox(
+        fig_map.add_trace(go.Scattermap(
             lat=lats, lon=lons,
             mode="lines",
             line=dict(width=1.5 + st_row["dt"] * 1.5, color="#FFD700"),
@@ -13320,7 +13337,7 @@ def _render_sks_splitting():
         ))
 
     # İstasyon noktaları (üzerinde)
-    fig_map.add_trace(go.Scattermapbox(
+    fig_map.add_trace(go.Scattermap(
         lat=df_s["lat"], lon=df_s["lon"],
         mode="markers",
         marker=dict(size=8, color="#E24B4A", opacity=0.95),
@@ -13336,14 +13353,14 @@ def _render_sks_splitting():
     ))
 
     fig_map.update_layout(
-        mapbox=dict(style="open-street-map", center=dict(lat=39.0, lon=35.0), zoom=5),
+        map=dict(style="open-street-map", center=dict(lat=39.0, lon=35.0), zoom=5),
         height=540,
         margin=dict(l=0, r=0, t=10, b=0),
         paper_bgcolor=BG2,
         legend=dict(orientation="h", yanchor="bottom", y=1.0, xanchor="left", x=0.0,
                     bgcolor="rgba(0,0,0,0)", font=dict(color=TEXT, size=11)),
     )
-    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+    st.plotly_chart(fig_map, width="stretch", config={"displayModeBar": True, "displaylogo": False})
 
     # ── Rose diagram (azimut dağılımı) ─────────────────────────────────────
     st.markdown('<div class="chart-title">🧭 Fast-Axis Azimuth Dağılımı (Rose Diyagram)</div>',
@@ -13384,7 +13401,7 @@ def _render_sks_splitting():
         showlegend=False,
         title=dict(text="Fast Axis Frekansı (KD=45°, KB=135°)", font=dict(color=TEXT, size=12)),
     )
-    st.plotly_chart(fig_rose, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+    st.plotly_chart(fig_rose, width="stretch", config={"displayModeBar": True, "displaylogo": False})
 
     # ── Bilgi kartları ─────────────────────────────────────────────────────
     c1, c2, c3, c4 = st.columns(4)
@@ -13422,7 +13439,7 @@ def _render_sks_splitting():
          "Fast Axis": "~45-65° (Kıbrıs yayı)",
          "Yorum": "Kıbrıs yayı subdüksiyon mantle wedge"},
     ])
-    st.dataframe(df_yorum, use_container_width=True, hide_index=True)
+    st.dataframe(df_yorum, width="stretch", hide_index=True)
 
     st.caption(
         "📚 **Silver & Chan (1991)** *JGR* 96(B10), 16429-16454 (SKS yöntem) | "
@@ -13690,7 +13707,7 @@ def _render_tsunami_katalog():
             f"Atıf: {ev['kaynak']}"
             "<extra></extra>"
         )
-        fig_map.add_trace(go.Scattermapbox(
+        fig_map.add_trace(go.Scattermap(
             lat=[ev["lat"]], lon=[ev["lon"]],
             mode="markers",
             marker=dict(size=size, color=ev["renk"], opacity=0.85),
@@ -13699,12 +13716,12 @@ def _render_tsunami_katalog():
         ))
 
     fig_map.update_layout(
-        mapbox=dict(style="open-street-map", center=dict(lat=37.0, lon=25.0), zoom=4.3),
+        map=dict(style="open-street-map", center=dict(lat=37.0, lon=25.0), zoom=4.3),
         height=520,
         margin=dict(l=0, r=0, t=10, b=0),
         paper_bgcolor=BG2,
     )
-    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+    st.plotly_chart(fig_map, width="stretch", config={"displayModeBar": True, "displaylogo": False})
 
     # ── Zaman serisi (runup vs yıl) ────────────────────────────────────────
     st.markdown('<div class="chart-title">⏳ Zaman Çizelgesi (yıl × runup)</div>', unsafe_allow_html=True)
@@ -13729,7 +13746,7 @@ def _render_tsunami_katalog():
         paper_bgcolor=BG2, plot_bgcolor=BG2,
         showlegend=False,
     )
-    st.plotly_chart(fig_t, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+    st.plotly_chart(fig_t, width="stretch", config={"displayModeBar": True, "displaylogo": False})
 
     # ── Bilgi kartları ─────────────────────────────────────────────────────
     biggest = df_filt.loc[df_filt["runup_m"].idxmax()]
@@ -13753,7 +13770,7 @@ def _render_tsunami_katalog():
     df_show = df_filt[["yil", "yer", "runup_m", "kaynak_mw", "kaynak"]].copy()
     df_show.columns = ["Yıl", "Yer", "Runup (m)", "Kaynak Mw", "Bilimsel Kaynak"]
     df_show = df_show.sort_values("Yıl").reset_index(drop=True)
-    st.dataframe(df_show, use_container_width=True, hide_index=True, height=350)
+    st.dataframe(df_show, width="stretch", hide_index=True, height=350)
 
     st.caption(
         "📚 **Papadopoulos et al. (2014)** *Marine Geology* 354, 81-109 — "
@@ -13976,7 +13993,7 @@ def _render_tsunami_varis():
         if r_km > 1500:
             continue
         clat, clon = _shakemap_circle_coords(k["lat"], k["lon"], r_km, n=60)
-        fig.add_trace(go.Scattermapbox(
+        fig.add_trace(go.Scattermap(
             lat=clat, lon=clon,
             mode="lines",
             line=dict(width=1.8, color=renk),
@@ -13985,7 +14002,7 @@ def _render_tsunami_varis():
             hovertemplate=f"{t_dk} dk varış<br>r = {r_km:.0f} km<extra></extra>",
         ))
 
-    fig.add_trace(go.Scattermapbox(
+    fig.add_trace(go.Scattermap(
         lat=[k["lat"]], lon=[k["lon"]],
         mode="markers+text",
         marker=dict(size=18, color="#FFD700", symbol="star"),
@@ -13995,7 +14012,7 @@ def _render_tsunami_varis():
         hoverinfo="text",
         name="Tsunami kaynağı",
     ))
-    fig.add_trace(go.Scattermapbox(
+    fig.add_trace(go.Scattermap(
         lat=df_v["lat"], lon=df_v["lon"],
         mode="markers+text",
         marker=dict(size=10, color="#E24B4A"),
@@ -14013,7 +14030,7 @@ def _render_tsunami_varis():
     ))
 
     fig.update_layout(
-        mapbox=dict(style="open-street-map", center=dict(lat=37.5, lon=28.0), zoom=4.7),
+        map=dict(style="open-street-map", center=dict(lat=37.5, lon=28.0), zoom=4.7),
         height=520,
         margin=dict(l=0, r=0, t=10, b=0),
         paper_bgcolor=BG2,
@@ -14021,7 +14038,7 @@ def _render_tsunami_varis():
                     bgcolor="rgba(0,0,0,0.55)", font=dict(color="#fff", size=10),
                     bordercolor=BORDER, borderwidth=1),
     )
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+    st.plotly_chart(fig, width="stretch", config={"displayModeBar": True, "displaylogo": False})
 
     # ── Bar chart varış süreleri ──────────────────────────────────────────
     st.markdown('<div class="chart-title">📊 Kıyı Hedefleri — Varış Süresi (dk)</div>', unsafe_allow_html=True)
@@ -14047,7 +14064,7 @@ def _render_tsunami_varis():
         paper_bgcolor=BG2, plot_bgcolor=BG2,
         showlegend=False,
     )
-    st.plotly_chart(fig_bar, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+    st.plotly_chart(fig_bar, width="stretch", config={"displayModeBar": True, "displaylogo": False})
 
     en_yakin = df_v.iloc[0]
     en_uzak = df_v.iloc[-1]
@@ -14076,7 +14093,7 @@ def _render_tsunami_varis():
         {"Derinlik (m)": 50,   "Hız (km/h)": round(_shallow_water_speed_kmh(50)),   "Yorum": "Sığ kıyı (yavaşlama → büyüme)"},
         {"Derinlik (m)": 10,   "Hız (km/h)": round(_shallow_water_speed_kmh(10)),   "Yorum": "Kıyı şeridi (max runup)"},
     ])
-    st.dataframe(df_dh, use_container_width=True, hide_index=True)
+    st.dataframe(df_dh, width="stretch", hide_index=True)
 
     st.caption(
         f"📚 **Senaryo:** {k['ref']} | "
@@ -14306,7 +14323,7 @@ def _render_ambraseys_animasyon():
                 renkler.append(f"rgba(150,80,80,{max(0.2, 1.0 - yas/200):.2f})")
                 boyutlar.append(8 + (ev["mw"] - 6.5) * 4)
 
-        frame_data = [go.Scattermapbox(
+        frame_data = [go.Scattermap(
             lat=df_y["lat"],
             lon=df_y["lon"],
             mode="markers+text",
@@ -14324,7 +14341,7 @@ def _render_ambraseys_animasyon():
     # ── İlk frame veri ─────────────────────────────────────────────────────
     df_first = df_a[df_a["yil"] == yillar[0]]
     fig = go.Figure(
-        data=[go.Scattermapbox(
+        data=[go.Scattermap(
             lat=df_first["lat"],
             lon=df_first["lon"],
             mode="markers+text",
@@ -14368,14 +14385,14 @@ def _render_ambraseys_animasyon():
     }]
 
     fig.update_layout(
-        mapbox=dict(style="open-street-map", center=dict(lat=39.5, lon=33.0), zoom=5),
+        map=dict(style="open-street-map", center=dict(lat=39.5, lon=33.0), zoom=5),
         height=560,
         margin=dict(l=0, r=0, t=10, b=60),
         paper_bgcolor=BG2,
         sliders=sliders,
         updatemenus=updatemenus,
     )
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+    st.plotly_chart(fig, width="stretch", config={"displayModeBar": True, "displaylogo": False})
 
     st.markdown("💡 **Slider'ı sürükleyin veya ▶ Oynat butonuna basın** — KAF olayları yıllar içinde batıya kayar.")
 
@@ -14403,7 +14420,7 @@ def _render_ambraseys_animasyon():
     df_show["Güven"] = df_a["confidence_label"]
     df_show = df_show[["yil", "±Yıl", "yer", "mw", "fay", "Güven"]]
     df_show.columns = ["Yıl", "±Yıl", "Yer", "Mw", "Fay Sistemi", "Güven"]
-    st.dataframe(df_show, use_container_width=True, hide_index=True)
+    st.dataframe(df_show, width="stretch", hide_index=True)
 
     st.caption(
         "📚 **Ambraseys (2009)** Cambridge UP, ISBN 9780521872928 (tarihsel katalog) | "
@@ -14640,7 +14657,7 @@ def _render_paleosismik_kazi():
     fig_map = go.Figure()
     for site in _PALEOSEISMIK_KAZILAR:
         n_olay = len(site["olaylar"])
-        fig_map.add_trace(go.Scattermapbox(
+        fig_map.add_trace(go.Scattermap(
             lat=[site["lat"]], lon=[site["lon"]],
             mode="markers+text",
             marker=dict(size=14 + n_olay * 2, color="#A52A85", opacity=0.85),
@@ -14658,12 +14675,12 @@ def _render_paleosismik_kazi():
         ))
 
     fig_map.update_layout(
-        mapbox=dict(style="open-street-map", center=dict(lat=39.5, lon=35.0), zoom=5.5),
+        map=dict(style="open-street-map", center=dict(lat=39.5, lon=35.0), zoom=5.5),
         height=420,
         margin=dict(l=0, r=0, t=10, b=0),
         paper_bgcolor=BG2,
     )
-    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+    st.plotly_chart(fig_map, width="stretch", config={"displayModeBar": True, "displaylogo": False})
 
     # ── Site seçici + slot diyagram ────────────────────────────────────────
     sec = st.selectbox(
@@ -14729,7 +14746,7 @@ def _render_paleosismik_kazi():
         paper_bgcolor=BG2, plot_bgcolor=BG2,
         showlegend=False,
     )
-    st.plotly_chart(fig_slot, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+    st.plotly_chart(fig_slot, width="stretch", config={"displayModeBar": True, "displaylogo": False})
 
     # ── İstatistikler ──────────────────────────────────────────────────────
     n_paleo = sum(1 for ev in site["olaylar"] if ev["tip"] == "paleo")
@@ -14767,7 +14784,7 @@ def _render_paleosismik_kazi():
          "Kaynak": s["ref"]}
         for s in _PALEOSEISMIK_KAZILAR
     ])
-    st.dataframe(df_sites, use_container_width=True, hide_index=True)
+    st.dataframe(df_sites, width="stretch", hide_index=True)
 
     st.caption(
         f"📚 **Site referansı:** {site['ref']} | "
@@ -15041,7 +15058,7 @@ def _render_tsunami_tehlike():
 
     # ── Harita ─────────────────────────────────────────────────────────────
     fig_map = go.Figure()
-    fig_map.add_trace(go.Scattermapbox(
+    fig_map.add_trace(go.Scattermap(
         lat=df_t["lat"], lon=df_t["lon"],
         mode="markers+text",
         marker=dict(
@@ -15079,12 +15096,12 @@ def _render_tsunami_tehlike():
     ))
 
     fig_map.update_layout(
-        mapbox=dict(style="open-street-map", center=dict(lat=38.0, lon=30.0), zoom=5.3),
+        map=dict(style="open-street-map", center=dict(lat=38.0, lon=30.0), zoom=5.3),
         height=520,
         margin=dict(l=0, r=0, t=10, b=0),
         paper_bgcolor=BG2,
     )
-    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+    st.plotly_chart(fig_map, width="stretch", config={"displayModeBar": True, "displaylogo": False})
 
     # ── Bar chart kıyı sıralaması ──────────────────────────────────────────
     st.markdown('<div class="chart-title">📊 Kıyı Bazlı Tsunami Yükseklik Sıralaması</div>',
@@ -15109,7 +15126,7 @@ def _render_tsunami_tehlike():
         paper_bgcolor=BG2, plot_bgcolor=BG2,
         showlegend=False,
     )
-    st.plotly_chart(fig_bar, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+    st.plotly_chart(fig_bar, width="stretch", config={"displayModeBar": True, "displaylogo": False})
 
     # ── Bilgi kartları ─────────────────────────────────────────────────────
     en_yuksek = df_t.loc[df_t["h_rp"].idxmax()]
@@ -15141,7 +15158,7 @@ def _render_tsunami_tehlike():
         {"Zon": "Düşük (<0.5 m)",       "Anlam": "Önemsiz",
          "Kaynak": "Karadeniz ve iç koylar"},
     ])
-    st.dataframe(df_zone, use_container_width=True, hide_index=True)
+    st.dataframe(df_zone, width="stretch", hide_index=True)
 
     st.caption(
         "📚 **Basili et al. (2021)** *Front. Earth Sci.* 8, 616594 — "
@@ -15379,7 +15396,7 @@ def _render_vs30_zemin():
 
     # ── Harita ─────────────────────────────────────────────────────────────
     fig_map = go.Figure()
-    fig_map.add_trace(go.Scattermapbox(
+    fig_map.add_trace(go.Scattermap(
         lat=df_v["lat"], lon=df_v["lon"],
         mode="markers+text",
         marker=dict(size=14, color=df_v["renk"], opacity=0.9,
@@ -15399,7 +15416,7 @@ def _render_vs30_zemin():
 
     # Legend için dummy traces
     for sınıf in ["A", "B", "C", "D", "E"]:
-        fig_map.add_trace(go.Scattermapbox(
+        fig_map.add_trace(go.Scattermap(
             lat=[None], lon=[None],
             mode="markers",
             marker=dict(size=12, color=_vs30_nehrp_color(sınıf)),
@@ -15407,14 +15424,14 @@ def _render_vs30_zemin():
         ))
 
     fig_map.update_layout(
-        mapbox=dict(style="open-street-map", center=dict(lat=39.0, lon=35.0), zoom=5),
+        map=dict(style="open-street-map", center=dict(lat=39.0, lon=35.0), zoom=5),
         height=520,
         margin=dict(l=0, r=0, t=10, b=0),
         paper_bgcolor=BG2,
         legend=dict(orientation="h", yanchor="bottom", y=1.0, xanchor="left", x=0.0,
                     bgcolor="rgba(0,0,0,0)", font=dict(color=TEXT, size=11)),
     )
-    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+    st.plotly_chart(fig_map, width="stretch", config={"displayModeBar": True, "displaylogo": False})
 
     # ── Amplifikasyon hesaplayıcı ──────────────────────────────────────────
     st.markdown('<div class="chart-title">🧮 Zemin Büyütme Hesaplayıcı</div>', unsafe_allow_html=True)
@@ -15464,14 +15481,14 @@ def _render_vs30_zemin():
         {"Sınıf": "E", "Vs30 (m/s)": "< 180",       "Tanım": "Yumuşak zemin (kil)",       "Tipik Büyütme": "2.5× – 4×"},
         {"Sınıf": "F", "Vs30 (m/s)": "Özel",        "Tanım": "Sıvılaşabilir / organik",   "Tipik Büyütme": "Site-spesifik"},
     ])
-    st.dataframe(df_nehrp, use_container_width=True, hide_index=True)
+    st.dataframe(df_nehrp, width="stretch", hide_index=True)
 
     # ── İl tablosu ────────────────────────────────────────────────────────
     st.markdown('<div class="chart-title">🏙️ İl/Konum Detayları</div>', unsafe_allow_html=True)
     df_show = df_v[["city", "vs30", "nehrp"]].copy()
     df_show.columns = ["Konum", "Vs30 (m/s)", "NEHRP"]
     df_show = df_show.sort_values("Vs30 (m/s)").reset_index(drop=True)
-    st.dataframe(df_show, use_container_width=True, hide_index=True, height=320)
+    st.dataframe(df_show, width="stretch", hide_index=True, height=320)
 
     st.caption(
         "📚 **Wald & Allen (2007)** *BSSA* 97(5), 1379-1395 — DOI:10.1785/0120060267 (Vs30 proxy) | "
@@ -15745,7 +15762,7 @@ def _render_hazus_kayip():
         paper_bgcolor=BG2, plot_bgcolor=BG2,
         legend=dict(font=dict(color=TEXT, size=10), bgcolor="rgba(0,0,0,0.3)"),
     )
-    st.plotly_chart(fig_frag, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+    st.plotly_chart(fig_frag, width="stretch", config={"displayModeBar": True, "displaylogo": False})
 
     # ── Bant dağılımı pie ──────────────────────────────────────────────────
     st.markdown('<div class="chart-title">🥧 Hasar Dağılımı (Verilen PGA için)</div>',
@@ -15767,7 +15784,7 @@ def _render_hazus_kayip():
         margin=dict(l=10, r=10, t=10, b=10),
         legend=dict(font=dict(color=TEXT, size=10)),
     )
-    st.plotly_chart(fig_pie, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+    st.plotly_chart(fig_pie, width="stretch", config={"displayModeBar": True, "displaylogo": False})
 
     # ── Can kaybı tahmini ──────────────────────────────────────────────────
     nufus_full = nufus * 1000
@@ -15804,7 +15821,7 @@ def _render_hazus_kayip():
          "Kaynak": params["ref"]}
         for yapi, params in _FRAGILITY.items()
     ])
-    st.dataframe(df_comp, use_container_width=True, hide_index=True)
+    st.dataframe(df_comp, width="stretch", hide_index=True)
 
     st.caption(
         "📚 **FEMA (2003)** *HAZUS-MH Technical Manual* (kayıp tahmini standardı) | "
@@ -16050,7 +16067,7 @@ def _render_erzincan_paleo():
         paper_bgcolor=BG2, plot_bgcolor=BG2,
         showlegend=False,
     )
-    st.plotly_chart(fig_tl, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+    st.plotly_chart(fig_tl, width="stretch", config={"displayModeBar": True, "displaylogo": False})
 
     # ── Olaylar arası süre dağılımı (histogram) ────────────────────────────
     yillar_sorted = sorted([ev["yil"] for ev in _ERZINCAN_PALEO_OLAYLAR])
@@ -16080,7 +16097,7 @@ def _render_erzincan_paleo():
             paper_bgcolor=BG2, plot_bgcolor=BG2,
             showlegend=False,
         )
-        st.plotly_chart(fig_int, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+        st.plotly_chart(fig_int, width="stretch", config={"displayModeBar": True, "displaylogo": False})
 
     with col_h2:
         # Olaylar arası süre listesi
@@ -16090,7 +16107,7 @@ def _render_erzincan_paleo():
             for i in range(len(yillar_sorted) - 1)
         ])
         intervals_df = intervals_df.sort_values("Süre (yıl)", ascending=False).reset_index(drop=True)
-        st.dataframe(intervals_df, use_container_width=True, hide_index=True, height=320)
+        st.dataframe(intervals_df, width="stretch", hide_index=True, height=320)
 
     # ── Bilgi kartları ─────────────────────────────────────────────────────
     elapsed = YIL_SIMDI - 1939
@@ -16116,7 +16133,7 @@ def _render_erzincan_paleo():
                 unsafe_allow_html=True)
     df_show = df_p[["olay", "yil", "belirsizlik", "confidence_label", "kaynak", "siddet"]].copy()
     df_show.columns = ["Olay", "Yıl", "Belirsizlik ±yıl", "Güven", "Tarihlendirme Kaynağı", "Şiddet Güveni"]
-    st.dataframe(df_show, use_container_width=True, hide_index=True)
+    st.dataframe(df_show, width="stretch", hide_index=True)
 
     st.caption(
         "📚 **Kozacı et al. (2007)** *BSSA* 97(5), 1513-1527 — DOI:10.1785/0120060118 "
@@ -16337,7 +16354,7 @@ def _render_erzincan_mikrozon():
     df_h["renk"] = df_h["zon"].apply(_mikrozon_renk)
 
     fig_map = go.Figure()
-    fig_map.add_trace(go.Scattermapbox(
+    fig_map.add_trace(go.Scattermap(
         lat=df_h["lat"], lon=df_h["lon"],
         mode="markers+text",
         marker=dict(
@@ -16373,14 +16390,14 @@ def _render_erzincan_mikrozon():
     ))
 
     fig_map.update_layout(
-        mapbox=dict(style="open-street-map",
+        map=dict(style="open-street-map",
                     center=dict(lat=39.755, lon=39.500),
                     zoom=12.5),
         height=500,
         margin=dict(l=0, r=0, t=10, b=0),
         paper_bgcolor=BG2,
     )
-    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+    st.plotly_chart(fig_map, width="stretch", config={"displayModeBar": True, "displaylogo": False})
 
     st.markdown('<div class="chart-title">🏢 Bina Rezonans Kontrolü</div>', unsafe_allow_html=True)
     col_kat, col_nokta = st.columns(2)
@@ -16436,7 +16453,7 @@ def _render_erzincan_mikrozon():
         paper_bgcolor=BG2, plot_bgcolor=BG2,
         legend=dict(font=dict(color=TEXT, size=10), bgcolor="rgba(0,0,0,0.3)"),
     )
-    st.plotly_chart(fig_spec, use_container_width=True, config={"displayModeBar": True, "displaylogo": False})
+    st.plotly_chart(fig_spec, width="stretch", config={"displayModeBar": True, "displaylogo": False})
 
     rezon_color = "#A32D2D" if in_resonance else ("#EF9F27" if rezonans_riski < 0.30 else "#1D9E75")
     rezon_etiket = "🚨 REZONANS" if in_resonance else ("⚠️ Yakın" if rezonans_riski < 0.30 else "✓ Güvenli")
@@ -16473,13 +16490,13 @@ def _render_erzincan_mikrozon():
                     if abs(math.log10(_bina_dogal_periyot(k) / r["T0"])) < 0.15]) or "—"}
         for k in [2, 3, 4, 5, 6, 8, 10, 12, 15]
     ])
-    st.dataframe(df_bina, use_container_width=True, hide_index=True)
+    st.dataframe(df_bina, width="stretch", hide_index=True)
 
     st.markdown('<div class="chart-title">📋 Erzincan Mikrozon Ölçüm Noktaları</div>',
                 unsafe_allow_html=True)
     df_show = df_h[["id", "yer", "T0", "A0", "zon"]].copy()
     df_show.columns = ["ID", "Konum", "T₀ (sn)", "A₀ (büyütme)", "Risk Zonu"]
-    st.dataframe(df_show, use_container_width=True, hide_index=True)
+    st.dataframe(df_show, width="stretch", hide_index=True)
 
     st.caption(
         "📚 **Nakamura (1989)** *Quarterly Report RTRI* 30(1) (HVSR yöntem) | "
@@ -16791,7 +16808,7 @@ def _kutuphane_konular(TOPICS, ACIKLAMALAR, REFERENCES, PLOTLY_CONFIG):
             if st.button(
                 btn_label,
                 key=f"topic_btn_{topic_key}",
-                use_container_width=True,
+                width="stretch",
             ):
                 st.session_state["aktif_konu"] = topic_key
 
@@ -16843,7 +16860,7 @@ def _kutuphane_konular(TOPICS, ACIKLAMALAR, REFERENCES, PLOTLY_CONFIG):
         fn = anim_map.get(aktif)
         if fn:
             fig = fn()
-            st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG)
+            st.plotly_chart(fig, width="stretch", config=PLOTLY_CONFIG)
             st.caption(
                 "*▶ Oynat / Adım Adım butonuna tıklayın veya "
                 "slider ile aşamalar arasında geçin.*"
@@ -17191,8 +17208,8 @@ def _render_benzer_bolgeler():
     if cat is None:
         st.error("Dünya kataloğu dosyası bulunamadı (data/global_catalog_m45.csv.gz).")
         return
-    y0 = datetime.utcfromtimestamp(int(cat.t.min())).year
-    y1 = datetime.utcfromtimestamp(int(cat.t.max())).strftime("%d.%m.%Y")
+    y0 = _utc_from_ts(int(cat.t.min())).year
+    y1 = _utc_from_ts(int(cat.t.max())).strftime("%d.%m.%Y")
     n_groups = len(_all_linked_groups())
     tab_find, tab_linked = st.tabs(["🔍 Benzer bölgeleri bul", f"📎 Bağlı bölgeler ({n_groups})"])
 
@@ -17269,7 +17286,7 @@ def _render_benzer_bolgeler():
                 fig.update_layout(height=420, margin=dict(t=0, b=0, l=0, r=0),
                                   paper_bgcolor="rgba(0,0,0,0)", font=dict(color=TEXT),
                                   legend=dict(orientation="h", y=-0.02))
-                st.plotly_chart(fig, use_container_width=True, key="sim_world_map")
+                st.plotly_chart(fig, width="stretch", key="sim_world_map")
 
                 # Kutular form içinde: işaretlemek sayfayı yenilemez, yalnız düğme gönderir
                 with st.form("sim_link_form", border=False):
@@ -17281,7 +17298,7 @@ def _render_benzer_bolgeler():
                                               hide_index=True, key=f"sim_ed_p_{q}",
                                               disabled=[k for k in _base_row(by_prof[0]) if k != "Ataçla"]
                                               if by_prof else True,
-                                              use_container_width=True)
+                                              width="stretch")
                     with t_sync:
                         st.caption("Referans bölgedeki depremlerle **±1 gün** içinde, büyüklüğü **±0.3** ve "
                                    "derinliği **±15 km** yakın deprem görülen farklı gün sayısı. Tesadüf "
@@ -17300,7 +17317,7 @@ def _render_benzer_bolgeler():
                             ed_s = st.data_editor(pd.DataFrame(rows)[cols], hide_index=True,
                                                   key=f"sim_ed_s_{q}",
                                                   disabled=[k for k in cols if k != "Ataçla"],
-                                                  use_container_width=True)
+                                                  width="stretch")
                         else:
                             ed_s = None
                             st.caption("En az 2 ortak günü olan bölge bulunamadı.")
@@ -17401,7 +17418,7 @@ def _render_benzer_bolgeler():
                     st.caption("Diğer bölgelerin son 30 günü, kendi uzun dönem ortalamalarıyla "
                                "karşılaştırılıyor. Bu bir durum özetidir; bir bölgedeki deprem "
                                "diğerlerinde deprem olacağı anlamına gelmez.")
-                st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
+                st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
                 if not permanent and st.button("🗑️ Bu grubu kaldır", key=f"link_del_{gi}"):
                     idx = gi - len(_load_linked_groups_file())
                     st.session_state.linked_groups.pop(idx)
